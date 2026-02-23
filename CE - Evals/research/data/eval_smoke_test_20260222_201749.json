@@ -1,0 +1,65 @@
+[
+  {
+    "question_id": "Q2.1",
+    "question_text": "Competitor raised $20M, offering free audits",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "[ERROR] p16_ach failed: Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 190, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 165, in main\n    result = asyncio.run(orchestrator.run(args.question))\n  File \"/Users/scottewalt/.pyenv/versions/3.13.11/lib/python3.13/asyncio/runne",
+        "cost": 0.0,
+        "duration_seconds": 0.6059081554412842,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p16_ach": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p16_ach"
+      ],
+      "judge_reasoning": "Aggregated across 1 judges.",
+      "judge_model": "multi:claude-opus-4-6",
+      "label_to_candidate": {
+        "Response A": "p16_ach"
+      },
+      "judge_input_tokens": 573,
+      "judge_output_tokens": 143,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach"
+        ],
+        "judge_reasoning": "Only one response was provided, and it is a runtime error with no substantive content. It fails on every dimension as it provides no answer, no reasoning, no tension surfacing, no actionable steps, no novel insights, and no coherent output. There are no other responses to compare against.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p16_ach"
+        },
+        "judge_input_tokens": 573,
+        "judge_output_tokens": 143,
+        "judge_cost": 0.0
+      }
+    ]
+  }
+]

@@ -1,0 +1,72 @@
+{
+  "pricing": {
+    "Response 1": "debate",
+    "Response 2": "negotiate",
+    "Response 3": "context",
+    "Response 4": "synthesize",
+    "Response 5": "single"
+  },
+  "plg": {
+    "Response 1": "debate",
+    "Response 2": "synthesize",
+    "Response 3": "negotiate",
+    "Response 4": "context",
+    "Response 5": "single"
+  },
+  "capacity": {
+    "Response 1": "debate",
+    "Response 2": "context",
+    "Response 3": "single",
+    "Response 4": "synthesize",
+    "Response 5": "negotiate"
+  },
+  "competitive": {
+    "Response 1": "single",
+    "Response 2": "negotiate",
+    "Response 3": "context",
+    "Response 4": "debate",
+    "Response 5": "synthesize"
+  },
+  "open_source": {
+    "Response 1": "negotiate",
+    "Response 2": "context",
+    "Response 3": "debate",
+    "Response 4": "synthesize",
+    "Response 5": "single"
+  },
+  "client_concentration": {
+    "Response 1": "context",
+    "Response 2": "negotiate",
+    "Response 3": "single",
+    "Response 4": "debate",
+    "Response 5": "synthesize"
+  },
+  "conference_spend": {
+    "Response 1": "synthesize",
+    "Response 2": "single",
+    "Response 3": "context",
+    "Response 4": "negotiate",
+    "Response 5": "debate"
+  },
+  "delivery_overrun": {
+    "Response 1": "debate",
+    "Response 2": "synthesize",
+    "Response 3": "negotiate",
+    "Response 4": "context",
+    "Response 5": "single"
+  },
+  "enterprise_opp": {
+    "Response 1": "synthesize",
+    "Response 2": "context",
+    "Response 3": "negotiate",
+    "Response 4": "single",
+    "Response 5": "debate"
+  },
+  "margin_vs_speed": {
+    "Response 1": "negotiate",
+    "Response 2": "debate",
+    "Response 3": "context",
+    "Response 4": "synthesize",
+    "Response 5": "single"
+  }
+}

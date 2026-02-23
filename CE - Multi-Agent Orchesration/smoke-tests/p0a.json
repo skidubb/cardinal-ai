@@ -1,0 +1,43 @@
+{
+  "question": "Should Cardinal Element pursue a 2M government contract that requires FedRAMP certification we don't have?",
+  "features": {
+    "complexity": 4,
+    "ambiguity": 4,
+    "risk": 4,
+    "domain": "strategy",
+    "stakeholder_count": "many",
+    "time_horizon": "medium",
+    "needs_evidence": true,
+    "needs_creativity": true,
+    "has_conflict": true
+  },
+  "problem_type": "Prioritization",
+  "problem_type_confidence": 72,
+  "recommended_protocol": "P17",
+  "recommended_name": "Red/Blue/White Team Analysis",
+  "alternatives": [
+    {
+      "protocol": "P16",
+      "name": "Analysis of Competing Hypotheses (ACH)",
+      "reason": "If the decision hinges on validating assumptions about FedRAMP certification timeline/cost; provides systematic evidence evaluation."
+    },
+    {
+      "protocol": "P20",
+      "name": "Borda Count",
+      "reason": "If stakeholder alignment is the primary blocker; useful for aggregating multi-stakeholder preferences on pursue vs. defer vs. reject."
+    },
+    {
+      "protocol": "P21",
+      "name": "Interests-Based Negotiation",
+      "reason": "If internal conflict between departments (sales/engineering/finance) is acute; helps surface underlying interests before deciding."
+    }
+  ],
+  "reasoning": "This decision combines high conflict (stakeholder interests diverge), high ambiguity (FedRAMP feasibility, ROI unclear), and high risk (2M commitment). Red/Blue/White Team simultaneously stress-tests the pursue/defer/reject positions through adversarial reasoning, surfaces hidden assumptions about certification timelines and resource costs, and identifies decision-critical unknowns. The protocol's strength is crystallizing what evidence would actually change the decision, enabling efficient next steps.",
+  "cost_tier": "high",
+  "timings": {
+    "phase1_features": 1.1192400455474854,
+    "phase2_classify": 1.4010071754455566,
+    "phase3_select": 6.10079288482666,
+    "phase4_assemble": 1.1920928955078125e-05
+  }
+}

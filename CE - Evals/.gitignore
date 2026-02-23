@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.env
+.DS_Store
+firebase-debug.log

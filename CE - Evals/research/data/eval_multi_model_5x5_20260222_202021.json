@@ -1,0 +1,1527 @@
+[
+  {
+    "question_id": "Q1.1",
+    "question_text": "PLG tier alongside consulting",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "[ERROR] p16_ach failed: Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 190, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 165, in main\n    result = asyncio.run(orchestrator.run(args.question))\n  File \"/Users/scottewalt/.pyenv/versions/3.13.11/lib/python3.13/asyncio/runne",
+        "cost": 0.0,
+        "duration_seconds": 0.5818278789520264,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 1.1317927837371826,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.23624706268310547,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.22252988815307617,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2846698760986328,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.3333333333333333,
+          "answer_quality": 1.0,
+          "coherence": 1.6666666666666667,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.3333333333333333,
+          "answer_quality": 1.0,
+          "coherence": 1.6666666666666667,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.3333333333333333,
+          "answer_quality": 1.0,
+          "coherence": 1.6666666666666667,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.3333333333333333,
+          "answer_quality": 1.0,
+          "coherence": 1.6666666666666667,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p16_ach",
+        "p04_multi_round_debate",
+        "p20_borda_count",
+        "p03_parallel_synthesis",
+        "p17_red_blue_white"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges. High disagreement: p03_parallel_synthesis/coherence (sd=1.15), p04_multi_round_debate/coherence (sd=1.15), p17_red_blue_white/coherence (sd=1.15), p20_borda_count/coherence (sd=1.15)",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p16_ach",
+        "Response B": "p04_multi_round_debate",
+        "Response C": "p03_parallel_synthesis",
+        "Response D": "p20_borda_count",
+        "Response E": "p17_red_blue_white"
+      },
+      "judge_input_tokens": 2778,
+      "judge_output_tokens": 1458,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis",
+          "p20_borda_count",
+          "p17_red_blue_white"
+        ],
+        "judge_reasoning": "All five responses are execution errors that produced no substantive content addressing the question about PLG tier alongside consulting. None provides any answer quality, reasoning, tension surfacing, actionability, novelty, or coherence. The ranking is arbitrary as all responses are equally non-functional failures.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p20_borda_count",
+          "Response E": "p17_red_blue_white"
+        },
+        "judge_input_tokens": 969,
+        "judge_output_tokens": 369,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 2.0,
+            "novelty": 1.0,
+            "coherence": 3.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 2.0,
+            "novelty": 1.0,
+            "coherence": 3.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 2.0,
+            "novelty": 1.0,
+            "coherence": 3.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 2.0,
+            "novelty": 1.0,
+            "coherence": 3.0
+          }
+        },
+        "ranking": [
+          "p20_borda_count",
+          "p17_red_blue_white",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis",
+          "p16_ach"
+        ],
+        "judge_reasoning": "All responses fail to address the actual question (PLG tier alongside consulting) and instead output execution/CLI errors, so Answer Quality, Reasoning Depth, Tension Surfacing, and Novelty are minimal across the board. D/E/B/C at least provide clear, actionable CLI diagnostics (missing required args or unrecognized flag), making them slightly more actionable and coherent than A, which is a truncated stack trace and less directly fix-oriented. B and C are effectively identical; their ordering is arbitrary.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p20_borda_count",
+          "Response E": "p17_red_blue_white"
+        },
+        "judge_input_tokens": 858,
+        "judge_output_tokens": 751,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis",
+          "p20_borda_count",
+          "p17_red_blue_white"
+        ],
+        "judge_reasoning": "All responses are system error messages resulting from failed script executions. None of them address the prompt or provide any meaningful content.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p20_borda_count",
+          "Response E": "p17_red_blue_white"
+        },
+        "judge_input_tokens": 951,
+        "judge_output_tokens": 338,
+        "judge_cost": 0.0
+      }
+    ]
+  },
+  {
+    "question_id": "Q2.1",
+    "question_text": "Competitor raised $20M, offering free audits",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "[ERROR] p16_ach failed: Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 190, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 165, in main\n    result = asyncio.run(orchestrator.run(args.question))\n  File \"/Users/scottewalt/.pyenv/versions/3.13.11/lib/python3.13/asyncio/runne",
+        "cost": 0.0,
+        "duration_seconds": 0.5899279117584229,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2267470359802246,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2195887565612793,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.22408699989318848,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.3922407627105713,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p20_borda_count",
+        "p03_parallel_synthesis",
+        "p16_ach",
+        "p17_red_blue_white",
+        "p04_multi_round_debate"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges.",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p20_borda_count",
+        "Response B": "p16_ach",
+        "Response C": "p03_parallel_synthesis",
+        "Response D": "p17_red_blue_white",
+        "Response E": "p04_multi_round_debate"
+      },
+      "judge_input_tokens": 2795,
+      "judge_output_tokens": 1410,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p20_borda_count",
+          "p16_ach",
+          "p03_parallel_synthesis",
+          "p17_red_blue_white",
+          "p04_multi_round_debate"
+        ],
+        "judge_reasoning": "All five responses are execution errors that produced no substantive content addressing the question about a competitor raising $20M and offering free audits. None provides any answer quality, reasoning, tension surfacing, actionability, novelty, or coherence. The ranking is arbitrary as all are equally non-functional failures, each scoring the minimum across every dimension.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p16_ach",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 975,
+        "judge_output_tokens": 382,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          }
+        },
+        "ranking": [
+          "p03_parallel_synthesis",
+          "p20_borda_count",
+          "p17_red_blue_white",
+          "p04_multi_round_debate",
+          "p16_ach"
+        ],
+        "judge_reasoning": "All responses are CLI/runtime error outputs and do not address the business question about a competitor raising $20M and offering free audits, so they score 1 on answer quality, reasoning, tension surfacing, actionability, and novelty. Minor differences are only in textual coherence: C/A/D/E present relatively complete and readable usage errors, while B is truncated mid-traceback and is least coherent.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p16_ach",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 863,
+        "judge_output_tokens": 678,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p20_borda_count",
+          "p16_ach",
+          "p03_parallel_synthesis",
+          "p17_red_blue_white",
+          "p04_multi_round_debate"
+        ],
+        "judge_reasoning": "All responses are system error messages indicating that the underlying scripts failed to execute due to missing arguments, unrecognized arguments, or runtime exceptions. None of them address the user's question.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p16_ach",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 957,
+        "judge_output_tokens": 350,
+        "judge_cost": 0.0
+      }
+    ]
+  },
+  {
+    "question_id": "Q3.2",
+    "question_text": "Client concentration \u2014 40% revenue client demands 25% discount",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "[ERROR] p16_ach failed: Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 190, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 165, in main\n    result = asyncio.run(orchestrator.run(args.question))\n  File \"/Users/scottewalt/.pyenv/versions/3.13.11/lib/python3.13/asyncio/runne",
+        "cost": 0.0,
+        "duration_seconds": 0.5954577922821045,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.23757076263427734,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.22317719459533691,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.22432208061218262,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.26802730560302734,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p03_parallel_synthesis",
+        "p16_ach",
+        "p04_multi_round_debate",
+        "p17_red_blue_white",
+        "p20_borda_count"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges.",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p16_ach",
+        "Response B": "p03_parallel_synthesis",
+        "Response C": "p04_multi_round_debate",
+        "Response D": "p17_red_blue_white",
+        "Response E": "p20_borda_count"
+      },
+      "judge_input_tokens": 2804,
+      "judge_output_tokens": 1382,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p17_red_blue_white",
+          "p20_borda_count"
+        ],
+        "judge_reasoning": "All five responses are execution errors that produced no substantive content addressing the client concentration and discount demand question. None provides any answer quality, reasoning, tension surfacing, actionability, novelty, or coherence. The ranking is arbitrary as all responses are equally non-functional failures, each scoring the minimum across all dimensions.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p20_borda_count"
+        },
+        "judge_input_tokens": 977,
+        "judge_output_tokens": 376,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          }
+        },
+        "ranking": [
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p17_red_blue_white",
+          "p20_borda_count",
+          "p16_ach"
+        ],
+        "judge_reasoning": "All responses are execution/CLI errors and do not address the business question (client concentration and a 25% discount request), so they all score 1 on answer quality, reasoning depth, tension surfacing, actionability, and novelty. B/C/D/E are slightly more coherent as complete, interpretable usage errors, while A is a truncated traceback and thus least coherent.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p20_borda_count"
+        },
+        "judge_input_tokens": 866,
+        "judge_output_tokens": 665,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p17_red_blue_white",
+          "p20_borda_count"
+        ],
+        "judge_reasoning": "All responses are system error messages or tracebacks resulting from failed script executions. None of them address the prompt or provide any useful information.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p20_borda_count"
+        },
+        "judge_input_tokens": 961,
+        "judge_output_tokens": 341,
+        "judge_cost": 0.0
+      }
+    ]
+  },
+  {
+    "question_id": "Q4.3",
+    "question_text": "Client satisfaction scores are 4.7/5.0 but renewal rate dropped from 80% to 55% this year. Exit interviews cite 'budget constraints' but our pricing hasn't increased. What's actually going on?",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "[ERROR] p16_ach failed: Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 190, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 165, in main\n    result = asyncio.run(orchestrator.run(args.question))\n  File \"/Users/scottewalt/.pyenv/versions/3.13.11/lib/python3.13/asyncio/runne",
+        "cost": 0.0,
+        "duration_seconds": 0.5784549713134766,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2782857418060303,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2299039363861084,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2225959300994873,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.22495293617248535,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p17_red_blue_white",
+        "p03_parallel_synthesis",
+        "p04_multi_round_debate",
+        "p20_borda_count",
+        "p16_ach"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges.",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p17_red_blue_white",
+        "Response B": "p03_parallel_synthesis",
+        "Response C": "p04_multi_round_debate",
+        "Response D": "p20_borda_count",
+        "Response E": "p16_ach"
+      },
+      "judge_input_tokens": 2907,
+      "judge_output_tokens": 1257,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p17_red_blue_white",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p20_borda_count",
+          "p16_ach"
+        ],
+        "judge_reasoning": "All five responses are execution errors that produced no substantive output whatsoever. None addresses the question about the satisfaction-renewal paradox. They all score the minimum across every dimension. The ranking is arbitrary since they are equally non-functional; no meaningful differentiation exists among them.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p17_red_blue_white",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p20_borda_count",
+          "Response E": "p16_ach"
+        },
+        "judge_input_tokens": 1013,
+        "judge_output_tokens": 368,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p17_red_blue_white",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p20_borda_count",
+          "p16_ach"
+        ],
+        "judge_reasoning": "All responses are runtime/CLI errors and provide no analysis of the renewal drop vs. satisfaction, so they all score the minimum on answer quality, reasoning, tensions, actionability, and novelty. A\u2013D at least present a complete, internally readable error message (slightly higher coherence), while E is a truncated stack trace, making it least coherent.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p17_red_blue_white",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p20_borda_count",
+          "Response E": "p16_ach"
+        },
+        "judge_input_tokens": 897,
+        "judge_output_tokens": 542,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p17_red_blue_white",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p20_borda_count",
+          "p16_ach"
+        ],
+        "judge_reasoning": "All responses are system error messages (tracebacks or argument parsing errors) indicating that the underlying scripts failed to execute. None of them address the user's question.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p17_red_blue_white",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p20_borda_count",
+          "Response E": "p16_ach"
+        },
+        "judge_input_tokens": 997,
+        "judge_output_tokens": 347,
+        "judge_cost": 0.0
+      }
+    ]
+  },
+  {
+    "question_id": "Q7.1",
+    "question_text": "How do we scale without hiring when our value proposition is human expertise applied through AI? Every scaling mechanism (PLG, automation, templates) dilutes the 'bespoke' positioning that commands premium pricing.",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "[ERROR] p16_ach failed: Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 190, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/scottewalt/Documents/CE - Multi-Agent /protocols/p16_ach/run.py\", line 165, in main\n    result = asyncio.run(orchestrator.run(args.question))\n  File \"/Users/scottewalt/.pyenv/versions/3.13.11/lib/python3.13/asyncio/runne",
+        "cost": 0.0,
+        "duration_seconds": 0.566594123840332,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.22881197929382324,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.22286415100097656,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.23246216773986816,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.21736478805541992,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p20_borda_count",
+        "p03_parallel_synthesis",
+        "p17_red_blue_white",
+        "p16_ach",
+        "p04_multi_round_debate"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges.",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p20_borda_count",
+        "Response B": "p03_parallel_synthesis",
+        "Response C": "p16_ach",
+        "Response D": "p17_red_blue_white",
+        "Response E": "p04_multi_round_debate"
+      },
+      "judge_input_tokens": 2887,
+      "judge_output_tokens": 1309,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p20_borda_count",
+          "p03_parallel_synthesis",
+          "p16_ach",
+          "p17_red_blue_white",
+          "p04_multi_round_debate"
+        ],
+        "judge_reasoning": "All five responses are execution errors that produced no substantive content whatsoever. None addresses the question about scaling without hiring while preserving bespoke positioning. They are all equally non-functional, so the ranking is arbitrary\u2014every response scores the minimum across all dimensions.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p16_ach",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 1007,
+        "judge_output_tokens": 366,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          }
+        },
+        "ranking": [
+          "p17_red_blue_white",
+          "p20_borda_count",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p16_ach"
+        ],
+        "judge_reasoning": "All responses are tool/runtime error outputs and do not address the scaling question at all, so they score 1s across answer quality, reasoning, tension surfacing, actionability, and novelty. The only differentiator is coherence: D/A/B/E are complete, readable CLI-usage errors, while C is a truncated stack trace fragment, making it least coherent. D is ranked highest only because it is the cleanest, most self-contained error message.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p16_ach",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 893,
+        "judge_output_tokens": 588,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p20_borda_count",
+          "p03_parallel_synthesis",
+          "p16_ach",
+          "p17_red_blue_white",
+          "p04_multi_round_debate"
+        ],
+        "judge_reasoning": "All responses are system error messages resulting from failed script executions. None of them address the user's prompt or provide any meaningful content.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p03_parallel_synthesis",
+          "Response C": "p16_ach",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 987,
+        "judge_output_tokens": 355,
+        "judge_cost": 0.0
+      }
+    ]
+  }
+]

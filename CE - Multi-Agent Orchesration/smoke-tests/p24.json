@@ -1,0 +1,217 @@
+{
+  "question": "Should Cardinal Element pursue a 2M government contract that requires FedRAMP certification we don't have?",
+  "variables": [
+    {
+      "id": "V1",
+      "name": "FedRAMP Certification Progress",
+      "description": "Percentage completion of the FedRAMP authorization process (0-100%), determining when the company becomes eligible to pursue and win the government contract."
+    },
+    {
+      "id": "V2",
+      "name": "Time-to-Certification",
+      "description": "Estimated number of months required to achieve full FedRAMP authorization, directly determining how long revenue from the $2M contract is delayed."
+    },
+    {
+      "id": "V3",
+      "name": "Certification Spend Rate",
+      "description": "Monthly cash outflow dedicated to FedRAMP certification activities including consultants, tooling, audits, compliance personnel, and process overhead."
+    },
+    {
+      "id": "V4",
+      "name": "Cash Runway",
+      "description": "Number of months the company can sustain operations at current burn rate before requiring additional capital infusion or revenue."
+    },
+    {
+      "id": "V5",
+      "name": "Engineering Capacity Utilization",
+      "description": "Percentage of engineering resources allocated to compliance and certification work versus core product development, affecting product velocity and commercial competitiveness."
+    },
+    {
+      "id": "V6",
+      "name": "Core Product Velocity",
+      "description": "Rate of new feature releases and product improvements delivered to the commercial market per quarter, serving as a proxy for commercial competitiveness and market position."
+    },
+    {
+      "id": "V7",
+      "name": "Contract Win Probability",
+      "description": "Estimated likelihood (0-100%) of successfully winning and retaining the $2M government contract given current certification status, competitive dynamics, and market position."
+    },
+    {
+      "id": "V8",
+      "name": "Government Contract Revenue",
+      "description": "Annual recurring revenue generated from the $2M contract and other federal/state government contracts in dollars."
+    },
+    {
+      "id": "V9",
+      "name": "Government Market Pipeline Value",
+      "description": "Total dollar value of qualified government contract opportunities in active sales pipeline beyond the initial $2M opportunity."
+    },
+    {
+      "id": "V10",
+      "name": "Incremental Customer Acquisition Rate",
+      "description": "Rate at which FedRAMP certification unlocks additional government and regulated-industry customers beyond the initial $2M contract, affecting long-term ROI of certification investment."
+    },
+    {
+      "id": "V11",
+      "name": "Government Revenue Concentration",
+      "description": "Percentage of total company revenue derived from government contracts, affecting financial risk profile, investor perception, and business resilience."
+    },
+    {
+      "id": "V12",
+      "name": "Gross Margin Pressure",
+      "description": "Reduction in gross margin percentage caused by incremental compliance overhead, security infrastructure, and operational costs required to maintain FedRAMP posture."
+    },
+    {
+      "id": "V13",
+      "name": "Opportunity Cost of Capital",
+      "description": "Foregone return or growth from alternative uses of capital allocated to FedRAMP certification, such as product development, commercial sales, or other customer acquisition channels."
+    }
+  ],
+  "causal_links": [
+    {
+      "from": "V3",
+      "to": "V4",
+      "polarity": "-",
+      "reasoning": "Higher monthly certification spend directly burns cash faster, reducing the number of months the company can sustain operations \u2014 a direct drain on runway."
+    },
+    {
+      "from": "V5",
+      "to": "V6",
+      "polarity": "-",
+      "reasoning": "As more engineering capacity is consumed by compliance work, fewer resources are available for core product development, directly slowing feature velocity and commercial competitiveness."
+    },
+    {
+      "from": "V1",
+      "to": "V7",
+      "polarity": "+",
+      "reasoning": "Greater FedRAMP certification progress increases the likelihood of winning and retaining the government contract, since certification status is a prerequisite and competitive differentiator."
+    },
+    {
+      "from": "V7",
+      "to": "V8",
+      "polarity": "+",
+      "reasoning": "A higher probability of winning the contract directly drives realized government contract revenue \u2014 higher win probability converts pipeline to actual dollars."
+    },
+    {
+      "from": "V2",
+      "to": "V8",
+      "polarity": "-",
+      "reasoning": "A longer time-to-certification delays when the company becomes eligible to win and recognize the $2M contract revenue, reducing near-term government revenue and delaying ROI."
+    },
+    {
+      "from": "V8",
+      "to": "V11",
+      "polarity": "+",
+      "reasoning": "As government contract revenue grows, it represents a larger share of total company revenue, directly increasing government revenue concentration and the associated risk profile."
+    },
+    {
+      "from": "V1",
+      "to": "V10",
+      "polarity": "+",
+      "reasoning": "Achieving FedRAMP certification unlocks eligibility for additional government and regulated-industry customers; higher certification progress expands the addressable customer base and accelerates incremental acquisition."
+    },
+    {
+      "from": "V10",
+      "to": "V9",
+      "polarity": "+",
+      "reasoning": "A higher rate of incremental customer acquisition from certification builds a larger qualified pipeline of government opportunities, growing the total government market pipeline value."
+    },
+    {
+      "from": "V3",
+      "to": "V13",
+      "polarity": "+",
+      "reasoning": "Every dollar spent on certification is capital not deployed toward product development, sales, or other growth channels \u2014 higher certification spend rate directly increases the opportunity cost of that capital."
+    },
+    {
+      "from": "V8",
+      "to": "V12",
+      "polarity": "+",
+      "reasoning": "Generating government revenue requires maintaining ongoing FedRAMP compliance posture, adding security infrastructure and operational overhead that compresses gross margins relative to commercial-only revenue."
+    },
+    {
+      "from": "V2",
+      "to": "V4",
+      "polarity": "-",
+      "reasoning": "A longer time-to-certification means more months of certification spend accumulate before any contract revenue arrives, compressing cash runway further."
+    },
+    {
+      "from": "V6",
+      "to": "V7",
+      "polarity": "+",
+      "reasoning": "A slower core product velocity weakens competitive positioning even in the government market, reducing the likelihood of winning the contract on merit beyond certification alone."
+    },
+    {
+      "from": "V11",
+      "to": "V12",
+      "polarity": "+",
+      "reasoning": "Higher government revenue concentration means a greater proportion of revenue carries the compliance overhead and security infrastructure costs required to maintain FedRAMP posture, increasing gross margin pressure across the blended P&L."
+    }
+  ],
+  "reinforcing_loops": [],
+  "balancing_loops": [],
+  "leverage_points": {
+    "leverage_points": [
+      {
+        "target_variable": "V2",
+        "intervention": "Decrease Time-to-Certification by front-loading investment in experienced FedRAMP consultants, pre-built compliance frameworks (e.g., GovReady, Compliance.ai), and a dedicated authorization project manager to compress the certification timeline from a typical 12-18 months toward 6-9 months.",
+        "affected_loops": [
+          "V2-->V8 (delayed revenue path)",
+          "V2-->V4 (cash runway compression path)",
+          "V3-->V4 (spend accumulation path)"
+        ],
+        "expected_effect": "Shortening Time-to-Certification is the highest-leverage single intervention because it simultaneously attacks two major drain paths on the system. A compressed timeline reduces the total months of certification spend that accumulate before revenue arrives (V2->V4), accelerating the point at which V8 begins to offset V3. It also pulls forward V1 progression, sooner triggering V1->V7->V8 revenue conversion and V1->V10->V9 pipeline expansion. The net effect is a significantly improved cash position at the moment of contract eligibility, reducing the existential risk that V4 reaches zero before V8 materializes.",
+        "risk": "Accelerating certification through heavier upfront investment paradoxically spikes V3 in the near term, creating a short-duration but intense cash runway compression. If V4 is already critically low (under 9 months), this intervention could bring forward an insolvency event rather than prevent it. It also risks cutting corners on documentation quality, potentially triggering a failed audit that resets V1 and extends V2 beyond the original baseline."
+      },
+      {
+        "target_variable": "V5",
+        "intervention": "Decrease Engineering Capacity Utilization on compliance work by ring-fencing a dedicated compliance engineering pod (hired or contracted separately) rather than drawing from the core product engineering team, structurally breaking the V5->V6 degradation link.",
+        "affected_loops": [
+          "V5-->V6 (product velocity degradation path)",
+          "V6-->V7 (competitive win probability path)"
+        ],
+        "expected_effect": "By decoupling compliance work from core product engineering, V6 (Core Product Velocity) is protected, which sustains V7 (Contract Win Probability) through competitive merit, not just certification status. This prevents the insidious vicious dynamic where pursuing the government contract simultaneously erodes the product quality that would win it. Maintained V6 also preserves commercial market competitiveness, protecting the commercial revenue base that underpins V4 (Cash Runway) independent of whether the government contract is won. This intervention effectively adds a structural firewall between the certification cost center and the product growth engine.",
+        "risk": "Hiring a dedicated compliance pod increases V3 (Certification Spend Rate), which accelerates the V3->V4 drain and V3->V13 opportunity cost accumulation. This intervention trades one form of capacity cost for a direct cash cost. If the compliance pod is staffed with less experienced personnel to save cost, V2 may lengthen rather than shorten, negating the benefit. There is also an organizational risk: a siloed compliance team may produce security architecture that is incompatible with the core product, creating expensive integration debt post-certification."
+      },
+      {
+        "target_variable": "V3",
+        "intervention": "Decrease Certification Spend Rate by phasing certification investment in tranches tied to explicit go/no-go decision gates \u2014 specifically, conditioning the next tranche of spend on (a) written confirmation from the government customer that they will sole-source or strongly preference Cardinal Element, and (b) a validated cash runway floor of no less than 6 months being maintained throughout the process.",
+        "affected_loops": [
+          "V3-->V4 (cash runway drain path)",
+          "V3-->V13 (opportunity cost accumulation path)"
+        ],
+        "expected_effect": "Implementing spend gates converts what is otherwise an open-ended cash commitment into a staged, reversible investment. This directly protects V4 from catastrophic depletion by creating natural pause points where the company can reassess V7 (win probability) before committing the next tranche. It also structurally limits V13 (opportunity cost) to only what has been validated as necessary, preserving optionality to redeploy capital to commercial channels if government pipeline signals weaken. The phased approach transforms the binary pursue/don't-pursue decision into a dynamic, information-sensitive process.",
+        "risk": "Staged spend may extend V2 (Time-to-Certification) if tranches are too small or gates introduce decision latency, which feeds back negatively into V4 through prolonged spend duration and delayed V8 revenue. A competitor pursuing FedRAMP aggressively and without gates could achieve certification faster, preempting Cardinal Element's position in V9 (Government Market Pipeline). Additionally, some FedRAMP consultants and auditors require continuous engagement commitments; pausing spend mid-process may incur restart penalties or lose queue position with the authorizing agency."
+      },
+      {
+        "target_variable": "V11",
+        "intervention": "Add a structural constraint on Government Revenue Concentration by establishing an explicit policy ceiling (e.g., no more than 35% of total revenue from government contracts) and pairing government contract pursuit with an equal-weighted commercial growth investment, ensuring V8 growth is offset by commercial revenue growth to keep V11 bounded.",
+        "affected_loops": [
+          "V11-->V12 (margin pressure amplification path)",
+          "V8-->V11 (concentration growth path)"
+        ],
+        "expected_effect": "Bounding V11 prevents the compounding margin degradation dynamic where government revenue growth automatically increases V12 (Gross Margin Pressure) across the blended P&L. By requiring commercial revenue to grow proportionally, the intervention ensures that FedRAMP compliance overhead is diluted across a larger, healthier revenue base rather than concentrated. This improves investor perception, reduces customer concentration risk, and protects the company's ability to raise capital \u2014 which is the ultimate backstop for V4 (Cash Runway). The policy ceiling also creates an internal forcing function to maintain V6 (Core Product Velocity) and commercial go-to-market investment.",
+        "risk": "A hard concentration ceiling could artificially cap government contract pursuit at exactly the moment when V9 (Government Market Pipeline) is generating high-value expansion opportunities unlocked by V10 (Incremental Customer Acquisition Rate). This may cause the company to walk away from accretive government revenue for portfolio optics rather than economic logic. There is also an execution risk: growing commercial revenue fast enough to keep V11 below threshold while simultaneously absorbing V3 certification costs may require a level of parallel investment that exceeds V4's capacity, creating a multi-front capital allocation crisis."
+      },
+      {
+        "target_variable": "V13",
+        "intervention": "Make the Opportunity Cost of Capital explicit and formally quantified by building a parallel counterfactual model \u2014 what would the same capital deployed into commercial sales, product development, or alternative customer segments return over the same 18-month horizon \u2014 and use this as a live decision variable reviewed monthly by leadership, not a one-time analysis.",
+        "affected_loops": [
+          "V3-->V13 (opportunity cost accumulation path)",
+          "V13 as systemic governor on V3 decisions"
+        ],
+        "expected_effect": "V13 currently exists as a passive, unmonitored drag on the system. Elevating it to an active decision variable creates a feedback loop that does not currently exist in the system: a balancing mechanism that automatically generates pressure to reduce V3 or accelerate V2 whenever the opportunity cost of certification capital exceeds the risk-adjusted expected value of V8. This transforms the system from an open-loop commitment (spend until certified) into a closed-loop optimization (spend only while ROI remains positive). It also creates organizational accountability and shared language for the trade-off between government and commercial strategy.",
+        "risk": "Quantifying opportunity cost can produce analysis paralysis, particularly in a leadership team that is divided between commercial and government market advocates. Monthly re-analysis may introduce strategic whiplash if the counterfactual model is sensitive to short-term market noise, causing the company to start and stop certification in a way that wastes the sunk costs already accumulated and damages vendor and agency relationships. The model's assumptions (particularly around V6's impact on commercial revenue growth) are difficult to validate, making the opportunity cost estimate itself a source of political rather than analytical debate."
+      }
+    ],
+    "system_summary": "The Cardinal Element FedRAMP decision system is structurally dominated by unidirectional drain and delay dynamics with no compensating reinforcing or balancing feedback loops present to self-correct. The core tension is a multi-vector cash runway threat: V3 (Certification Spend) burns V4 (Cash Runway) directly, V2 (Time-to-Certification) extends the duration of that burn before V8 (Government Revenue) can offset it, and V5 (Engineering Utilization) simultaneously degrades V6 (Product Velocity) which weakens V7 (Win Probability) \u2014 meaning the act of pursuing certification also reduces the probability of winning the contract being pursued. Downstream, the system contains a compounding margin risk chain: V8 growth drives V11 (Revenue Concentration) which amplifies V12 (Gross Margin Pressure), creating a scenario where winning the contract is financially pyrrhic if commercial revenue does not grow in parallel. The only value-creating pathways in the system \u2014 V1->V10->V9 (certification unlocking pipeline expansion) and V1->V7->V8 (certification enabling revenue conversion) \u2014 are both gated entirely on V1 (FedRAMP Progress) and dependent on surviving the V3/V4/V2 gauntlet long enough to reach certification. The absence of any detected feedback loops means the system has no natural self-regulation: it will not self-correct if cash depletes, if product velocity degrades too far, or if win probability declines. Every dynamic in this system runs in one direction until an external intervention or capital injection resets it.",
+    "dominant_dynamic": "balancing",
+    "recommendation": "Cardinal Element should pursue the $2M government contract conditionally, not categorically. The strategic logic is sound \u2014 FedRAMP certification creates durable competitive moats through V10 pipeline expansion and V9 pipeline value that extend well beyond the initial contract \u2014 but the current system architecture makes an unconditional pursuit existentially dangerous. The recommended path is a three-part intervention stack: First, immediately compress V2 by hiring specialized FedRAMP counsel and a dedicated compliance program manager to target a sub-9-month authorization timeline, which is the single highest-leverage variable in the system because it limits total V3 accumulation and accelerates the V8 revenue onset. Second, protect V6 by structurally ring-fencing a compliance pod separate from the core product engineering team, preventing the certification effort from cannibalizing the commercial competitiveness the company needs to sustain V4 during the certification period and to win on merit beyond checkbox compliance. Third, establish explicit spend gates tied to a minimum V4 floor of six months runway and to confirmed buyer intent from the government customer \u2014 converting the open-ended commitment into a staged, reversible process that preserves optionality if conditions deteriorate. Cardinal Element should not pursue this contract if current V4 is below 12 months without a near-term capital raise already in process, if the government customer cannot provide written confirmation of strong purchase intent, or if V5 reallocation cannot be avoided without a dedicated compliance pod. Under those conditions, the probability of cash depletion before certification is achieved is too high to justify the commitment, and capital would generate superior risk-adjusted returns deployed toward commercial growth channels."
+  },
+  "timings": {
+    "phase1_extract_variables": 8.742555856704712,
+    "phase2_deduplicate": 4.146649122238159,
+    "phase3_identify_links": 11.656221866607666,
+    "phase4_merge_trace": 0.00021982192993164062,
+    "phase5_leverage_analysis": 64.50907397270203
+  }
+}

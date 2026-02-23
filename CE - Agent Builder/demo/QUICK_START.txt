@@ -1,0 +1,106 @@
+================================================================================
+CARDINAL ELEMENT STREAMLIT DEMO — QUICK START
+================================================================================
+
+CHAIRMAN QUICK START (5 minutes)
+
+1. GET API KEY
+   Copy your ANTHROPIC_API_KEY from console.anthropic.com
+
+2. RUN LOCALLY (test)
+   cd demo
+   pip install -r requirements.txt
+   export ANTHROPIC_API_KEY="sk-..."  (or add to .env)
+   streamlit run app.py
+
+   Search for "AAPL" in the browser, ask CFO a question.
+   Verify it works. (Takes ~20 seconds total.)
+
+3. DEPLOY (live at a URL)
+   a) Push code to GitHub:
+      git add demo/
+      git commit -m "Add Streamlit demo"
+      git push
+
+   b) Go to https://share.streamlit.io
+      - Click "New app"
+      - Select your repo
+      - Set main file: demo/app.py
+      - Click Deploy
+
+   c) When deployed, click "Manage secrets"
+      Add: ANTHROPIC_API_KEY = "sk-..."
+
+   d) Wait 2 minutes, visit your live URL.
+
+4. USE IN DISCOVERY CALLS (starting Feb 17)
+   Share the live URL with prospects.
+   "Here's our AI analyzing your company..."
+
+================================================================================
+URLS
+
+Local Demo:      http://localhost:8501
+Deployed Demo:   https://[your-username].streamlit.app
+
+================================================================================
+TESTING CHECKLIST (1 minute)
+
+Before using with a prospect, verify:
+
+[ ] Search for AAPL → see company info
+[ ] See financial metrics (revenue, net income)
+[ ] See ICP fit score with green/orange/red indicator
+[ ] Select CFO, ask "What are the key risks?"
+[ ] Get a 5-10 sentence response in <15 seconds
+[ ] No error messages
+
+If all pass, you're good to go.
+
+================================================================================
+TROUBLESHOOTING
+
+Problem: "Company not found"
+→ Try ticker instead of name (MSFT not Microsoft)
+
+Problem: "ANTHROPIC_API_KEY not found"
+→ Add it to .env file, or set environment variable
+
+Problem: Streamlit deployment fails
+→ Check that requirements.txt exists, try again in 5 min
+
+Problem: Agent response is slow
+→ Normal, takes 5-15 seconds. Check internet connection.
+
+================================================================================
+IMPORTANT DATES
+
+Feb 10:  Demo built (TODAY)
+Feb 13:  Test locally on your machine
+Feb 14:  Deploy to Streamlit Cloud
+Feb 15:  HARD DEADLINE (must be live)
+Feb 17:  Use in first discovery call
+
+================================================================================
+FILE STRUCTURE
+
+demo/
+├── app.py                  ← The actual app (don't modify)
+├── requirements.txt        ← Dependencies
+├── .streamlit/config.toml  ← Theme config
+├── .env.example            ← Copy to .env, add your key
+├── README.md               ← Full documentation
+├── DEPLOYMENT.md           ← Detailed deployment guide
+├── TESTING.md              ← Testing checklist
+└── QUICK_START.txt         ← This file
+
+No changes needed to src/csuite/ code. Demo is standalone.
+
+================================================================================
+QUESTIONS?
+
+See DEPLOYMENT.md for detailed step-by-step guide.
+See README.md for full documentation.
+See TESTING.md before going live with prospects.
+
+================================================================================

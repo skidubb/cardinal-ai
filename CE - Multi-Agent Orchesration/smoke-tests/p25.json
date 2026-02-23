@@ -1,0 +1,88 @@
+{
+  "question": "Should Cardinal Element pursue a 2M government contract that requires FedRAMP certification we don't have?",
+  "observed_dynamics": [
+    {
+      "id": "D1",
+      "pattern": "Capability-Readiness Gap",
+      "description": "Cardinal Element lacks FedRAMP certification required for the contract. This gap widens over time if ignored as competitors invest in certification and build compounding advantages. Gap remediation is more expensive and disruptive if pursued mid-contract than proactively. The driver is asymmetry between market opportunity speed and compliance infrastructure development pace."
+    },
+    {
+      "id": "D2",
+      "pattern": "Investment-Revenue Timing Misalignment",
+      "description": "FedRAMP certification requires significant upfront investment in people, processes, and audits before any revenue is realized, creating a cash flow valley that destabilizes near-term operations. If under financial pressure, leadership oscillates between advancing and pulling back the initiative, resulting in stuck patterns of incomplete compliance. The driver is mismatch between investment timing and payoff timing."
+    },
+    {
+      "id": "D3",
+      "pattern": "Single Contract Anchoring Bias",
+      "description": "Using one $2M contract as primary justification for FedRAMP investment creates dangerous dependency. If the contract is lost or delayed, sunk compliance costs remain unrealized. This escalates commitment bias where teams rationalize continued spending to justify prior investment. The driver is psychological and financial anchoring to a specific visible contract rather than portfolio-level strategy."
+    },
+    {
+      "id": "D4",
+      "pattern": "Execution Bandwidth Dilution",
+      "description": "Simultaneously running core business operations and complex compliance certification risks diluting leadership and engineering attention, slowing both efforts and degrading quality. Teams surge on compliance (core business suffers) then redirect focus back to revenue (compliance stalls). The driver is finite organizational capacity colliding with two high-stakes parallel demands."
+    },
+    {
+      "id": "D5",
+      "pattern": "Strategic Decision Paralysis",
+      "description": "Without a clear framework for government market entry, leadership repeatedly revisits the pursue-or-decline decision as contract timelines, cost estimates, and competitive moves shift. This oscillating indecision consumes strategic bandwidth and delays action in both directions. The driver is absence of a defined threshold for government market commitment independent of any single contract."
+    },
+    {
+      "id": "D6",
+      "pattern": "Certification Timeline Risk Spiral",
+      "description": "FedRAMP authorization is notoriously long (12-18+ months), risking contract performance deadlines the organization cannot meet. Delays trigger penalties, reputational damage, and potential contract termination, creating a cascading failure loop that accelerates in severity the later the gap is discovered. The driver is mismatch between certification timelines and contractual obligations."
+    },
+    {
+      "id": "D7",
+      "pattern": "Hidden Economics and Margin Compression",
+      "description": "The $2M contract headline obscures true net economics once FedRAMP certification costs, timeline delays, dedicated personnel, infrastructure upgrades, and potential penalties are factored in. Margins can compress or turn negative, particularly if certification timelines slip. The driver is incomplete cost modeling at the pursuit stage."
+    },
+    {
+      "id": "D8",
+      "pattern": "Compliance as Durable Competitive Moat",
+      "description": "FedRAMP certification, once achieved, creates high barriers to entry that filter out competitors unwilling to absorb certification costs. Organizations pursuing it early accumulate government contracts in a reinforcing loop\u2014more contracts fund more compliance capability, attracting further contracts. The driver is high fixed cost of certification creating a self-selecting competitive landscape over time."
+    },
+    {
+      "id": "D9",
+      "pattern": "Reputational Signaling and Pipeline Value",
+      "description": "Actively pursuing FedRAMP signals to government buyers and larger primes that Cardinal Element is a serious, forward-leaning vendor, building relationships and pipeline well beyond the initial contract. This compounds over time as trust and visibility in the federal ecosystem grow. The driver is reputational capital that compliance intent generates in a market where security posture is a primary selection criterion."
+    },
+    {
+      "id": "D10",
+      "pattern": "Government Client Trust Binary",
+      "description": "Successfully executing a federal contract builds durable competitive moat and opens a pipeline of future federal business (positive reinforcing loop). However, failed or poorly executed engagement produces lasting reputational damage that closes future government opportunities for years. The driver is binary nature of government client trust\u2014earned slowly, lost quickly."
+    },
+    {
+      "id": "D11",
+      "pattern": "Perpetual Compliance Cost Structure",
+      "description": "FedRAMP certification costs are not a one-time expense. Compliance obligations escalate through continuous monitoring, annual assessments, and evolving NIST control requirements. Initial certification is an entry fee; ongoing compliance creates permanent cost structure that must be absorbed across future government revenue. The driver is design of federal security frameworks for perpetual maintenance, not one-time achievement."
+    },
+    {
+      "id": "D12",
+      "pattern": "Premature Scaling and Organizational Stress",
+      "description": "Winning a contract requiring capabilities the company does not yet have forces rapid, unplanned scaling of security, compliance, and delivery functions simultaneously. This typically results in hiring mistakes, process shortcuts, and cultural stress that degrades overall company performance beyond just the government contract. The driver is misalignment between growth ambition and organizational maturity."
+    },
+    {
+      "id": "D13",
+      "pattern": "Opportunity Cost Lock-In",
+      "description": "Pursuing this contract consumes engineering, security, legal, and leadership bandwidth that could be allocated to higher-margin or more executable opportunities. Over time, the organization becomes resource-constrained, degrading existing customer service quality and stalling pipeline development. The driver is finite organizational capacity with non-trivial, non-deferrable compliance workload."
+    }
+  ],
+  "archetype_scores": {
+    "Fixes That Fail": 72.0,
+    "Shifting the Burden": 65.0,
+    "Limits to Growth": 79.5,
+    "Eroding Goals": 74.0,
+    "Escalation": 28.0,
+    "Success to the Successful": 74.0,
+    "Tragedy of the Commons": 33.0,
+    "Growth and Underinvestment": 85.0
+  },
+  "best_matches": [],
+  "interventions": [],
+  "timings": {
+    "phase1_observe": 20.444586038589478,
+    "phase2_merge": 9.943603038787842,
+    "phase3_match": 22.246301889419556,
+    "phase4_synthesize": 100.33708310127258
+  }
+}

@@ -1,0 +1,5 @@
+anthropic>=0.79.0
+
+# Only needed for scripts/ingest_papers.py:
+PyMuPDF>=1.25.0
+pinecone>=5.0.0

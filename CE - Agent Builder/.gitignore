@@ -1,0 +1,17 @@
+venv/
+.env
+*.pyc
+__pycache__/
+firebase-debug.log
+~$*
+.DS_Store
+.ruff_cache/
+/memory/
+data/
+sessions/
+cost_data/
+logs/
+reports/
+scripts/.notion_db_ids.json
+Strategy Meeting/
+*-research-*.md

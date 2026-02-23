@@ -1,0 +1,22 @@
+{
+  "question": "Should Cardinal Element pursue a 2M government contract that requires FedRAMP certification we don't have?",
+  "features": {
+    "complexity": 4,
+    "ambiguity": 3,
+    "risk": 3,
+    "domain": "strategy",
+    "stakeholder_count": "many",
+    "time_horizon": "medium"
+  },
+  "decision": "escalate",
+  "confidence": 92,
+  "reasoning": "Complexity score of 4 triggers mandatory escalation per decision rules. This decision involves multiple stakeholder perspectives (business case, compliance/legal, technical feasibility, financial impact), medium-term consequences, and significant implementation risk that requires structured multi-agent analysis rather than single-agent judgment.",
+  "estimated_cost_savings": "low",
+  "single_agent_response": null,
+  "recommended_protocol": "P3",
+  "recommended_name": "Parallel Synthesis",
+  "timings": {
+    "phase1_features": 1.0918328762054443,
+    "phase2_gate": 3.401912212371826
+  }
+}

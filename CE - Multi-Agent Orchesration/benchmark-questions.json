@@ -1,0 +1,240 @@
+[
+  {
+    "id": "Q1.1",
+    "question": "PLG tier alongside consulting",
+    "problem_type": "integration",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q1.2",
+    "question": "Capacity — hire vs. AI automation",
+    "problem_type": "integration",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q1.3",
+    "question": "Delivery overrun — 3 of 5 engagements late",
+    "problem_type": "integration",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q1.4",
+    "question": "Margin vs. speed — $12 API cost on $2,500 deliverable",
+    "problem_type": "integration",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q1.5",
+    "question": "We can either build a proprietary data pipeline for client reporting ($40K, 3 months) or use a white-labeled SaaS tool ($800/mo, live in 2 weeks). We have 6 active clients expecting dashboards by Q2.",
+    "problem_type": "integration",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q2.1",
+    "question": "Competitor raised $20M, offering free audits",
+    "problem_type": "adversarial",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q2.2",
+    "question": "A former client's Head of Growth is now publicly advocating for bringing all AI consulting in-house. She has 12K LinkedIn followers in our ICP. Two prospects have cited her posts in discovery calls this week.",
+    "problem_type": "adversarial",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q2.3",
+    "question": "McKinsey just published a free 40-page AI transformation playbook that covers 60% of what we deliver in our $25K audit. Three prospects have sent it to us asking 'how is yours different?'",
+    "problem_type": "adversarial",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q2.4",
+    "question": "Our top-performing subcontractor just launched their own competing practice. They have deep relationships with 3 of our 8 active clients and know our methodology intimately.",
+    "problem_type": "adversarial",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q3.1",
+    "question": "Pricing — free discovery call vs. premium positioning",
+    "problem_type": "stakeholder_tension",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q3.2",
+    "question": "Client concentration — 40% revenue client demands 25% discount",
+    "problem_type": "stakeholder_tension",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q3.3",
+    "question": "Conference spend — $50K on $80K budget",
+    "problem_type": "stakeholder_tension",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q3.4",
+    "question": "Enterprise opportunity — $500K outside ICP",
+    "problem_type": "stakeholder_tension",
+    "phase": 1,
+    "source": "The Coordination Lab spec (v2 retained)"
+  },
+  {
+    "id": "Q3.5",
+    "question": "A strategic partner wants to co-sell our audit as part of their platform bundle at 40% margin to us (vs. our normal 70%). They guarantee 20 leads/quarter. Our current pipeline generates 8 qualified leads/quarter organically.",
+    "problem_type": "stakeholder_tension",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q4.1",
+    "question": "Revenue per client dropped 22% over the last two quarters despite adding 3 new clients. Client count is up 37%, total revenue is up 6%. NPS hasn't changed. What's happening?",
+    "problem_type": "diagnostic",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q4.2",
+    "question": "Our sales cycle lengthened from 18 days to 41 days over the past 6 months. Win rate is stable at 35%. We haven't changed pricing, ICP, or outreach volume. Diagnose the cause.",
+    "problem_type": "diagnostic",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q4.3",
+    "question": "Client satisfaction scores are 4.7/5.0 but renewal rate dropped from 80% to 55% this year. Exit interviews cite 'budget constraints' but our pricing hasn't increased. What's actually going on?",
+    "problem_type": "diagnostic",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q4.4",
+    "question": "Our AI automation tools reduced delivery time by 40% but profit margin per engagement decreased from 68% to 52%. We're doing more work faster but making less money. Why?",
+    "problem_type": "diagnostic",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q5.1",
+    "question": "$200K in free cash flow, no urgent operational needs, 14 months runway at current burn. What should we do with it?",
+    "problem_type": "exploration",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q5.2",
+    "question": "We have 400 hours of recorded client discovery calls, 50 completed audit reports, and 3 years of engagement data. What could we build with these assets that we haven't considered?",
+    "problem_type": "exploration",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q5.3",
+    "question": "A university AI program wants to partner with us. They have 200 graduate students, access to compute resources, and want real-world projects. No specific terms proposed. What are the possibilities?",
+    "problem_type": "exploration",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q5.4",
+    "question": "We just discovered that our proprietary audit methodology produces a byproduct — a detailed competitive intelligence map for each client's market. We've been discarding this. What could it become?",
+    "problem_type": "exploration",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q6.1",
+    "question": "Rank these initiatives for a bootstrapped AI consultancy with $150K budget and 18 months runway: (a) hire senior consultant $120K, (b) build self-serve PLG tool $40K, (c) launch podcast/content series $15K, (d) attend 4 industry conferences $50K, (e) develop proprietary training curriculum $25K, (f) build partner channel program $10K, (g) invest in AI automation tools $35K, (h) open second geographic market $20K.",
+    "problem_type": "prioritization",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q6.2",
+    "question": "We have capacity for exactly 2 new client engagements this quarter. Rank: (a) $80K Fortune 500, 6-month timeline, low margin but logo value; (b) $35K Series B startup, 6-week sprint, high margin, potential for recurring; (c) $120K government contract, 9-month timeline, requires security clearance investment; (d) $50K mid-market SaaS, 8-week engagement, strong referral network in ICP.",
+    "problem_type": "prioritization",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q6.3",
+    "question": "Prioritize these product improvements for C-Suite: (a) add 4 new agent roles, (b) build web UI, (c) add write-access integrations (Salesforce/HubSpot), (d) implement cross-model support (GPT/Gemini), (e) build client-facing dashboard, (f) improve debate protocol to 3 rounds.",
+    "problem_type": "prioritization",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q6.4",
+    "question": "We have one senior consultant available for 60 hours this month. Allocate across: (a) close $80K prospect in final negotiation, (b) rescue at-risk $45K engagement running 3 weeks late, (c) develop new AI audit methodology for healthcare vertical, (d) create sales enablement content for Q2 pipeline, (e) train 2 junior contractors on delivery methodology.",
+    "problem_type": "prioritization",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q7.1",
+    "question": "How do we scale without hiring when our value proposition is human expertise applied through AI? Every scaling mechanism (PLG, automation, templates) dilutes the 'bespoke' positioning that commands premium pricing.",
+    "problem_type": "paradox_wicked",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q7.2",
+    "question": "Our best growth strategy requires us to give away our core methodology (open-source audit framework) to build authority, but our revenue model depends on that methodology being proprietary and scarce.",
+    "problem_type": "paradox_wicked",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q7.3",
+    "question": "We need to be specialists (AI consulting for subscription businesses) to win deals, but we need to be generalists (AI consulting for any business) to fill pipeline. Every positioning decision that improves close rate reduces pipeline volume and vice versa.",
+    "problem_type": "paradox_wicked",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q7.4",
+    "question": "Our AI agents produce better strategic recommendations than most human consultants, but revealing this to clients undermines their willingness to pay human consulting rates. We're selling human expertise while delivering machine intelligence.",
+    "problem_type": "paradox_wicked",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q8.1",
+    "question": "We've decided to take the $500K enterprise engagement outside our ICP (2,000-person company vs. our usual 50-200). We've signed the SOW. What kills us?",
+    "problem_type": "risk_premortem",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q8.2",
+    "question": "We're launching the self-serve PLG tier at $497/month alongside our $25K audit engagements. The board approved it last week. Pre-mortem this decision.",
+    "problem_type": "risk_premortem",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q8.3",
+    "question": "We've committed to presenting at 3 major conferences in Q2 ($40K total spend) and publishing weekly content. Our team is 2 people. Pre-mortem the content/conference strategy.",
+    "problem_type": "risk_premortem",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  },
+  {
+    "id": "Q8.4",
+    "question": "We've agreed to a 40% revenue-share co-sell arrangement with a larger platform partner who guarantees 20 leads/quarter. The contract is signed. What goes wrong?",
+    "problem_type": "risk_premortem",
+    "phase": 1,
+    "source": "The Coordination Lab spec"
+  }
+]

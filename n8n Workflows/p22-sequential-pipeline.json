@@ -1,0 +1,400 @@
+{
+  "name": "P22 Sequential Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"question\": \"Should our B2B SaaS company (50 employees, $8M ARR, 15% growth) pursue an acquisition of a smaller competitor ($2M ARR, complementary product) versus building the capability in-house over 18 months?\",\n  \"agents\": [\n    {\n      \"name\": \"CEO\",\n      \"system_prompt\": \"You are a CEO focused on strategy, vision, competitive positioning, and stakeholder management.\"\n    },\n    {\n      \"name\": \"CFO\",\n      \"system_prompt\": \"You are a CFO focused on financial risk, cash flow, unit economics, margins, and capital allocation.\"\n    },\n    {\n      \"name\": \"CTO\",\n      \"system_prompt\": \"You are a CTO focused on technical architecture, scalability, security, tech debt, and engineering execution.\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "set-question",
+      "name": "Set Question & Agents",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: \"claude-opus-4-6\",\n  max_tokens: 16000,\n  thinking: { type: \"enabled\", budget_tokens: 10000 },\n  messages: [\n    {\n      role: \"user\",\n      content: `You are stage 1 of 3 in a sequential processing pipeline.\\n\\nYour role: ${$json.agents[0].name} — ${$json.agents[0].system_prompt}\\n\\n## Original Question\\n${$json.question}\\n\\n## Prior Stage Outputs\\n(none — you are the first stage)\\n\\n## Your Task\\nBuild on the work of prior stages. Do NOT repeat what has already been covered — instead, deepen, challenge, or extend the analysis from your unique perspective. If you are the first stage, lay the foundational analysis.\\n\\nClearly label any references to prior stage outputs (e.g., \\\"Building on Stage 1's financial analysis...\\\").\\n\\nProduce your contribution now.`\n    }\n  ]\n}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "stage1",
+      "name": "Stage 1: CEO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const question = $('Set Question & Agents').first().json.question;\n  const agents = $('Set Question & Agents').first().json.agents;\n  const stage1Text = $json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  return JSON.stringify({\n    model: \"claude-opus-4-6\",\n    max_tokens: 16000,\n    thinking: { type: \"enabled\", budget_tokens: 10000 },\n    messages: [\n      {\n        role: \"user\",\n        content: `You are stage 2 of 3 in a sequential processing pipeline.\\n\\nYour role: ${agents[1].name} — ${agents[1].system_prompt}\\n\\n## Original Question\\n${question}\\n\\n## Prior Stage Outputs\\n\\n### Stage 1 (${agents[0].name}):\\n${stage1Text}\\n\\n## Your Task\\nBuild on the work of prior stages. Do NOT repeat what has already been covered — instead, deepen, challenge, or extend the analysis from your unique perspective. If you are the first stage, lay the foundational analysis.\\n\\nClearly label any references to prior stage outputs (e.g., \\\"Building on Stage 1's financial analysis...\\\").\\n\\nProduce your contribution now.`\n      }\n    ]\n  });\n})() }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "stage2",
+      "name": "Stage 2: CFO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const question = $('Set Question & Agents').first().json.question;\n  const agents = $('Set Question & Agents').first().json.agents;\n  const stage1Text = $('Stage 1: CEO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage2Text = $json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  return JSON.stringify({\n    model: \"claude-opus-4-6\",\n    max_tokens: 16000,\n    thinking: { type: \"enabled\", budget_tokens: 10000 },\n    messages: [\n      {\n        role: \"user\",\n        content: `You are stage 3 of 3 in a sequential processing pipeline.\\n\\nYour role: ${agents[2].name} — ${agents[2].system_prompt}\\n\\n## Original Question\\n${question}\\n\\n## Prior Stage Outputs\\n\\n### Stage 1 (${agents[0].name}):\\n${stage1Text}\\n\\n### Stage 2 (${agents[1].name}):\\n${stage2Text}\\n\\n## Your Task\\nBuild on the work of prior stages. Do NOT repeat what has already been covered — instead, deepen, challenge, or extend the analysis from your unique perspective. If you are the first stage, lay the foundational analysis.\\n\\nClearly label any references to prior stage outputs (e.g., \\\"Building on Stage 1's financial analysis...\\\").\\n\\nProduce your contribution now.`\n      }\n    ]\n  });\n})() }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "stage3",
+      "name": "Stage 3: CTO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const question = $('Set Question & Agents').first().json.question;\n  const agents = $('Set Question & Agents').first().json.agents;\n  const stage1Text = $('Stage 1: CEO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage2Text = $('Stage 2: CFO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage3Text = $json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const allOutputs = `### Stage 1 (${agents[0].name}):\\n${stage1Text}\\n\\n### Stage 2 (${agents[1].name}):\\n${stage2Text}\\n\\n### Stage 3 (${agents[2].name}):\\n${stage3Text}`;\n  return JSON.stringify({\n    model: \"claude-haiku-4-5-20251001\",\n    max_tokens: 1024,\n    messages: [\n      {\n        role: \"user\",\n        content: `You are a quality gate for a sequential pipeline that processed the following question:\\n\\n## Question\\n${question}\\n\\n## Full Pipeline Output (3 stages)\\n${allOutputs}\\n\\n## Your Task\\nAssess whether the pipeline output adequately addresses the question. Consider:\\n1. Does the combined output thoroughly address the question?\\n2. Are there any contradictions between stages?\\n3. Is any critical perspective missing?\\n4. Did later stages meaningfully build on earlier ones?\\n\\nRespond with ONLY a JSON object (no markdown fencing):\\n{\"passes\": true or false, \"reason\": \"brief explanation\", \"failing_stage\": null or the stage number (1-indexed) that most needs improvement}`\n      }\n    ]\n  });\n})() }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "quality-gate",
+      "name": "Quality Gate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1260, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "qg-check",
+              "leftValue": "={{ JSON.parse($json.content[0].text).passes }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "quality-check",
+      "name": "Quality Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1520, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const question = $('Set Question & Agents').first().json.question;\n  const agents = $('Set Question & Agents').first().json.agents;\n  const qgResult = JSON.parse($('Quality Gate').first().json.content[0].text);\n  const failIdx = (qgResult.failing_stage || 1) - 1;\n  const agent = agents[failIdx];\n  const stage1Text = $('Stage 1: CEO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage2Text = $('Stage 2: CFO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage3Text = $('Stage 3: CTO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const allOutputs = `### Stage 1 (${agents[0].name}):\\n${stage1Text}\\n\\n### Stage 2 (${agents[1].name}):\\n${stage2Text}\\n\\n### Stage 3 (${agents[2].name}):\\n${stage3Text}`;\n  return JSON.stringify({\n    model: \"claude-opus-4-6\",\n    max_tokens: 16000,\n    thinking: { type: \"enabled\", budget_tokens: 10000 },\n    messages: [\n      {\n        role: \"user\",\n        content: `You are stage ${failIdx + 1} of 3 in a sequential processing pipeline. Your previous output was flagged for improvement.\\n\\nYour role: ${agent.name} — ${agent.system_prompt}\\n\\nQuality gate feedback: ${qgResult.reason}\\n\\n## Original Question\\n${question}\\n\\n## All Stage Outputs\\n${allOutputs}\\n\\n## Your Task\\nRe-do your analysis, addressing the quality gate feedback. Build on the other stages' work. Produce an improved contribution now.`\n      }\n    ]\n  });\n})() }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "retry-stage",
+      "name": "Retry Failing Stage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 480],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const question = $('Set Question & Agents').first().json.question;\n  const agents = $('Set Question & Agents').first().json.agents;\n  const qgResult = JSON.parse($('Quality Gate').first().json.content[0].text);\n  const failIdx = (qgResult.failing_stage || 1) - 1;\n  const stage1Text = $('Stage 1: CEO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage2Text = $('Stage 2: CFO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage3Text = $('Stage 3: CTO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const retryText = $json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const outputs = [stage1Text, stage2Text, stage3Text];\n  outputs[failIdx] = retryText;\n  const allOutputs = outputs.map((t, i) => `### Stage ${i+1} (${agents[i].name})${i === failIdx ? ' [RETRIED]' : ''}:\\n${t}`).join('\\n\\n');\n  return JSON.stringify({\n    model: \"claude-haiku-4-5-20251001\",\n    max_tokens: 1024,\n    messages: [\n      {\n        role: \"user\",\n        content: `You are a quality gate for a sequential pipeline (RETRY pass) that processed the following question:\\n\\n## Question\\n${question}\\n\\n## Full Pipeline Output (3 stages)\\n${allOutputs}\\n\\n## Your Task\\nAssess whether the pipeline output adequately addresses the question. Consider:\\n1. Does the combined output thoroughly address the question?\\n2. Are there any contradictions between stages?\\n3. Is any critical perspective missing?\\n4. Did later stages meaningfully build on earlier ones?\\n\\nRespond with ONLY a JSON object (no markdown fencing):\\n{\"passes\": true or false, \"reason\": \"brief explanation\", \"failing_stage\": null or the stage number (1-indexed) that most needs improvement}`\n      }\n    ]\n  });\n})() }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "recheck-quality",
+      "name": "Re-check Quality",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2040, 480],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const question = $('Set Question & Agents').first().json.question;\n  const agents = $('Set Question & Agents').first().json.agents;\n  const stage1Text = $('Stage 1: CEO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage2Text = $('Stage 2: CFO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage3Text = $('Stage 3: CTO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const allOutputs = `### Stage 1 (${agents[0].name}):\\n${stage1Text}\\n\\n### Stage 2 (${agents[1].name}):\\n${stage2Text}\\n\\n### Stage 3 (${agents[2].name}):\\n${stage3Text}`;\n  return JSON.stringify({\n    model: \"claude-opus-4-6\",\n    max_tokens: 16000,\n    thinking: { type: \"enabled\", budget_tokens: 10000 },\n    messages: [\n      {\n        role: \"user\",\n        content: `You are the final synthesizer for a sequential pipeline analysis.\\n\\n## Original Question\\n${question}\\n\\n## Stage Outputs (in processing order)\\n${allOutputs}\\n\\n## Your Task\\nCompile all stage outputs into a single cohesive response that:\\n1. Integrates insights from all stages into a unified analysis\\n2. Acknowledges the lineage of key insights (e.g., \\\"The financial risk analysis [Stage 2] combined with the technical feasibility assessment [Stage 3] suggests...\\\")\\n3. Resolves any tensions or contradictions between stages\\n4. Presents a clear, actionable conclusion\\n\\nProduce the final synthesized response now.`\n      }\n    ]\n  });\n})() }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "synthesis-pass",
+      "name": "Final Synthesis (Pass)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 160],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const question = $('Set Question & Agents').first().json.question;\n  const agents = $('Set Question & Agents').first().json.agents;\n  const qgResult = JSON.parse($('Quality Gate').first().json.content[0].text);\n  const failIdx = (qgResult.failing_stage || 1) - 1;\n  const stage1Text = $('Stage 1: CEO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage2Text = $('Stage 2: CFO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const stage3Text = $('Stage 3: CTO').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const retryText = $('Retry Failing Stage').first().json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  const outputs = [stage1Text, stage2Text, stage3Text];\n  outputs[failIdx] = retryText;\n  const allOutputs = outputs.map((t, i) => `### Stage ${i+1} (${agents[i].name})${i === failIdx ? ' [RETRIED]' : ''}:\\n${t}`).join('\\n\\n');\n  return JSON.stringify({\n    model: \"claude-opus-4-6\",\n    max_tokens: 16000,\n    thinking: { type: \"enabled\", budget_tokens: 10000 },\n    messages: [\n      {\n        role: \"user\",\n        content: `You are the final synthesizer for a sequential pipeline analysis.\\n\\n## Original Question\\n${question}\\n\\n## Stage Outputs (in processing order)\\n${allOutputs}\\n\\n## Your Task\\nCompile all stage outputs into a single cohesive response that:\\n1. Integrates insights from all stages into a unified analysis\\n2. Acknowledges the lineage of key insights (e.g., \\\"The financial risk analysis [Stage 2] combined with the technical feasibility assessment [Stage 3] suggests...\\\")\\n3. Resolves any tensions or contradictions between stages\\n4. Presents a clear, actionable conclusion\\n\\nProduce the final synthesized response now.`\n      }\n    ]\n  });\n})() }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "synthesis-retry",
+      "name": "Final Synthesis (Retry)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2300, 480],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  \"question\": $('Set Question & Agents').first().json.question,\n  \"synthesis\": $json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n'),\n  \"model\": $json.model,\n  \"usage\": $json.usage\n} }}",
+        "options": {}
+      },
+      "id": "output-pass",
+      "name": "Output (Pass)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2040, 160]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  \"question\": $('Set Question & Agents').first().json.question,\n  \"synthesis\": $json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n'),\n  \"retried\": true,\n  \"model\": $json.model,\n  \"usage\": $json.usage\n} }}",
+        "options": {}
+      },
+      "id": "output-retry",
+      "name": "Output (Retry)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2560, 480]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [{ "node": "Set Question & Agents", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Question & Agents": {
+      "main": [
+        [{ "node": "Stage 1: CEO", "type": "main", "index": 0 }]
+      ]
+    },
+    "Stage 1: CEO": {
+      "main": [
+        [{ "node": "Stage 2: CFO", "type": "main", "index": 0 }]
+      ]
+    },
+    "Stage 2: CFO": {
+      "main": [
+        [{ "node": "Stage 3: CTO", "type": "main", "index": 0 }]
+      ]
+    },
+    "Stage 3: CTO": {
+      "main": [
+        [{ "node": "Quality Gate", "type": "main", "index": 0 }]
+      ]
+    },
+    "Quality Gate": {
+      "main": [
+        [{ "node": "Quality Check", "type": "main", "index": 0 }]
+      ]
+    },
+    "Quality Check": {
+      "main": [
+        [{ "node": "Final Synthesis (Pass)", "type": "main", "index": 0 }],
+        [{ "node": "Retry Failing Stage", "type": "main", "index": 0 }]
+      ]
+    },
+    "Retry Failing Stage": {
+      "main": [
+        [{ "node": "Re-check Quality", "type": "main", "index": 0 }]
+      ]
+    },
+    "Re-check Quality": {
+      "main": [
+        [{ "node": "Final Synthesis (Retry)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Final Synthesis (Pass)": {
+      "main": [
+        [{ "node": "Output (Pass)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Final Synthesis (Retry)": {
+      "main": [
+        [{ "node": "Output (Retry)", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-22T00:00:00.000Z",
+  "versionId": "1"
+}

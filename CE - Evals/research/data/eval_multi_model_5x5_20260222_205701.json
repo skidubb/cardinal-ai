@@ -1,0 +1,1527 @@
+[
+  {
+    "question_id": "Q1.1",
+    "question_text": "PLG tier alongside consulting",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "{\n  \"question\": \"PLG tier alongside consulting\",\n  \"hypotheses\": [\n    {\n      \"id\": \"H1\",\n      \"label\": \"Complementary growth engine\",\n      \"description\": \"A self-serve PLG tier acts as a high-volume top-of-funnel that naturally upsells into higher-margin consulting engagements, creating a flywheel that accelerates both revenue streams.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H2\",\n      \"label\": \"Brand and margin dilution risk\",\n      \"description\": \"Offering a low-cost PLG tier commoditizes the brand and cannibalizes consulting revenue, as clients opt for the cheaper self-serve option and perceive less need for premium advisory services.\",\n      \"inconsistency_count\": 7,\n      \"eliminated\": true\n    },\n    {\n      \"id\": \"H3\",\n      \"label\": \"Operational misalignment\",\n      \"description\": \"The organizational capabilities, culture, and unit economics required to run a scalable PLG product are fundamentally different from those of a consulting practice, causing internal resource conflicts and strategic drift that undermine both motions.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H4\",\n      \"label\": \"PLG accelerates blended margins\",\n      \"description\": \"A self-serve PLG tier generates high-margin, recurring revenue that subsidizes the lower-margin consulting engagements, improving overall blended gross margins and smoothing cash flow volatility.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H5\",\n      \"label\": \"PLG cannibalizes consulting revenue\",\n      \"description\": \"Offering a low-cost PLG tier causes existing and prospective consulting clients to down-tier into self-serve, eroding average contract value and net revenue per customer without sufficient volume gains to compensate.\",\n      \"inconsistency_count\": 6,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H6\",\n      \"label\": \"PLG is a cash-flow drain with uncertain payback\",\n      \"description\": \"The upfront engineering, infrastructure, and support investment required to build and maintain a PLG product creates a significant cash burn period with an extended and uncertain payback horizon that strains capital allocation away from the proven consulting business.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H7\",\n      \"label\": \"Unified platform, segmented access\",\n      \"description\": \"A single shared codebase and infrastructure can serve both self-serve PLG users and consulting-engaged clients through feature flags and entitlement layers, maximizing code reuse while minimizing tech debt divergence.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H8\",\n      \"label\": \"Separate stacks create unsustainable debt\",\n      \"description\": \"Maintaining a lightweight PLG product alongside a consulting-customized offering will inevitably fork the architecture, doubling engineering maintenance burden and degrading velocity on both fronts as the two diverge over time.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H9\",\n      \"label\": \"PLG as proving ground for productization\",\n      \"description\": \"The PLG tier acts as a forcing function to harden, generalize, and standardize the consulting-born features into scalable, secure, multi-tenant product capabilities\\u2014ultimately reducing per-client engineering effort and improving overall architecture quality.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H10\",\n      \"label\": \"PLG accelerates consulting pipeline\",\n      \"description\": \"A self-serve PLG tier acts as a powerful top-of-funnel acquisition channel, letting prospects experience the product's value firsthand so that a meaningful percentage naturally convert into high-value consulting engagements with shorter sales cycles.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H11\",\n      \"label\": \"PLG cannibalizes and dilutes premium brand\",\n      \"description\": \"Offering a low-cost or free self-serve tier undermines the exclusivity and perceived expertise of the consulting brand, causing prospective enterprise buyers to anchor on lower price points and eroding the margins and positioning of the consulting practice.\",\n      \"inconsistency_count\": 7,\n      \"eliminated\": true\n    },\n    {\n      \"id\": \"H12\",\n      \"label\": \"Dual model succeeds only with strict segmentation\",\n      \"description\": \"A PLG tier and consulting can coexist profitably, but only if the company enforces clear audience segmentation, distinct messaging tracks, and feature boundaries\\u2014without which channel conflict and internal resource competition will stall growth in both motions.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    }\n  ],\n  \"evidence\": [\n    {\n      \"id\": \"E1\",\n      \"description\": \"Self-serve-to-consulting conversion rate and resulting ACV: the observed percentage of PLG users who upgrade into consulting engagements, and whether their average contract values match, exceed, or fall below those of prospects sourced through traditional sales channels\\u2014directly discriminating between the flywheel thesis (H1/H10) and the cannibalization/price-anchoring thesis (H5/H11).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E2\",\n      \"description\": \"Consulting pipeline trajectory by source channel: whether the volume and value of consulting opportunities sourced from non-PLG channels (referrals, outbound, events) remains stable or declines after PLG launch, distinguishing true incremental top-of-funnel expansion (H1/H10) from substitution effects where prospects simply shift to the cheaper tier (H5).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E3\",\n      \"description\": \"Cumulative PLG investment versus time-to-positive-unit-economics: the total capital deployed on engineering, infrastructure, and support for the PLG tier and the quarter in which PLG contribution margin turns positive\\u2014differentiating the blended-margin improvement thesis (H4) from the cash-drain-with-uncertain-payback thesis (H6).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E4\",\n      \"description\": \"Engineering velocity and code-divergence metrics across PLG and consulting-customized surfaces: measured feature-shipping cadence, percentage of shared versus forked code, and maintenance-ticket burden over time\\u2014distinguishing the unified-platform thesis (H7/H9) from the unsustainable-tech-debt thesis (H8).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E5\",\n      \"description\": \"Enterprise buyer brand-perception and willingness-to-pay data segmented by PLG awareness: win/loss analyses and pricing-sensitivity surveys comparing enterprise prospects who have encountered the self-serve tier against those who have not, directly testing whether the PLG tier anchors price expectations and dilutes perceived expertise (H2/H11) or whether strict segmentation neutralizes that effect (H12).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E6\",\n      \"description\": \"Observed PLG-to-consulting conversion rate and resulting ACV of converted deals versus ACV of deals sourced through traditional direct sales \\u2014 a high conversion rate with equal or higher ACV supports H1/H10 (flywheel/pipeline acceleration), while low conversion with lower ACV anchoring supports H5/H11 (cannibalization/brand dilution).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E7\",\n      \"description\": \"Fully-loaded unit economics of the PLG tier at current and projected scale (gross margin, CAC payback period, LTV/CAC) compared to the consulting practice \\u2014 high PLG gross margins (>75%) with short payback differentiates H4 (blended margin improvement) from H6 (cash-flow drain with uncertain payback).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E8\",\n      \"description\": \"Revenue displacement tracking: change in consulting pipeline volume, win rate, and average contract value in segments where the PLG tier is available versus control segments where it is not \\u2014 net additive pipeline supports H1/H10, while declining consulting ACV or win rates in PLG-exposed segments supports H2/H5.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E9\",\n      \"description\": \"Incremental engineering headcount and infrastructure spend required to maintain the PLG product as a percentage of total R&D budget, and whether the PLG and consulting offerings share a single deployable codebase or have diverged into separate branches \\u2014 low incremental cost with shared codebase supports H7/H9, while rising dual-maintenance burden supports H3/H8.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E10\",\n      \"description\": \"Benchmarked outcomes from comparable B2B firms (e.g., Datadog, HubSpot, Palantir AIP) that operate PLG alongside professional services, specifically whether profitable coexistence required strict audience/feature segmentation or emerged organically \\u2014 strict segmentation being a precondition supports H12, while organic upsell patterns support H1/H10.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E11\",\n      \"description\": \"Degree of codebase commonality across current consulting engagements: percentage of deliverables built on a shared core vs. bespoke per-client forks. High commonality supports H7 (unified platform feasible) and H9 (productization upside), while high fragmentation supports H8 (unsustainable divergence) and H6 (large upfront investment to converge).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E12\",\n      \"description\": \"Current architecture's multi-tenancy maturity \\u2014 specifically whether tenant isolation, feature-flag infrastructure, entitlement/RBAC layers, and usage metering already exist or must be built from scratch. This directly differentiates H7 (segmented access on a single platform is achievable) from H8 (forking is inevitable) and sizes the capital outlay central to H6.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E13\",\n      \"description\": \"Engineering time allocation breakdown: proportion of sprints spent on client-specific customization versus generalizable, productizable feature work over the past 12 months. A heavy customization skew supports H3 (operational misalignment) and H6 (high retooling cost), while a product-oriented skew supports H9 (PLG as productization forcing function) and H4 (scalable margin improvement).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E14\",\n      \"description\": \"Observed self-serve-to-enterprise conversion rates and average upsell timelines from comparable B2B companies that added a PLG tier alongside services (e.g., GitLab, Databricks, HubSpot). High conversion rates with shorter sales cycles support H1/H10 (flywheel/pipeline acceleration); low conversion with high self-serve retention at lower tiers supports H5/H11 (cannibalization and brand dilution).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E15\",\n      \"description\": \"Historical client acquisition path data: how many current consulting clients first engaged through a free trial, freemium tool, or lightweight product experience versus pure outbound or referral. A strong product-led entry pattern supports H1/H10 (PLG as natural top-of-funnel); absence of this pattern supports H2/H12 (brand perception and strict segmentation requirements dominate).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E16\",\n      \"description\": \"Observed PLG-to-consulting conversion rate and upsell velocity: the percentage of self-serve users who upgrade to paid consulting engagements within 12 months, and the average time-to-conversion, benchmarked against industry PLG-to-enterprise conversion norms (typically 1-5%). A high conversion rate with short cycles supports H1/H10; a negligible rate with long or stalled cycles supports H5/H6.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E17\",\n      \"description\": \"Win/loss and brand perception data from enterprise prospects: whether buyers who encountered the PLG tier before engaging sales anchored on lower price points or perceived diminished consulting expertise versus those who entered through traditional channels. Price anchoring and lower willingness-to-pay supports H2/H11; higher trust and faster close rates supports H1/H10.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E18\",\n      \"description\": \"Customer segment overlap analysis: the degree to which PLG sign-ups share firmographic profiles (company size, industry, budget authority) with existing or target consulting buyers. High overlap signals cannibalization risk (H5/H12); low overlap with a distinct SMB or developer persona supports complementary top-of-funnel positioning (H1/H10).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E19\",\n      \"description\": \"Competitive and analogous precedent data: revenue-mix trajectories and brand outcomes of comparable firms that launched PLG alongside services (e.g., HubSpot free-to-enterprise, Palantir Foundry self-serve, Gitlab open-core + professional services). Cases where consulting ACV held or grew post-PLG launch differentiate H1/H4 from H2/H5; cases where services revenue eroded support H5/H11.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E20\",\n      \"description\": \"Average contract value (ACV) and net revenue retention of consulting deals sourced via PLG versus traditional outbound/referral channels. If PLG-sourced consulting deals show comparable or higher ACV and expansion rates, it strongly supports H1/H10 and undermines H5/H11; materially lower ACVs or higher churn in PLG-sourced deals supports cannibalization and brand dilution hypotheses.\",\n      \"diagnostic_score\": 0.25\n    }\n  ],\n  \"surviving\": [\n    \"H1\",\n    \"H3\",\n    \"H8\",\n    \"H10\",\n    \"H12\",\n    \"H4\",\n    \"H6\",\n    \"H7\",\n    \"H9\",\n    \"H5\"\n  ],\n  \"eliminated\": [\n    \"H2\",\n    \"H11\"\n  ],\n  \"synthesis\": {\n    \"conclusion\": \"The ACH exercise most strongly supports H1 (Complementary growth engine): a self-serve PLG tier acts as a high-volume top-of-funnel that naturally upsells into higher-margin consulting engagements, creating a flywheel that accelerates both revenue streams. H1 and the closely related H10 (PLG accelerates consulting pipeline) both survived with zero inconsistent evidence items out of twenty, while simultaneously accumulating the highest volume of consistent evidence (14 of 20 items each). The two cannibalization/brand-dilution hypotheses (H2 and H11) were decisively eliminated with 7 inconsistencies each, and H5 (cannibalization without volume offset) was effectively refuted with 6 inconsistencies, meaning the evidence base strongly disconfirms the fear that a PLG tier will erode consulting revenue or brand positioning. However, three risk-oriented hypotheses \\u2014 H3 (operational misalignment), H8 (architectural debt from dual stacks), and H12 (success contingent on strict segmentation) \\u2014 also survived with zero inconsistencies, albeit with far fewer pieces of consistent evidence (2, 5, and 5 respectively). This pattern suggests the flywheel thesis is well-supported, but that the path to realizing it carries real organizational and technical execution risks that the current evidence does not rule out. H1 is selected over H10 because it subsumes H10's pipeline-acceleration mechanism within a broader, more explanatory flywheel framing.\",\n    \"winning_hypothesis_id\": \"H1\",\n    \"confidence\": \"Medium\",\n    \"confidence_reasoning\": \"Confidence is Medium rather than High for three reasons. First, while H1 has zero inconsistencies and dominant consistent evidence, the ACH methodology's core principle is disconfirmation, and three substantive risk hypotheses (H3, H8, H12) also carry zero inconsistencies \\u2014 meaning the evidence collected so far is insufficiently diagnostic to rule out significant execution hazards. Second, the five most diagnostic evidence items (E2, E6, E7, E10, E13) all share a modest diagnosticity score of 0.25, indicating that no single piece of evidence sharply discriminates among the surviving hypotheses. Third, much of the evidence is coded as Neutral (N) against the risk hypotheses rather than Inconsistent (I), reflecting an absence of disconfirming data rather than positive refutation \\u2014 a classic ACH caution flag. The conclusion would rise to High confidence if forthcoming operational and financial data (unit economics, engineering allocation, conversion rates) actively contradicted the risk hypotheses.\",\n    \"key_uncertainties\": [\n      \"Actual PLG-to-consulting conversion rate and resulting ACV of converted deals (E6): if conversion proves low or ACV anchors downward, H5 and H3 gain support at H1's expense.\",\n      \"Fully-loaded PLG unit economics at scale (E7): if gross margins fall below ~75% or CAC payback extends beyond 18 months, the cash-drain hypothesis (H6) becomes more credible and undermines the blended-margin upside that reinforces the flywheel.\",\n      \"Engineering time allocation between client-specific customization and generalizable product work (E13): a heavy customization skew would strengthen H3 (operational misalignment) and H8 (architectural divergence), challenging whether a single organization can run both motions effectively.\",\n      \"Post-launch trajectory of non-PLG-sourced consulting pipeline (E2): a decline in referral/outbound/event-sourced pipeline after PLG launch would indicate substitution rather than true incremental growth, reviving the cannibalization thesis.\",\n      \"Whether successful dual-model analogues (HubSpot, Datadog, Palantir AIP) required strict feature/audience segmentation or achieved organic upsell (E10): this benchmark evidence could tip the balance between H1 (organic flywheel) and H12 (success only with rigid segmentation).\"\n    ],\n    \"sensitivity_notes\": \"The conclusion is most sensitive to five evidence items, all sharing a diagnosticity score of 0.25 \\u2014 the highest in this exercise. E2 (consulting pipeline trajectory by source) and E6 (PLG-to-consulting conversion rate and ACV) are the sharpest discriminators between the flywheel hypotheses (H1/H10) and the cannibalization hypothesis (H5); if either were re-evaluated from Consistent to Inconsistent for H1, the core thesis would be materially weakened. E7 (PLG unit economics) is the sole differentiator between H4 (blended margin improvement) and H6 (cash-flow drain); its current Consistent rating for H4 and Inconsistent for H6 is pivotal \\u2014 reversing that coding would shift the financial narrative from upside to risk. E10 (benchmarked dual-model outcomes) is the primary lever for H12 (strict segmentation required); its current Consistent rating for both H12 and H10 leaves ambiguity about whether segmentation discipline is a prerequisite or merely helpful. E13 (engineering time allocation) is the key differentiator among the operational hypotheses (H3, H8, H9); it is currently Consistent with all three, meaning the data supports both the risk framing (misalignment, tech debt) and the opportunity framing (productization forcing function) simultaneously. Because no single evidence item exceeds 0.25 diagnosticity, the conclusion rests on the aggregate pattern rather than any decisive 'smoking gun.' A coordinated shift in just two or three of these five diagnostic items \\u2014 for example, if conversion rates disappoint (E6), traditional pipeline shrinks (E2), and engineering skews toward customization (E13) \\u2014 would be sufficient to shift the leading hypothesis from H1 to a risk-dominant framing (H3 or H12). Analysts should prioritize collecting hard operational data on these five dimensions before committing substantial capital to PLG buildout.\"\n  },\n  \"timings\": {\n    \"phase1_generate\": 8.933075904846191,\n    \"phase2_evidence\": 27.241228103637695,\n    \"phase3_matrix\": 163.46289682388306,\n    \"phase4_eliminate\": 0.002777099609375,\n    \"phase5_synthesis\": 54.492351055145264\n  }\n}",
+        "cost": 0.0,
+        "duration_seconds": 254.4955277442932,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.47046709060668945,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 1.1305289268493652,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.3848609924316406,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.28356313705444336,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 3.3333333333333335,
+          "answer_quality": 3.6666666666666665,
+          "coherence": 3.6666666666666665,
+          "novelty": 4.0,
+          "reasoning_depth": 4.666666666666667,
+          "tension_surfacing": 4.666666666666667
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p16_ach",
+        "p17_red_blue_white",
+        "p04_multi_round_debate",
+        "p20_borda_count",
+        "p03_parallel_synthesis"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges.",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p16_ach",
+        "Response B": "p17_red_blue_white",
+        "Response C": "p04_multi_round_debate",
+        "Response D": "p20_borda_count",
+        "Response E": "p03_parallel_synthesis"
+      },
+      "judge_input_tokens": 17096,
+      "judge_output_tokens": 1776,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 3.0,
+            "novelty": 4.0,
+            "coherence": 4.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p17_red_blue_white",
+          "p04_multi_round_debate",
+          "p20_borda_count",
+          "p03_parallel_synthesis"
+        ],
+        "judge_reasoning": "Response A is the only response that actually produced output. It delivers a thorough hypothesis-driven analysis of running a PLG tier alongside consulting, identifying 12 hypotheses across revenue, brand, operational, and architectural dimensions, with 20 evidence items scored for diagnosticity. It excels at tension surfacing\u2014explicitly mapping the flywheel thesis (H1/H10) against cannibalization (H5), operational misalignment (H3), and architectural divergence (H8) risks, and noting that surviving risk hypotheses have zero inconsistencies. The sensitivity analysis is particularly strong, identifying which evidence shifts would flip the conclusion. Weaknesses: actionability is moderate (no concrete timelines, owners, or decision gates\u2014just 'collect data on these five dimensions'), and the raw JSON format with some formatting artifacts slightly hurts coherence. Responses B\u2013E all failed with execution errors and produced no substantive content.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p17_red_blue_white",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p20_borda_count",
+          "Response E": "p03_parallel_synthesis"
+        },
+        "judge_input_tokens": 5988,
+        "judge_output_tokens": 507,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 3.0,
+            "reasoning_depth": 4.0,
+            "tension_surfacing": 4.0,
+            "actionability": 3.0,
+            "novelty": 4.0,
+            "coherence": 3.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p17_red_blue_white",
+          "p04_multi_round_debate",
+          "p20_borda_count",
+          "p03_parallel_synthesis"
+        ],
+        "judge_reasoning": "Response A is the only one that substantively engages the question, laying out explicit hypotheses (flywheel vs cannibalization, ops/tech misalignment), surfacing real trade-offs, and proposing measurable discriminators (conversion, ACV, unit economics, code divergence). Its main weaknesses are that the 'evidence' is largely aspirational/duplicative and the conclusion relies on ungrounded inconsistency counts, plus some formatting/typo issues that reduce coherence. Responses B\u2013E are tool/runtime errors and provide no answer, reasoning, or actionable guidance.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p17_red_blue_white",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p20_borda_count",
+          "Response E": "p03_parallel_synthesis"
+        },
+        "judge_input_tokens": 5290,
+        "judge_output_tokens": 801,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 4.0,
+            "novelty": 4.0,
+            "coherence": 4.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p17_red_blue_white",
+          "p04_multi_round_debate",
+          "p20_borda_count",
+          "p03_parallel_synthesis"
+        ],
+        "judge_reasoning": "Response A is the only successful output, providing a highly structured, rigorous Analysis of Competing Hypotheses (ACH) regarding the integration of a PLG tier with a consulting business. It deeply explores tensions like cannibalization vs. flywheel effects and provides actionable metrics to track. Responses B through E are all script execution errors.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p17_red_blue_white",
+          "Response C": "p04_multi_round_debate",
+          "Response D": "p20_borda_count",
+          "Response E": "p03_parallel_synthesis"
+        },
+        "judge_input_tokens": 5818,
+        "judge_output_tokens": 468,
+        "judge_cost": 0.0
+      }
+    ]
+  },
+  {
+    "question_id": "Q2.1",
+    "question_text": "Competitor raised $20M, offering free audits",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "{\n  \"question\": \"Competitor raised $20M, offering free audits\",\n  \"hypotheses\": [\n    {\n      \"id\": \"H1\",\n      \"label\": \"Land-and-expand market grab\",\n      \"description\": \"The competitor is using free audits as a loss-leader to rapidly acquire customers and lock them into a broader paid platform, betting that switching costs will ensure long-term retention once the free period ends.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H2\",\n      \"label\": \"Data harvesting for AI/product moat\",\n      \"description\": \"The free audit strategy is primarily designed to ingest massive volumes of proprietary client data, which the competitor will use to train AI models or build benchmarking products that create an insurmountable competitive advantage.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H3\",\n      \"label\": \"Unsustainable blitz to force acquisition\",\n      \"description\": \"The competitor's strategy is a deliberately unsustainable cash-burn play aimed at disrupting market pricing and destroying incumbent margins long enough to either force a larger player to acquire them or to push weaker competitors out of the market.\",\n      \"inconsistency_count\": 5,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H4\",\n      \"label\": \"Land-and-expand loss leader\",\n      \"description\": \"The competitor is deliberately burning cash on free audits as a customer acquisition strategy, planning to upsell higher-margin advisory, remediation, or ongoing compliance services once embedded in the client relationship.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H5\",\n      \"label\": \"Market share grab to force consolidation\",\n      \"description\": \"The competitor is pursuing an aggressive below-cost pricing strategy funded by venture capital to rapidly capture market share, compress our margins, and either force us into a disadvantageous acquisition or push smaller players out of the market.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H6\",\n      \"label\": \"Data/IP harvesting play\",\n      \"description\": \"The free audits are primarily a mechanism to accumulate proprietary benchmark data, risk profiles, and industry intelligence at scale, which the competitor intends to monetize through a technology platform, AI product, or data-driven pricing advantage that fundamentally changes the unit economics of the audit business.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H7\",\n      \"label\": \"Data harvesting play\",\n      \"description\": \"The competitor is using free audits as a trojan horse to gain deep access to customers' technical environments and data, building a proprietary dataset that will power a defensible AI/analytics product or be used to undercut incumbents with highly targeted upsells.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H8\",\n      \"label\": \"Unsustainable land-grab before pivot\",\n      \"description\": \"The free audit offering is a venture-subsidized land-grab with no viable path to profitability at scale, and the competitor will either burn through the $20M within 12-18 months or be forced to pivot to a paid model once growth metrics plateau, giving us a window to fortify our platform and retain customers.\",\n      \"inconsistency_count\": 7,\n      \"eliminated\": true\n    },\n    {\n      \"id\": \"H9\",\n      \"label\": \"Automated audit engine moat\",\n      \"description\": \"The competitor has built a highly automated, low-marginal-cost audit platform that makes free delivery economically sustainable, representing a genuine architectural leap that could permanently compress the market price for audits and threaten our revenue model.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H10\",\n      \"label\": \"Data-driven valuation play\",\n      \"description\": \"The competitor's primary goal is not near-term revenue but harvesting proprietary market and security-posture data at scale to train AI models or demonstrate network effects that justify a future fundraise or acquisition at a much higher valuation.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H11\",\n      \"label\": \"Price-war commoditization strategy\",\n      \"description\": \"The competitor is deliberately commoditizing the audit layer of the market to undermine the revenue base of incumbents like us, repositioning audits as a zero-cost expectation and shifting competitive differentiation\\u2014and pricing power\\u2014to an adjacent capability where they hold an advantage.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    }\n  ],\n  \"evidence\": [\n    {\n      \"id\": \"E1\",\n      \"description\": \"Competitor's hiring profile and team composition over the past 6 months \\u2014 ratio of data scientists/ML engineers vs. sales/account executives vs. delivery consultants, indicating whether investment is oriented toward building a data/AI asset, an upsell motion, or brute-force audit delivery.\",\n      \"diagnostic_score\": 0.2727272727272727\n    },\n    {\n      \"id\": \"E2\",\n      \"description\": \"Scope and intrusiveness of data access requested during free audits \\u2014 whether the competitor's engagement requires access significantly beyond what a standard audit demands (e.g., continuous API connections, broad telemetry ingestion, retention clauses in data agreements), which would differentiate data-harvesting hypotheses from pure customer-acquisition plays.\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E3\",\n      \"description\": \"Existence and maturity of adjacent paid offerings (remediation, managed compliance, advisory retainers) already being marketed or sold to free-audit customers, which would strongly differentiate land-and-expand/upsell hypotheses from data-harvesting or blitz-to-acquisition strategies.\",\n      \"diagnostic_score\": 0.2727272727272727\n    },\n    {\n      \"id\": \"E4\",\n      \"description\": \"Estimated marginal cost per audit delivered \\u2014 evidence of heavy automation and tooling (low marginal cost suggesting a scalable platform moat) versus reliance on manual consultant labor (high marginal cost suggesting an unsustainable burn rate and time-limited threat window).\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E5\",\n      \"description\": \"Competitor's observable burn rate trajectory and signals of follow-on fundraising activity or M&A conversations \\u2014 whether they are already in market for Series B or have engaged investment bankers, differentiating a short-runway blitz/acquisition-forcing play from a self-sustaining platform or long-horizon data strategy.\",\n      \"diagnostic_score\": 0.2727272727272727\n    },\n    {\n      \"id\": \"E6\",\n      \"description\": \"Competitor's estimated monthly burn rate and implied cash runway from the $20M raise (e.g., if delivering audits at ~$15K-$25K fully loaded cost each, how many can they fund and for how long) \\u2014 a runway of <18 months supports unsustainable blitz hypotheses (H3/H5/H8), while a runway of 3+ years supports a low-marginal-cost automated engine (H9) or patient data accumulation play (H2/H6/H10).\",\n      \"diagnostic_score\": 0.09090909090909091\n    },\n    {\n      \"id\": \"E7\",\n      \"description\": \"Whether the competitor has launched, announced, or is actively selling any paid adjacent products or services (advisory, remediation, continuous compliance, benchmarking dashboards) alongside the free audits \\u2014 presence of a paid upsell motion supports land-and-expand (H1/H4), absence with no visible monetization path supports data harvesting (H2/H6/H7/H10) or forced-acquisition blitz (H3/H5).\",\n      \"diagnostic_score\": 0.2727272727272727\n    },\n    {\n      \"id\": \"E8\",\n      \"description\": \"Competitor's headcount composition and hiring patterns \\u2014 heavy investment in data science, ML engineers, and platform engineers relative to audit practitioners and sales staff supports automation/data moat hypotheses (H2/H6/H7/H9/H10), while heavy hiring of sales, advisory, and delivery staff supports land-and-expand upsell models (H1/H4).\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E9\",\n      \"description\": \"Scope and depth of data access and data-rights clauses the competitor requires in its free audit engagement terms \\u2014 requests for access significantly beyond standard audit scope (e.g., broad API integrations, persistent agent deployment, expansive IP licensing in ToS) strongly supports data harvesting hypotheses (H2/H6/H7/H10), while standard-scope access points toward market-share or upsell plays (H1/H3/H4/H5).\",\n      \"diagnostic_score\": 0.2727272727272727\n    },\n    {\n      \"id\": \"E10\",\n      \"description\": \"Degree of automation and human labor intensity observed in the competitor's audit delivery process (e.g., ratio of automated scanning/reporting to manual consultant hours per engagement) \\u2014 a highly automated, low-touch delivery model supports H9 (architectural cost advantage) and H11 (permanent commoditization), while labor-intensive delivery confirms the offering is economically unsustainable and supports H3/H5/H8.\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E11\",\n      \"description\": \"Degree of automation in the competitor's audit delivery: observed ratio of engineering headcount to active audit engagements, use of agent-based scanning, and whether audits require significant manual analyst labor or run largely through an automated platform. A low marginal cost per audit supports H9; high manual labor intensity supports cash-burn hypotheses (H3, H5, H8).\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E12\",\n      \"description\": \"Scope of data access and contractual data rights: whether the competitor's audit engagement terms request persistent API access, broad telemetry collection, or data retention/usage rights far exceeding what a standard audit requires. Expansive data rights strongly differentiate data-harvesting hypotheses (H2, H6, H7, H10) from land-and-expand or commoditization plays (H1, H4, H11).\",\n      \"diagnostic_score\": 0.2727272727272727\n    },\n    {\n      \"id\": \"E13\",\n      \"description\": \"Engineering hiring patterns and team composition: the ratio of ML/data-science hires vs. platform/infrastructure engineers vs. sales/solutions engineers in recent job postings and LinkedIn data. Heavy ML/data hiring supports H2/H6/H7/H10; heavy platform hiring supports H9; heavy sales/advisory hiring supports H1/H4/H11.\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E14\",\n      \"description\": \"Existence and maturity of adjacent paid product offerings: whether the competitor has shipped or is actively building paid remediation, continuous compliance monitoring, advisory, or benchmarking products alongside the free audit. A developed upsell stack supports H1/H4/H11; absence of adjacent products supports H3/H5/H8 (pure blitz) or H2/H6/H7/H10 (data play with delayed monetization).\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E15\",\n      \"description\": \"Observable burn rate trajectory relative to customer acquisition pace: whether the competitor's cash expenditure scales linearly with each new audit engagement (suggesting manual, unsustainable delivery\\u2014H3/H5/H8) or remains roughly flat as engagement volume grows (suggesting a scalable automated engine\\u2014H9, or a data-platform architecture\\u2014H2/H6/H10 where marginal cost per ingestion is low).\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E16\",\n      \"description\": \"The competitor's post-audit sales motion: whether they are actively pitching paid remediation, advisory, or managed compliance services to free audit recipients, and the observed conversion rate or upsell pipeline from free audits to paid engagements.\",\n      \"diagnostic_score\": 0.2727272727272727\n    },\n    {\n      \"id\": \"E17\",\n      \"description\": \"The scope of data access and IP retention rights in the competitor's free audit engagement agreements \\u2014 specifically whether contracts grant them rights to retain, aggregate, or reuse client security-posture data and audit findings beyond the engagement.\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E18\",\n      \"description\": \"The competitor's hiring patterns and team composition: ratio of AI/ML engineers and data scientists versus sales/account management versus audit delivery consultants, and recent job postings signaling product roadmap direction.\",\n      \"diagnostic_score\": 0.2727272727272727\n    },\n    {\n      \"id\": \"E19\",\n      \"description\": \"The competitor's marginal cost per audit delivered \\u2014 indicators of heavy automation (self-service platform, automated scanning, templated reporting) versus reliance on expensive human consultants for each engagement, which determines whether free delivery is economically sustainable.\",\n      \"diagnostic_score\": 0.18181818181818182\n    },\n    {\n      \"id\": \"E20\",\n      \"description\": \"Whether the competitor has launched, announced, or is building adjacent paid products (e.g., continuous monitoring platform, benchmarking dashboards, AI-driven risk scoring) versus operating free audits as a standalone offering with no visible monetization layer.\",\n      \"diagnostic_score\": 0.2727272727272727\n    }\n  ],\n  \"surviving\": [\n    \"H11\",\n    \"H1\",\n    \"H2\",\n    \"H5\",\n    \"H4\",\n    \"H6\",\n    \"H7\",\n    \"H9\",\n    \"H10\",\n    \"H3\"\n  ],\n  \"eliminated\": [\n    \"H8\"\n  ],\n  \"synthesis\": {\n    \"conclusion\": \"The hypothesis best supported by the evidence is H11: Price-war commoditization strategy. Under ACH methodology, the surviving hypothesis is the one with the least inconsistent evidence, and H11 is the only hypothesis with zero inconsistencies across all 20 pieces of evidence. This hypothesis posits that the competitor is deliberately commoditizing the audit layer\\u2014making it a zero-cost market expectation\\u2014to undermine the revenue base of incumbents like us, while shifting competitive differentiation and pricing power to an adjacent capability where they hold a structural advantage. The evidence pattern is fully consistent with this interpretation: the competitor's moves align with a strategic repositioning of the entire audit market rather than a simple land-and-expand, data harvesting, or blitz-to-acquisition play. Three runner-up hypotheses (H1: land-and-expand market grab, H2: data harvesting for AI/product moat, H5: market share grab to force consolidation) each carry one inconsistency, making them plausible but less well-supported. The implication for our firm is severe: if H11 is correct, this is not a temporary pricing disruption but an attempt to permanently restructure where value accrues in the market, and a defensive response focused solely on price-matching or riding out a burn cycle would be insufficient.\",\n    \"winning_hypothesis_id\": \"H11\",\n    \"confidence\": \"Medium\",\n    \"confidence_reasoning\": \"Confidence is Medium rather than High for three reasons. First, while H11 is the only hypothesis with zero inconsistencies, the margin over the three nearest competitors (H1, H2, H5, each with only one inconsistency) is thin\\u2014a single re-scored evidence item could eliminate H11's lead or create a tie. Second, several pieces of evidence are scored as 'Neutral' (N) for H11 rather than 'Consistent' (C), meaning they neither support nor contradict it; the hypothesis survives by not being contradicted rather than by being overwhelmingly confirmed. Third, the most diagnostic evidence items (E1, E3, E7, E9) that could decisively separate H11 from data-harvesting or upsell hypotheses carry significant collection uncertainty\\u2014we may not yet have definitive intelligence on the competitor's adjacent capability advantage, which is the linchpin of the commoditization thesis. If that adjacent advantage turns out to be weaker than assumed, H11 loses its strategic logic even without gaining formal inconsistencies.\",\n    \"key_uncertainties\": [\n      \"The nature and maturity of the competitor's adjacent paid capability (the product or service they intend to shift pricing power toward)\\u2014if no credible adjacent advantage exists, the commoditization thesis collapses and land-and-expand (H1) or data harvesting (H2) becomes more likely.\",\n      \"The specific data access and IP rights clauses in the competitor's free audit engagement terms (E9)\\u2014this is a high-diagnosticity evidence item that currently scores as Inconsistent for H1, H4, and H5 and Consistent for H2/H6/H7/H10; obtaining the actual contract language could decisively shift the analysis toward or away from data-harvesting hypotheses.\",\n      \"The competitor's actual burn rate and runway relative to the $20M raise (E5)\\u2014if evidence emerges that the competitor is burning cash far faster than a commoditization play would require, it may indicate an unsustainable blitz or forced-acquisition strategy rather than a deliberate long-horizon market restructuring.\",\n      \"Whether the competitor's hiring profile (E1) shows a skew toward data science/ML talent versus go-to-market or delivery personnel\\u2014a strong data/AI hiring signal would undermine H11 (which is Neutral on E1) and strengthen H2/H6/H7.\",\n      \"Follow-on fundraising signals or M&A engagement (E5)\\u2014active Series B pursuit or investment banker engagement would differentiate a self-funding platform play (H11/H9) from a cash-burn forcing function (H3/H5).\"\n    ],\n    \"sensitivity_notes\": \"The five most diagnostic evidence items (E1, E3, E5, E7, E9\\u2014each at 0.27 diagnosticity) are the fulcrum of this assessment, and the conclusion is notably sensitive to their re-evaluation. E9 (data access and rights clauses) is particularly pivotal: it currently scores as Inconsistent for H1 and H5, which is the single inconsistency keeping each of those hypotheses behind H11. If E9 were re-assessed as Neutral or Consistent for either H1 or H5\\u2014for example, if the competitor's terms turn out to be standard-scope rather than expansive\\u2014those hypotheses would tie H11 at zero inconsistencies, collapsing our ability to discriminate. Similarly, E7 (existence of paid adjacent offerings) is the sole inconsistency for H2; if the competitor were found to have launched even a nascent paid product, E7 might be re-scored, tying H2 with H11. Conversely, E3 (maturity of adjacent paid offerings) and E7 are the evidence most capable of confirming H11's core mechanism\\u2014that the competitor is building a monetization layer adjacent to audits. If new intelligence reveals that the competitor has no credible adjacent offering and is instead focused on data ingestion infrastructure, H11's logical foundation weakens even though no formal inconsistency may appear. The analysis is therefore most sensitive to intelligence collection on the competitor's product roadmap, monetization architecture, and contractual data practices. Analysts should prioritize obtaining the competitor's standard engagement agreement and mapping their product/engineering investments to determine whether the strategic center of gravity is an adjacent paid capability (supporting H11), a data/AI asset (supporting H2/H6/H7/H10), or a customer acquisition funnel (supporting H1/H4).\"\n  },\n  \"timings\": {\n    \"phase1_generate\": 9.412929058074951,\n    \"phase2_evidence\": 27.859392881393433,\n    \"phase3_matrix\": 152.1070282459259,\n    \"phase4_eliminate\": 0.0024690628051757812,\n    \"phase5_synthesis\": 43.97128200531006\n  }\n}",
+        "cost": 0.0,
+        "duration_seconds": 233.79511284828186,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.3394651412963867,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.21735692024230957,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2317640781402588,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.21083426475524902,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 3.0,
+          "answer_quality": 3.6666666666666665,
+          "coherence": 3.6666666666666665,
+          "novelty": 4.0,
+          "reasoning_depth": 4.666666666666667,
+          "tension_surfacing": 4.333333333333333
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p16_ach",
+        "p03_parallel_synthesis",
+        "p17_red_blue_white",
+        "p04_multi_round_debate",
+        "p20_borda_count"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges. High disagreement: p16_ach/tension_surfacing (sd=1.15)",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p03_parallel_synthesis",
+        "Response B": "p04_multi_round_debate",
+        "Response C": "p17_red_blue_white",
+        "Response D": "p20_borda_count",
+        "Response E": "p16_ach"
+      },
+      "judge_input_tokens": 16800,
+      "judge_output_tokens": 1682,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 3.0,
+            "novelty": 4.0,
+            "coherence": 4.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p17_red_blue_white",
+          "p20_borda_count"
+        ],
+        "judge_reasoning": "Response E is the only response that actually produced substantive output. It delivers a rigorous Analysis of Competing Hypotheses (ACH) framework with 11 hypotheses, 20 evidence items scored for diagnosticity, a matrix-based elimination process, and a well-reasoned conclusion identifying H11 (price-war commoditization strategy) as the best-supported hypothesis. Its tension surfacing is excellent\u2014it explicitly identifies that H11 wins by not being contradicted rather than being overwhelmingly confirmed, and the sensitivity analysis shows how thin the margin is over runner-up hypotheses. The confidence calibration (Medium) with clear reasoning is strong. Weaknesses include limited concrete actionability (no specific timelines, owners, or decision criteria for response) and some redundancy across evidence items (e.g., multiple near-identical items about hiring patterns and data access clauses). Responses A-D all failed with execution errors and produced no usable content.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p03_parallel_synthesis",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p17_red_blue_white",
+          "Response D": "p20_borda_count",
+          "Response E": "p16_ach"
+        },
+        "judge_input_tokens": 5795,
+        "judge_output_tokens": 515,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 3.0,
+            "reasoning_depth": 4.0,
+            "tension_surfacing": 3.0,
+            "actionability": 2.0,
+            "novelty": 3.0,
+            "coherence": 3.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p17_red_blue_white",
+          "p20_borda_count",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate"
+        ],
+        "judge_reasoning": "Response E is the only response that substantively engages the prompt, offering a structured set of hypotheses for why a competitor would fund free audits and proposing discriminating evidence to test them; it also surfaces a key strategic tension (temporary loss-leader vs. permanent commoditization vs. data/AI moat). However, it is only moderately actionable (few concrete next steps/owners/timelines) and has coherence issues (duplicate hypotheses/evidence items, typos, and a malformed JSON key). Responses A\u2013D are execution/CLI errors that provide no business analysis or recommendations, so they score minimal across all dimensions; their internal text is coherent as an error message but does not answer the question.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p03_parallel_synthesis",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p17_red_blue_white",
+          "Response D": "p20_borda_count",
+          "Response E": "p16_ach"
+        },
+        "judge_input_tokens": 5149,
+        "judge_output_tokens": 798,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 4.0,
+            "novelty": 5.0,
+            "coherence": 4.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate",
+          "p17_red_blue_white",
+          "p20_borda_count"
+        ],
+        "judge_reasoning": "Response E is the only output that successfully generated a response to the prompt, providing a highly detailed, structured Analysis of Competing Hypotheses (ACH) in JSON format. Responses A, B, C, and D are all system error messages resulting from failed script executions.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p03_parallel_synthesis",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p17_red_blue_white",
+          "Response D": "p20_borda_count",
+          "Response E": "p16_ach"
+        },
+        "judge_input_tokens": 5856,
+        "judge_output_tokens": 369,
+        "judge_cost": 0.0
+      }
+    ]
+  },
+  {
+    "question_id": "Q3.2",
+    "question_text": "Client concentration \u2014 40% revenue client demands 25% discount",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "{\n  \"question\": \"Client concentration \\u2014 40% revenue client demands 25% discount\",\n  \"hypotheses\": [\n    {\n      \"id\": \"H1\",\n      \"label\": \"Competitive leverage play\",\n      \"description\": \"The client has received a credible competing offer or has developed internal alternatives, and is using their concentration leverage to extract pricing concessions before potentially switching providers.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H2\",\n      \"label\": \"Client under financial pressure\",\n      \"description\": \"The client is facing its own margin compression or budget cuts and is systematically pressuring all vendors for cost reductions, with no genuine intent to leave if the full discount is denied.\",\n      \"inconsistency_count\": 4,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H3\",\n      \"label\": \"Strategic repositioning test\",\n      \"description\": \"The client is testing our willingness to renegotiate as a precursor to a broader strategic shift \\u2014 either expanding scope significantly at lower unit economics or gradually reducing dependency on our services.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H4\",\n      \"label\": \"Legitimate competitive pressure\",\n      \"description\": \"The client has received genuinely lower-priced offers from credible competitors, and the discount demand reflects real market price compression that, if refused, will result in full loss of the 40% revenue stream.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H5\",\n      \"label\": \"Opportunistic leverage play\",\n      \"description\": \"The client is aware of its outsized share of our revenue and is exploiting that concentration dependency as negotiating leverage, despite having limited realistic alternatives or meaningful switching costs.\",\n      \"inconsistency_count\": 7,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H6\",\n      \"label\": \"Client financial distress signal\",\n      \"description\": \"The client is under severe internal cost-reduction pressure due to its own deteriorating financial position, and the aggressive discount demand is an early indicator of potential future payment risk, volume decline, or even insolvency.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H7\",\n      \"label\": \"Technical lock-in gives us leverage\",\n      \"description\": \"Our platform's deep technical integration with the client's systems (APIs, data pipelines, custom workflows) creates high switching costs, meaning the discount demand is a negotiation bluff and we can counter with modest concessions tied to extended commitments.\",\n      \"inconsistency_count\": 4,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H8\",\n      \"label\": \"Commodity architecture makes us replaceable\",\n      \"description\": \"Our technical architecture lacks meaningful differentiation or proprietary value \\u2014 the client can realistically migrate to a competitor or build in-house \\u2014 so the discount demand reflects genuine market pressure and refusal risks losing 40% of revenue.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H9\",\n      \"label\": \"Client-specific tech debt is the real cost driver\",\n      \"description\": \"Years of bespoke engineering work for this single client have created disproportionate tech debt and maintenance burden, meaning the true cost-to-serve is far higher than recognized, and granting a 25% discount would make the account unprofitable while continuing to distort our engineering roadmap.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H10\",\n      \"label\": \"Competitive displacement threat\",\n      \"description\": \"The client has received a credible, lower-priced offer from a competitor and is leveraging their revenue share to extract pricing concessions, signaling that our market positioning and perceived differentiation have eroded.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H11\",\n      \"label\": \"Strategic power play exploiting known dependency\",\n      \"description\": \"The client is aware of our concentration risk and is tactically exploiting their leverage\\u2014not because of competitive alternatives\\u2014but because they know we cannot afford the brand and market signal damage of losing a flagship account of that size.\",\n      \"inconsistency_count\": 9,\n      \"eliminated\": true\n    },\n    {\n      \"id\": \"H12\",\n      \"label\": \"Client budget restructuring misaligned with our value narrative\",\n      \"description\": \"The client is undergoing internal cost-reduction pressure and our current messaging and value proposition have failed to anchor the relationship on outcomes and ROI, making us vulnerable to being treated as a commodity line item subject to blanket cuts.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    }\n  ],\n  \"evidence\": [\n    {\n      \"id\": \"E1\",\n      \"description\": \"Whether the client has issued a formal RFP, entered active evaluation with named competitors, or built a proof-of-concept with an alternative provider \\u2014 verified through our champion contacts, industry intelligence, and sales team signals \\u2014 distinguishing genuine competitive displacement (H1, H4, H10) from opportunistic bluffing (H5, H11).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E2\",\n      \"description\": \"The client's recent financial disclosures, earnings trends, credit rating changes, and publicly announced cost-reduction or restructuring programs \\u2014 differentiating financial distress or budget pressure hypotheses (H2, H6, H12) from strategic or competitive leverage plays (H1, H3, H5, H11).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E3\",\n      \"description\": \"Whether the client is applying comparable discount demands or cost-reduction pressure across its other major vendors and suppliers, or is singling out our contract specifically \\u2014 differentiating blanket procurement-driven cost cuts (H2, H6, H12) from targeted exploitation of our known concentration dependency (H5, H11) or competitive alternatives unique to our category (H1, H4, H10).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E4\",\n      \"description\": \"An objective assessment of technical switching costs: depth of API integration, volume of custom workflows, estimated migration timeline and cost, and availability of competitors who can replicate our bespoke functionality \\u2014 differentiating high lock-in leverage (H7) from commodity replaceability (H8) and revealing whether the discount demand is a credible threat or a negotiation bluff.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E5\",\n      \"description\": \"Our fully-loaded cost-to-serve this client \\u2014 including dedicated engineering resources, bespoke feature maintenance, tech debt burden, opportunity cost of roadmap distortion, and support overhead \\u2014 compared to blended average cost-to-serve across our portfolio, determining whether a 25% discount renders the account margin-negative (H9) and fundamentally reframing the negotiation from revenue preservation to profitability analysis.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E6\",\n      \"description\": \"Client's own financial health indicators: recent quarterly earnings trends, credit rating changes, payment velocity on our invoices over the past 12 months (e.g., DSO creeping from 30 to 60+ days), and any publicly disclosed cost-reduction programs or layoffs \\u2014 differentiates financial distress/pressure hypotheses (H2, H6, H12) from strategic leverage plays (H1, H5, H11).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E7\",\n      \"description\": \"Evidence of active competitive engagement by the client: confirmed RFP issuance, proof-of-concept trials with named competitors, or procurement team communications referencing specific alternative vendors and their pricing \\u2014 differentiates genuine competitive displacement (H1, H4, H10) from bluff-based leverage or internal budget-driven demands (H5, H11, H12).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E8\",\n      \"description\": \"Granular cost-to-serve analysis for this account: fully-loaded margin including allocated engineering hours for bespoke customizations, dedicated support FTEs, tech debt maintenance burden, and opportunity cost of roadmap distortion \\u2014 determines whether a 25% discount renders the account contribution-negative (critical for H9) and establishes the true walk-away floor price.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E9\",\n      \"description\": \"Technical switching cost assessment: depth of custom API integrations, proprietary data pipeline dependencies, estimated migration timeline and cost for the client to move to an alternative, and whether our architecture uses open standards or proprietary protocols \\u2014 directly differentiates H7 (lock-in gives us leverage) from H8 (commodity architecture makes us replaceable).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E10\",\n      \"description\": \"Whether the client is applying comparable discount pressure across its other major vendors simultaneously versus targeting us specifically: intelligence from shared vendor networks, procurement pattern data, or direct client statements about enterprise-wide cost mandates \\u2014 differentiates broad internal cost-cutting programs (H2, H6, H12) from targeted exploitation of our known concentration dependency (H5, H11).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E11\",\n      \"description\": \"Depth and complexity of technical integration: number of custom API endpoints, proprietary data pipelines, bespoke workflow automations, and estimated migration effort (in engineer-months) required for the client to switch to an alternative provider or build in-house. Directly differentiates H7 (high lock-in, discount is a bluff) from H8 (commodity architecture, threat is real) and informs credibility of H1/H4/H10 vs H5/H11.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E12\",\n      \"description\": \"Observable client-side technical signals: whether the client has been prototyping with competitor APIs, issuing technical RFPs, hiring engineers with relevant platform migration skills, conducting proof-of-concept evaluations, or reducing integration touchpoints over the past 6-12 months. Differentiates H1/H3/H4/H10 (genuine strategic or competitive shift underway) from H2/H5/H6/H11/H12 (financial or opportunistic pressure with no real migration activity).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E13\",\n      \"description\": \"Engineering cost-to-serve allocation: percentage of total engineering hours, infrastructure costs, and support tickets attributable to this single client's bespoke requirements versus shared platform work, including deferred tech debt carrying costs from client-specific customizations. Differentiates H9 (account may already be marginally unprofitable, making a 25% discount untenable) from all other hypotheses that implicitly assume the account is profitable enough to warrant concessions.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E14\",\n      \"description\": \"Competitive technical capability gap analysis: whether known competitors or viable in-house builds can realistically replicate our differentiated technical capabilities (e.g., proprietary algorithms, data assets, latency/uptime SLAs, compliance certifications) at the price point implied by a 25% discount. Differentiates H4/H8/H10 (genuine market price compression from capable competitors) from H5/H7/H11 (leverage play where alternatives are technically inferior or immature).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E15\",\n      \"description\": \"Client's publicly observable financial health indicators and vendor management patterns: recent earnings/credit downgrades, layoff announcements, whether they are simultaneously demanding similar discounts from other technology vendors, and any procurement policy changes signaling blanket cost cuts. Differentiates H2/H6/H12 (client under broad financial duress applying uniform vendor pressure) from H1/H5/H10/H11 (targeted, strategic negotiation specific to our relationship).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E16\",\n      \"description\": \"Whether credible competitors have recently launched comparable offerings, publicly announced aggressive pricing, or been observed in active sales engagements with this client (e.g., RFP activity, proof-of-concept trials, vendor demos) \\u2014 distinguishes genuine competitive displacement (H1, H4, H10) from opportunistic leverage or financial-pressure hypotheses (H2, H5, H6, H11).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E17\",\n      \"description\": \"Whether the client has simultaneously issued comparable discount demands or cost-reduction mandates to other vendors across their supplier base \\u2014 distinguishes blanket financial-pressure or budget-restructuring scenarios (H2, H6, H12) from targeted negotiation tactics specifically exploiting our concentration dependency (H5, H11).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E18\",\n      \"description\": \"Recent trends in our win rates, deal sizes, and pricing power with prospects and other existing clients in the same market segment \\u2014 distinguishes systemic erosion of our market positioning and perceived differentiation (H4, H8, H10, H12) from a client-specific negotiation event with no broader market signal (H5, H7, H11).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E19\",\n      \"description\": \"The client's publicly available financial health indicators (earnings reports, credit ratings, analyst downgrades, cost-restructuring announcements, layoffs) \\u2014 sharply differentiates genuine financial distress and future payment/volume risk (H6) from strategic or opportunistic negotiation plays conducted from a position of strength (H1, H3, H5, H11).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E20\",\n      \"description\": \"Depth of the client's actual technical integration with our platform (number of custom APIs, proprietary data pipelines, workflow dependencies, estimated migration cost and timeline) versus availability of standardized migration tools or competitor-provided onboarding support \\u2014 directly discriminates between high-switching-cost lock-in making the demand a bluff (H7) and commodity-architecture replaceability making the threat credible (H8), and informs whether bespoke engineering has created hidden cost-to-serve issues (H9).\",\n      \"diagnostic_score\": 0.25\n    }\n  ],\n  \"surviving\": [\n    \"H1\",\n    \"H3\",\n    \"H9\",\n    \"H8\",\n    \"H4\",\n    \"H6\",\n    \"H10\",\n    \"H12\",\n    \"H2\",\n    \"H7\",\n    \"H5\"\n  ],\n  \"eliminated\": [\n    \"H11\"\n  ],\n  \"synthesis\": {\n    \"conclusion\": \"The hypothesis best supported by the evidence is H1: Competitive leverage play \\u2014 the client has received a credible competing offer or developed internal alternatives and is using their 40% revenue concentration as leverage to extract pricing concessions before potentially switching. H1 survives with zero inconsistencies across all 20 pieces of evidence and, critically, is actively corroborated by 16 of those 20 items (consistent ratings on E1\\u2013E4, E6, E7, E9\\u2013E12, E14\\u2013E16, E18\\u2013E20). While H3 (strategic repositioning test) and H9 (client-specific tech debt) also carry zero inconsistencies, they survive largely by irrelevance: H3 has 18 neutral ratings and only 2 consistent, and H9 has 15 neutral and 5 consistent. Their survival reflects the limits of the current evidence base to test them, not affirmative support. H1, by contrast, is the hypothesis the evidence most actively confirms while failing to refute. The pattern of evidence \\u2014 active competitive engagement signals, market-facing pricing intelligence, procurement behavior targeting our category specifically, and the structure of the discount demand itself \\u2014 coheres most strongly with a client that possesses real or credible alternatives and is rationally exploiting a known dependency asymmetry to extract maximum concessions.\",\n    \"winning_hypothesis_id\": \"H1\",\n    \"confidence\": \"Medium\",\n    \"confidence_reasoning\": \"Confidence is Medium rather than High for three reasons. First, three hypotheses (H1, H3, H9) share the same zero-inconsistency score, and ACH methodology treats inconsistency count as the primary discriminator; the differentiation rests on secondary analysis of consistent-vs-neutral distributions, which is less methodologically definitive. Second, H3 and H9 represent structurally different risk scenarios (a strategic relationship pivot and a hidden profitability crisis, respectively) that the current evidence base is largely unable to test \\u2014 18 and 15 neutral ratings respectively indicate significant blind spots. If even one or two pieces of currently neutral evidence were re-evaluated as inconsistent with H1 or consistent with H3/H9, the ranking could shift. Third, the most diagnostic evidence items all score at only 0.25 diagnosticity, meaning no single piece of evidence powerfully separates the leading hypotheses, and the overall evidence set has moderate but not strong discriminating power.\",\n    \"key_uncertainties\": [\n      \"Whether the client has issued a formal RFP or is running proof-of-concept trials with named competitors \\u2014 confirmed competitive engagement would solidify H1, while absence would elevate H5 (opportunistic bluff) or H3 (strategic repositioning)\",\n      \"A rigorous internal cost-to-serve analysis of this specific client account, including accumulated tech debt, bespoke engineering maintenance burden, and true margin \\u2014 this would directly test H9 and determine whether a 25% discount would render the account unprofitable regardless of strategic considerations\",\n      \"Direct intelligence on the client's strategic roadmap: whether they are planning scope expansion (potentially validating H3's 'lower unit economics at higher volume' variant), gradual insourcing, or platform consolidation \\u2014 currently almost entirely untested\",\n      \"The client's actual financial health trajectory \\u2014 verified DSO trends, credit rating movements, and whether comparable discount demands have been made to peer vendors \\u2014 would definitively differentiate H1/H3 from H2/H6/H12\",\n      \"Independent market pricing intelligence confirming whether competitor offers at the implied discount level are technically credible for comparable scope and integration complexity \\u2014 this would differentiate genuine competitive pressure (H1, H4) from leveraged bluffing (H5, H11)\"\n    ],\n    \"sensitivity_notes\": \"The five most diagnostic evidence items (E2, E3, E6, E7, E11) each scored 0.25 diagnosticity \\u2014 meaningful but not decisive. The conclusion is most sensitive to E7 (evidence of active competitive engagement) because it is the single most direct test of H1's core claim that a credible competing offer exists; if E7 were re-scored from Consistent to Neutral or Inconsistent for H1, it would either weaken H1's evidentiary base or introduce a fatal inconsistency. E11 (depth of technical integration and switching cost estimates) is similarly pivotal: it currently scores Consistent for H1 and H7, but if reassessed to show genuinely low switching costs, it would strengthen H8 (commodity architecture) and weaken any hypothesis assuming lock-in protects us. E2 and E6 (client financial health indicators) are critical swing evidence \\u2014 they currently help eliminate pure financial-distress hypotheses (H2, H6), but if new disclosures revealed deteriorating client finances, H6 and H12 would resurface as primary contenders and H1's framing as a competitive play rather than a distress signal would require revision. E3 (whether discount pressure is vendor-wide or targeted) is the key differentiator between procurement-driven blanket cuts and targeted exploitation of our specific concentration vulnerability. Overall, because no single piece of evidence exceeds 0.25 diagnosticity, the conclusion rests on the cumulative weight of many moderately diagnostic items rather than on any decisive smoking gun \\u2014 making it moderately fragile to simultaneous re-evaluation of even two or three key evidence items.\"\n  },\n  \"timings\": {\n    \"phase1_generate\": 9.982380867004395,\n    \"phase2_evidence\": 27.47015118598938,\n    \"phase3_matrix\": 178.94359874725342,\n    \"phase4_eliminate\": 0.0017580986022949219,\n    \"phase5_synthesis\": 48.08461308479309\n  }\n}",
+        "cost": 0.0,
+        "duration_seconds": 264.90364694595337,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.3609499931335449,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.21474909782409668,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.21869111061096191,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2394261360168457,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 2.6666666666666665,
+          "answer_quality": 3.3333333333333335,
+          "coherence": 3.6666666666666665,
+          "novelty": 3.6666666666666665,
+          "reasoning_depth": 4.666666666666667,
+          "tension_surfacing": 4.333333333333333
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p16_ach",
+        "p17_red_blue_white",
+        "p20_borda_count",
+        "p03_parallel_synthesis",
+        "p04_multi_round_debate"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges. High disagreement: p16_ach/answer_quality (sd=1.15), p16_ach/tension_surfacing (sd=1.15)",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p17_red_blue_white",
+        "Response B": "p20_borda_count",
+        "Response C": "p03_parallel_synthesis",
+        "Response D": "p16_ach",
+        "Response E": "p04_multi_round_debate"
+      },
+      "judge_input_tokens": 17061,
+      "judge_output_tokens": 1776,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 3.0,
+            "novelty": 4.0,
+            "coherence": 4.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p17_red_blue_white",
+          "p20_borda_count",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate"
+        ],
+        "judge_reasoning": "Responses A, B, C, and E all failed with execution errors and produced no substantive content whatsoever. Response D is the only response that actually addresses the question. It provides a rigorous structured analysis using an Analysis of Competing Hypotheses (ACH) framework, generating 12 hypotheses about why the 40% revenue client is demanding a 25% discount, identifying 20 pieces of diagnostic evidence, and systematically evaluating each hypothesis against the evidence. Its tension surfacing is excellent\u2014it explicitly identifies the core trade-offs between competitive displacement vs. opportunistic bluffing, financial distress vs. strategic leverage, and lock-in vs. commodity replaceability. The reasoning depth is strong with detailed evidence diagnosticity scoring and inconsistency tracking. Its main weaknesses are: (1) actionability is moderate\u2014while it identifies key uncertainties and what intelligence to gather, it lacks concrete negotiation tactics, timelines, or decision criteria for the actual discount response; (2) coherence has minor issues with some redundancy across evidence items (e.g., E1/E7/E16 and E2/E6/E19 overlap significantly); and (3) the conclusion section has a malformed key name (empty string). The non-obvious insight about H9 (hidden tech debt making the account potentially already unprofitable) is a genuinely valuable reframing that shifts the question from 'how much discount can we afford' to 'should we even want to retain this account at current pricing.'",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p17_red_blue_white",
+          "Response B": "p20_borda_count",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p16_ach",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 5927,
+        "judge_output_tokens": 638,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 2.0,
+            "reasoning_depth": 4.0,
+            "tension_surfacing": 3.0,
+            "actionability": 2.0,
+            "novelty": 3.0,
+            "coherence": 3.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p17_red_blue_white",
+          "p20_borda_count",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate"
+        ],
+        "judge_reasoning": "Response D is the only one that substantively engages the scenario, offering a structured hypothesis-driven diagnosis (why the client is asking) and highlighting real trade-offs (competitive threat vs bluff, switching costs, cost-to-serve/profitability). However, it does not directly answer the business question with a clear recommended negotiation stance, concession structure, or concrete execution plan; it is also verbose and contains internal-method artifacts (e.g., inconsistency counts, duplicated evidence items, odd JSON keying) that reduce coherence. Responses A/B/C/E are execution errors and provide no usable content, so they all score at the floor and are ranked below D (their internal ordering is essentially arbitrary).",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p17_red_blue_white",
+          "Response B": "p20_borda_count",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p16_ach",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 5274,
+        "judge_output_tokens": 621,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 3.0,
+            "novelty": 4.0,
+            "coherence": 4.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p17_red_blue_white",
+          "p20_borda_count",
+          "p03_parallel_synthesis",
+          "p04_multi_round_debate"
+        ],
+        "judge_reasoning": "Response D is the only output that actually addresses the prompt, utilizing a highly structured Analysis of Competing Hypotheses (ACH) framework to break down the client's motivations, required evidence, and strategic implications. While formatted as a raw JSON dump (which slightly impacts direct readability and immediate actionability for a layperson), it provides exceptional reasoning depth and surfaces excellent tensions (e.g., bluff vs. genuine threat, tech debt making the account unprofitable). Responses A, B, C, and E are simply command-line error messages resulting from failed script executions.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p17_red_blue_white",
+          "Response B": "p20_borda_count",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p16_ach",
+          "Response E": "p04_multi_round_debate"
+        },
+        "judge_input_tokens": 5860,
+        "judge_output_tokens": 517,
+        "judge_cost": 0.0
+      }
+    ]
+  },
+  {
+    "question_id": "Q4.3",
+    "question_text": "Client satisfaction scores are 4.7/5.0 but renewal rate dropped from 80% to 55% this year. Exit interviews cite 'budget constraints' but our pricing hasn't increased. What's actually going on?",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "{\n  \"question\": \"Client satisfaction scores are 4.7/5.0 but renewal rate dropped from 80% to 55% this year. Exit interviews cite 'budget constraints' but our pricing hasn't increased. What's actually going on?\",\n  \"hypotheses\": [\n    {\n      \"id\": \"H1\",\n      \"label\": \"Competitive displacement disguised as budget cuts\",\n      \"description\": \"A lower-cost competitor or substitute has emerged and clients are shifting spend to a 'good enough' alternative, citing budget constraints as a polite and non-confrontational exit rationale rather than revealing they've chosen a rival.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H2\",\n      \"label\": \"Satisfaction-decision maker misalignment\",\n      \"description\": \"The individuals rating us 4.7/5.0 (end users and operational contacts) are not the economic buyers making renewal decisions, meaning we have been optimizing for user delight while failing to demonstrate strategic ROI to the C-suite and procurement stakeholders who actually control the budget.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H3\",\n      \"label\": \"Category deprioritization amid macro pressures\",\n      \"description\": \"Clients' overall budgets are genuinely contracting due to macroeconomic or industry-specific headwinds, and our solution \\u2014 while valued \\u2014 falls below the survival line when executives triage spend into 'must-have' versus 'nice-to-have' categories, indicating a positioning and perceived-essentiality problem rather than a satisfaction or pricing problem.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H4\",\n      \"label\": \"Client-side financial distress\",\n      \"description\": \"Our client base is concentrated in sectors experiencing margin compression or funding drawdowns, meaning their budgets have genuinely shrunk and our unchanged price now represents a larger share of a smaller wallet \\u2014 'budget constraints' is literal, not diplomatic.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H5\",\n      \"label\": \"Competitive price-value gap\",\n      \"description\": \"Lower-cost competitors or substitute solutions have reset market price expectations, so while our nominal price hasn't increased, our relative cost position has worsened \\u2014 clients cite 'budget' to avoid a price negotiation or uncomfortable comparison conversation.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H6\",\n      \"label\": \"Rising total cost of ownership\",\n      \"description\": \"Hidden costs borne by the client \\u2014 such as implementation labor, required add-ons, integration maintenance, or internal staffing to manage our platform \\u2014 have increased even though our list price hasn't, eroding the unit economics of the engagement from the client's P&L perspective.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H7\",\n      \"label\": \"Tech debt stagnation making us relatively overpriced\",\n      \"description\": \"Accumulated tech debt has slowed our feature velocity and innovation cadence to the point where competitors now deliver meaningfully more capability per dollar, so clients are satisfied with what we currently do but can no longer justify the spend when alternatives offer greater value \\u2014 our price didn't change, but our relative value did.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H8\",\n      \"label\": \"Architecture misfit with clients' modernizing stacks\",\n      \"description\": \"Our platform's technical architecture (legacy APIs, limited cloud-native integrations, rigid data model) increasingly fails to interoperate with clients' evolving infrastructure \\u2014 particularly as they migrate to modern cloud ecosystems \\u2014 so they churn not out of dissatisfaction with our UX but because retaining a tool that can't plug into their new stack becomes an unjustifiable line item.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H9\",\n      \"label\": \"Platform consolidation replacing point solutions\",\n      \"description\": \"Clients facing genuine macro budget pressure are consolidating their tech stacks into fewer, broader platforms, and because our narrow architectural scope prevents us from expanding into an integrated suite, we get replaced by all-in-one competitors \\u2014 'budget constraints' is technically true but the real driver is that our engineering choices left us as a point solution in a consolidation market.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": true\n    },\n    {\n      \"id\": \"H10\",\n      \"label\": \"Competitive repricing of the category\",\n      \"description\": \"New or repositioned competitors have entered at significantly lower price points or with bundled offerings, effectively reframing our market-rate pricing as a premium \\u2014 so 'budget constraints' is a diplomatic proxy for 'we switched to a cheaper alternative that's good enough.'\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H11\",\n      \"label\": \"Buyer-user disconnect in perceived value\",\n      \"description\": \"The 4.7 satisfaction scores reflect end-user sentiment, but the renewal decision is made by a different economic buyer (e.g., CFO, procurement) who no longer sees strategic category relevance, meaning our value narrative fails at the executive level even while delighting day-to-day users.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H12\",\n      \"label\": \"Stale ROI narrative amid shifting priorities\",\n      \"description\": \"Enterprise budget priorities have materially shifted (e.g., toward AI, automation, or consolidation platforms) and we have failed to reposition our messaging to align with those new investment themes, leaving internal champions unable to defend our line item during budget reallocation cycles.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    }\n  ],\n  \"evidence\": [\n    {\n      \"id\": \"E1\",\n      \"description\": \"Post-churn tool adoption: What specific vendor, platform, or solution (if any) churned clients moved to after non-renewal \\u2014 a named competitor, a broader platform that absorbed our function, an in-house build, or nothing (category eliminated entirely). This is the single strongest differentiator between competitive displacement (H1/H5/H9/H10), platform consolidation (H9), and genuine budget elimination (H3/H4).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E2\",\n      \"description\": \"Identity and role of the actual non-renewal decision-maker at churned accounts versus the identity of those completing satisfaction surveys \\u2014 specifically whether the 4.7 raters are the same people who controlled the renewal decision, or whether a different economic buyer (CFO, CIO, procurement) overrode an internal champion. This directly tests the buyer-user disconnect hypotheses (H2/H11) against all others.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E3\",\n      \"description\": \"Whether churned clients attempted to negotiate price reductions, scope adjustments, or contract restructuring before deciding not to renew, versus declining outright with no negotiation. Clients facing genuine budget distress (H4) or who see us as essential but expensive (H3/H6) would typically try to negotiate down; clients who already have an alternative lined up (H1/H10) or whose decision-maker never valued the category (H2/H12) would simply exit.\",\n      \"diagnostic_score\": 0.08333333333333333\n    },\n    {\n      \"id\": \"E4\",\n      \"description\": \"Financial health and sector-level indicators (revenue trajectory, margin trends, funding rounds, layoff activity) for churned clients compared to retained clients \\u2014 testing whether churn correlates with client-side financial distress (H4) or occurs equally among financially healthy clients, which would redirect toward competitive, architectural, or positioning explanations.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E5\",\n      \"description\": \"Competitive landscape pricing and capability benchmarking over the past 18 months \\u2014 specifically whether new entrants, repositioned incumbents, or bundled platform offerings have materially changed the price-to-value ratio in our category. This differentiates scenarios where our absolute value held steady but relative value eroded (H5/H7/H10) from scenarios where no credible alternative exists and churn is driven by internal budget triage or architectural fit (H3/H8/H12).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E6\",\n      \"description\": \"Post-churn spend tracing: for each non-renewing client, whether the budget line item was (a) redirected to a named competitor or substitute platform, (b) absorbed into a broader consolidated vendor contract, or (c) fully eliminated with no replacement \\u2014 sourced from win/loss intelligence, sales debrief notes, and where possible, public procurement or vendor disclosures.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E7\",\n      \"description\": \"Financial health profile of churned vs. retained accounts: publicly available revenue growth, margin trends, funding round recency, credit ratings, or sector-level distress indicators (e.g., layoffs, down-rounds) compared between the two cohorts to test whether churn correlates with genuine client-side financial deterioration.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E8\",\n      \"description\": \"Role/title mapping of satisfaction survey respondents versus the actual renewal decision-maker or budget holder on each account \\u2014 specifically the percentage of accounts where the person who scored us 4.7 holds no P&L authority or procurement sign-off over the renewal.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E9\",\n      \"description\": \"Pre-churn negotiation behavior: the share of non-renewing clients who attempted to negotiate a lower price, requested a smaller-scope or downtier package, or asked for concessions before exiting \\u2014 versus those who simply declined renewal without engaging in any commercial discussion.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E10\",\n      \"description\": \"Fully-loaded client-side total cost of ownership trend over the past three years \\u2014 including our license fee, implementation/customization labor, required third-party add-ons, internal FTEs dedicated to managing or integrating the platform, and any incremental infrastructure costs \\u2014 indexed against our flat list price to reveal hidden cost inflation borne by the client's P&L.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E11\",\n      \"description\": \"Post-churn tooling audit: did churned clients adopt a named replacement solution (and if so, which vendor/platform) or did they eliminate the spend category entirely without substitution? This cleanly separates competitive displacement hypotheses (H1, H5, H7, H8, H9, H10) from genuine budget elimination (H3, H4).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E12\",\n      \"description\": \"Correlation between client-side infrastructure modernization events (e.g., migration to AWS/Azure/GCP, adoption of a new iPaaS or data platform, ERP consolidation) and churn timing \\u2014 specifically whether churned accounts had active cloud-migration or stack-consolidation initiatives in the 6-12 months preceding non-renewal. Differentiates architecture-fit hypotheses (H8, H9) from pricing, macro, and buyer-alignment explanations.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E13\",\n      \"description\": \"Comparative feature-release velocity and capability-per-dollar benchmarking: our shipping cadence (new integrations, API surface area, platform capabilities) over the past 24 months versus the top 3 competitive or substitute products. Differentiates tech-debt stagnation (H7) and competitive value-gap (H5, H10) from macro-budget and buyer-misalignment hypotheses.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E14\",\n      \"description\": \"Role-level mapping of satisfaction survey respondents versus actual renewal decision-makers (e.g., end-user/ops manager vs. CFO/CIO/procurement): what percentage of 4.7-score respondents held budget authority or direct influence over the renewal decision? Directly differentiates buyer-user disconnect (H2, H11) from hypotheses where the dissatisfied party and the decision-maker are the same.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E15\",\n      \"description\": \"Client-borne total cost of ownership trend: support-ticket volume related to integration maintenance, average professional-services and custom-development spend per account, and number of dedicated client-side FTEs required to operate our platform \\u2014 tracked over the past three years. Differentiates rising hidden-cost erosion (H6) from list-price and competitive-pricing explanations (H5, H10) and from macro-budget hypotheses (H3, H4).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E16\",\n      \"description\": \"Post-churn technology audit: what solution (if any) churned clients adopted within 6 months of non-renewal \\u2014 a direct competitor, a broader platform that absorbs our function, an in-house build, or nothing at all. This sharply separates competitive displacement and consolidation hypotheses (H1, H5, H9, H10) from genuine budget elimination (H3, H4) and from internal value-narrative failure where the function simply goes unfilled (H12).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E17\",\n      \"description\": \"Persona overlap analysis between satisfaction survey respondents (who gave us 4.7) and the actual signatories or decision-makers on the non-renewal. Quantifying the gap directly tests the buyer-user disconnect hypotheses (H2, H11) against explanations where the dissatisfaction or pressure originates from the same people who rated us highly.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E18\",\n      \"description\": \"Sector-level financial health and budget trend data for churned vs. retained accounts (e.g., revenue growth, funding rounds, layoff announcements, publicly reported cost-reduction programs). If churn is concentrated in financially distressed segments, H4 is strongly supported; if churn is evenly distributed across healthy and struggling clients, macro-financial distress is insufficient as a primary driver.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E19\",\n      \"description\": \"Competitive price-point and packaging timeline: documented changes in the last 12\\u201318 months from direct competitors and adjacent platform vendors \\u2014 new free tiers, bundled offerings, aggressive discounting, or acquisitions that fold our category into a larger suite. This differentiates market-repricing and consolidation hypotheses (H5, H9, H10) from internal product/architecture decay (H7, H8) and from pure macro pressure (H3, H4).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E20\",\n      \"description\": \"Pre-churn negotiation behavior: whether departing clients requested price concessions, scope reductions, or shorter contract terms before ultimately not renewing. High negotiation attempts that we failed to accommodate point toward price sensitivity and retention-saveable churn (H3, H5, H6); abrupt departures with no negotiation suggest the decision was already made \\u2014 likely a competitive switch or strategic deprioritization where price was not the real lever (H1, H9, H12).\",\n      \"diagnostic_score\": 0.16666666666666666\n    }\n  ],\n  \"surviving\": [\n    \"H1\",\n    \"H2\",\n    \"H3\",\n    \"H4\",\n    \"H5\",\n    \"H7\",\n    \"H10\",\n    \"H11\",\n    \"H12\",\n    \"H6\",\n    \"H8\"\n  ],\n  \"eliminated\": [\n    \"H9\"\n  ],\n  \"synthesis\": {\n    \"conclusion\": \"The hypothesis best supported by the ACH matrix is H1: Competitive displacement disguised as budget cuts. Nine hypotheses survived with zero inconsistencies, but H1 \\u2014 along with its closely related variants H5 (competitive price-value gap) and H10 (competitive repricing of the category) \\u2014 accumulated the highest volume of consistent evidence (14 of 20 evidence items each), meaning the broadest swath of available data is explicable under a competitive displacement framing. Crucially, these three hypotheses form a mutually reinforcing cluster pointing to a single underlying dynamic: a new or repositioned competitor (or substitute) has materially altered the price-to-value calculus in your category, and departing clients are citing 'budget constraints' as a face-saving, non-confrontational exit narrative rather than disclosing they have selected an alternative. This diagnosis elegantly resolves the core paradox \\u2014 high satisfaction scores coexisting with collapsing renewal \\u2014 because satisfaction measures what users feel about the current product experience, while renewal decisions are driven by relative value perception in the context of available alternatives. Your absolute quality didn't decline; your relative positioning did. The 4.7/5.0 score is real but irrelevant to the economic decision, because clients aren't choosing between 'your product' and 'no product' \\u2014 they're choosing between your product at your price and a good-enough alternative at a lower price. The 'budget constraints' language is technically true in the sense that every budget has constraints, but it functions as diplomatic cover for a switching decision. Supporting this interpretation, the most diagnostic evidence items (E5: competitive landscape pricing/capability benchmarking; E9: pre-churn negotiation behavior) are both consistent with H1 and its cluster, while being neutral or inconsistent with the pure macro-financial explanations (H3, H4). A secondary but important contributing factor is likely a buyer-user disconnect (H2/H11): the people rating you 4.7 are not the people making the renewal decision, which means your competitive vulnerability is compounded by an internal advocacy failure \\u2014 even if users love you, the economic buyer sees a line item that can be replaced at lower cost, and no one is making the strategic case at the decision-making table.\",\n    \"winning_hypothesis_id\": \"H1\",\n    \"confidence\": \"Low\",\n    \"confidence_reasoning\": \"Confidence is assessed as Low despite H1's leading position because the core ACH discriminator \\u2014 inconsistency count \\u2014 produced a nine-way tie at zero inconsistencies, meaning the evidence base collected so far has been insufficient to eliminate competing explanations. H1/H5/H10 lead on volume of consistent evidence (14C each), but this is a secondary ACH signal; the methodology's primary power lies in refutation, and no refutation has occurred for eight alternative hypotheses. Furthermore, H1, H5, and H10 are conceptually near-identical (competitive displacement at different levels of specificity), so the apparent breadth of the leading cluster partly reflects redundant hypothesis framing rather than independent convergence. The genuine macro-distress hypotheses (H3, H4) and the buyer-user disconnect hypotheses (H2, H11) remain fully viable with zero inconsistencies, and any of these could prove to be the primary driver once more diagnostic evidence is gathered. Finally, several of the most critical evidence items (E1: post-churn tool adoption; E2: decision-maker identity; E18: sector financial health) have not yet been empirically resolved \\u2014 they were scored based on indicative signals rather than confirmed data, meaning the matrix ratings themselves carry uncertainty.\",\n    \"key_uncertainties\": [\n      \"Post-churn tool adoption data (E1): Definitive identification of what churned clients actually moved to \\u2014 a named competitor, a bundled platform, an in-house build, or nothing \\u2014 would be the single most decisive evidence for confirming or eliminating H1. If a majority of churned accounts adopted no replacement and simply eliminated the category, H1 collapses and H3/H4 (genuine budget distress or deprioritization) surge.\",\n      \"Identity of the actual renewal decision-maker versus the satisfaction survey respondent (E2): If analysis confirms the 4.7 raters are the same individuals who chose not to renew, the buyer-user disconnect hypotheses (H2/H11) are eliminated and the paradox must be explained entirely through competitive or financial dynamics. Conversely, if decision-makers are systematically different people who never interacted with the product, H2/H11 could become primary.\",\n      \"Sector-level financial health segmentation of churned versus retained accounts (E18): If churn is heavily concentrated in financially distressed sectors (e.g., companies with declining revenue, layoffs, or funding gaps) and retained accounts are in healthier segments, H4 would be strongly confirmed and H1 weakened. If churn is evenly distributed across healthy and distressed clients, genuine financial distress is ruled out as the primary driver.\",\n      \"Competitive landscape pricing and capability evolution over the past 18 months (E5): Empirical confirmation of whether new entrants or repositioned incumbents have materially changed the price-per-unit-of-capability in the category. If no credible lower-cost alternative exists, the entire competitive displacement cluster (H1/H5/H10) fails despite its current matrix strength.\",\n      \"Pre-churn commercial negotiation behavior (E9): Whether non-renewing clients attempted to negotiate lower prices, downtiered packages, or concessions before exiting \\u2014 versus simply declining without discussion. High negotiation attempt rates would confirm price sensitivity and favor H5/H10; abrupt exits without negotiation would favor H3/H4 (genuine budget elimination) or H2/H11 (decision made by someone outside the relationship).\"\n    ],\n    \"sensitivity_notes\": \"The conclusion is most sensitive to four evidence items. E5 (competitive landscape pricing/capability benchmarking, diagnosticity 0.25) is the strongest differentiator in the matrix: it is the only evidence item that cleanly separates the competitive displacement cluster (H1/H5/H7/H10 \\u2014 all scored C) from the financial distress and buyer-disconnect clusters (H2/H3/H4/H11/H12 \\u2014 all scored N). If E5 were re-evaluated from Consistent to Neutral or Inconsistent for H1 \\u2014 for example, if investigation reveals no meaningful new competitor or price disruption in the category \\u2014 the competitive displacement thesis would lose its primary empirical anchor and H3/H4 would become co-equal frontrunners. E9 (pre-churn negotiation behavior, diagnosticity 0.25) is similarly pivotal: it currently scores C for both the competitive cluster and the buyer-disconnect cluster, meaning it doesn't distinguish between them, but if re-scored it could tip the balance sharply. E18 (sector financial health, diagnosticity 0.25) is the critical stress test for H3/H4; it is the only evidence item where H3 and H4 score C while H1 and H5 score N, making it the sole piece of evidence that could elevate the macro-distress explanation above the competitive one. If E18 were strengthened \\u2014 e.g., churn proven to concentrate in distressed sectors \\u2014 H4 would become the leading hypothesis despite having fewer total consistent evidence items. E2 (decision-maker identity, diagnosticity 0.17) is the gatekeeper for the buyer-user disconnect hypotheses (H2/H11): it is the only evidence item where H2 and H11 score C while H1, H5, and H10 all score N, meaning it could singlehandedly validate or eliminate the disconnect explanation. The overall sensitivity profile suggests that the conclusion, while directionally sound, sits on a narrow evidential margin \\u2014 the nine-way tie at zero inconsistencies means that re-scoring even one or two diagnostic evidence items could reshuffle the hypothesis ranking entirely. The recommended next step is to pursue the five key uncertainties above as priority intelligence collection tasks, with E1 (post-churn tool adoption) and E5 (competitive benchmarking) as the highest-leverage items that would most rapidly collapse the hypothesis space.\"\n  },\n  \"timings\": {\n    \"phase1_generate\": 18.48775315284729,\n    \"phase2_evidence\": 33.52613401412964,\n    \"phase3_matrix\": 203.47542190551758,\n    \"phase4_eliminate\": 0.0017118453979492188,\n    \"phase5_synthesis\": 84.31830716133118\n  }\n}",
+        "cost": 0.0,
+        "duration_seconds": 340.2853968143463,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.3579258918762207,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.24787116050720215,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2543039321899414,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.23480701446533203,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 3.6666666666666665,
+          "answer_quality": 4.0,
+          "coherence": 4.0,
+          "novelty": 4.333333333333333,
+          "reasoning_depth": 4.666666666666667,
+          "tension_surfacing": 4.666666666666667
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p16_ach",
+        "p20_borda_count",
+        "p17_red_blue_white",
+        "p04_multi_round_debate",
+        "p03_parallel_synthesis"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges.",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p20_borda_count",
+        "Response B": "p17_red_blue_white",
+        "Response C": "p16_ach",
+        "Response D": "p04_multi_round_debate",
+        "Response E": "p03_parallel_synthesis"
+      },
+      "judge_input_tokens": 19982,
+      "judge_output_tokens": 1874,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 4.0,
+            "novelty": 4.0,
+            "coherence": 4.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p20_borda_count",
+          "p17_red_blue_white",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis"
+        ],
+        "judge_reasoning": "Response C is the only response that actually produced substantive output. It delivers an exceptionally thorough analysis using a structured hypothesis-testing framework (Analysis of Competing Hypotheses). It generates 12 plausible hypotheses, identifies 20 evidence items with diagnostic scores, and provides a well-reasoned conclusion pointing to competitive displacement as the most likely explanation while honestly acknowledging low confidence due to the nine-way tie in inconsistency counts. Key strengths include: excellent tension surfacing (the buyer-user disconnect insight is genuinely non-obvious and powerful), strong reasoning depth (each hypothesis is logically grounded and differentiated), and reasonable actionability (five specific intelligence-gathering priorities are identified). Minor weaknesses: the output is verbose with some redundancy across hypotheses (H1/H5/H10 are near-identical as acknowledged), the JSON structure is somewhat unwieldy for practical consumption, and concrete next steps lack owners/timelines. Responses A, B, D, and E all failed with execution errors and produced no analytical content whatsoever.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p17_red_blue_white",
+          "Response C": "p16_ach",
+          "Response D": "p04_multi_round_debate",
+          "Response E": "p03_parallel_synthesis"
+        },
+        "judge_input_tokens": 6936,
+        "judge_output_tokens": 537,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 4.0,
+            "tension_surfacing": 4.0,
+            "actionability": 3.0,
+            "novelty": 4.0,
+            "coherence": 3.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p20_borda_count",
+          "p17_red_blue_white",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis"
+        ],
+        "judge_reasoning": "Response C is the only response that actually engages the business paradox (high CSAT + falling renewals) with a structured set of hypotheses (competitive displacement, buyer/user misalignment, macro budget triage, hidden TCO), identifies discriminating evidence to gather (replacement tool, decision-maker identity, negotiation behavior, competitive benchmarking), and explicitly surfaces trade-offs/uncertainty. Its main weaknesses are redundancy, some messy/duplicative evidence items, and limited concrete execution details (owners/timelines). Responses A/B/D/E are runtime/CLI error outputs that provide no diagnosis, no reasoning, and no actionable next steps for the underlying question.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p17_red_blue_white",
+          "Response C": "p16_ach",
+          "Response D": "p04_multi_round_debate",
+          "Response E": "p03_parallel_synthesis"
+        },
+        "judge_input_tokens": 6150,
+        "judge_output_tokens": 877,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 4.0,
+            "novelty": 5.0,
+            "coherence": 5.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p20_borda_count",
+          "p17_red_blue_white",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis"
+        ],
+        "judge_reasoning": "Response C is the only valid output, providing a highly structured, rigorous Analysis of Competing Hypotheses (ACH) that deeply explores the root causes of the churn paradox. Responses A, B, D, and E are all command-line error messages resulting from failed script executions.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p20_borda_count",
+          "Response B": "p17_red_blue_white",
+          "Response C": "p16_ach",
+          "Response D": "p04_multi_round_debate",
+          "Response E": "p03_parallel_synthesis"
+        },
+        "judge_input_tokens": 6896,
+        "judge_output_tokens": 460,
+        "judge_cost": 0.0
+      }
+    ]
+  },
+  {
+    "question_id": "Q7.1",
+    "question_text": "How do we scale without hiring when our value proposition is human expertise applied through AI? Every scaling mechanism (PLG, automation, templates) dilutes the 'bespoke' positioning that commands premium pricing.",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "{\n  \"question\": \"How do we scale without hiring when our value proposition is human expertise applied through AI? Every scaling mechanism (PLG, automation, templates) dilutes the 'bespoke' positioning that commands premium pricing.\",\n  \"hypotheses\": [\n    {\n      \"id\": \"H1\",\n      \"label\": \"Tiered Bespoke Model\",\n      \"description\": \"We can scale by creating a deliberately tiered offering\\u2014an automated 'guided' tier that serves as a qualified funnel into the premium bespoke tier\\u2014so that standardization at the base actually reinforces the exclusivity and perceived value of the top tier rather than diluting it.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H2\",\n      \"label\": \"Expertise-Encoded AI Leverage\",\n      \"description\": \"The bespoke-vs-scale tension is a false dilemma: if we systematically encode our consultants' decision-making frameworks and proprietary judgment into AI tooling, each expert can deliver bespoke-quality output at 5-10x current volume, scaling throughput per person rather than headcount.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H3\",\n      \"label\": \"Network-Orchestrated Expertise\",\n      \"description\": \"We scale by shifting from an employer model to a curated expert-network model\\u2014using our AI platform as the orchestration layer that ensures quality and consistency\\u2014so we grow capacity through vetted external specialists without traditional hiring or dilution of standards.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H4\",\n      \"label\": \"Tiered margin architecture\",\n      \"description\": \"We can scale by creating a deliberately tiered offering\\u2014an automated, lower-margin 'standard' tier that funds and feeds a capacity-constrained, high-margin 'bespoke' tier\\u2014so that PLG and templates serve as a qualified pipeline rather than a dilutant, preserving premium unit economics at the top while growing blended revenue.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H5\",\n      \"label\": \"Leverage-driven expert scaling\",\n      \"description\": \"The real constraint is not headcount but expert utilization rate; by investing capital into AI tooling that multiplies each expert's effective throughput (e.g., 3-5x output per senior person), we can scale revenue per employee and maintain bespoke positioning because the human remains in the loop\\u2014just operating at far higher leverage and margin.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H6\",\n      \"label\": \"Margin compression is inevitable and acceptable\",\n      \"description\": \"Any scaling path will erode gross margins from today's premium levels, and the financially rational move is to accept moderate margin compression in exchange for significantly higher absolute contribution dollars and lower customer-acquisition cost, rather than defending an unscalable margin structure that caps our enterprise value.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H7\",\n      \"label\": \"Expertise-Encoding Platform\",\n      \"description\": \"We can scale by systematically encoding senior experts' decision-making heuristics, judgment patterns, and domain knowledge into AI models and tooling layers, so each expert's capacity multiplies 5-10x without customers perceiving any reduction in bespoke quality\\u2014because the AI handles the 80% of repeatable analytical scaffolding while humans focus on the 20% of genuinely novel judgment calls.\",\n      \"inconsistency_count\": 0,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H8\",\n      \"label\": \"Tiered Architecture with Premium Core\",\n      \"description\": \"The bespoke-vs-scale tension is a false binary: we can build a tiered technical architecture where a self-serve, AI-automated layer handles commoditized use cases at high margin and low touch, which funds and creates a pipeline for the premium human-expert tier\\u2014effectively using PLG as a qualifying funnel rather than a replacement, so 'bespoke' becomes an upsell moat rather than a constraint.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H9\",\n      \"label\": \"Scaling Is Structurally Capped\",\n      \"description\": \"The premise that we can scale without hiring is fundamentally flawed for our value proposition: any meaningful automation of expert judgment will be detected by sophisticated buyers and erode trust, meaning our only viable path is controlled, high-margin linear growth with selective hiring\\u2014and the real technical investment should go into operational leverage (reducing non-billable engineering toil) rather than customer-facing automation.\",\n      \"inconsistency_count\": 8,\n      \"eliminated\": true\n    },\n    {\n      \"id\": \"H10\",\n      \"label\": \"Tiered Brand Architecture\",\n      \"description\": \"We can scale without dilution by creating a distinct sub-brand or productized tier (templates, PLG) that serves as a top-of-funnel acquisition engine, while the premium 'bespoke' brand remains capacity-constrained and human-led \\u2014 effectively running two positioning strategies under one house that reinforce rather than undermine each other.\",\n      \"inconsistency_count\": 2,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H11\",\n      \"label\": \"Redefine Bespoke Around Output, Not Input\",\n      \"description\": \"The bespoke positioning can survive automation if we shift the market's definition of 'bespoke' from visible human labor hours to demonstrably superior, tailored outcomes \\u2014 meaning AI-driven scale actually strengthens the premium claim as long as messaging anchors on personalized results and proprietary methodology rather than on handcrafted process.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    },\n    {\n      \"id\": \"H12\",\n      \"label\": \"Engineered Scarcity as the Growth Lever\",\n      \"description\": \"The highest-ROI scaling path is not to increase capacity at all but to weaponize constrained supply through waitlists, selective client intake, and client-as-advocate referral loops \\u2014 generating outsized demand and pricing power from exclusivity, which makes the headcount ceiling a brand asset rather than a growth bottleneck.\",\n      \"inconsistency_count\": 1,\n      \"eliminated\": false\n    }\n  ],\n  \"evidence\": [\n    {\n      \"id\": \"E1\",\n      \"description\": \"Proportion of current expert delivery time spent on repeatable analytical scaffolding vs. genuinely novel, client-specific judgment calls \\u2014 measured via time-tracking or engagement audits. A high ratio (e.g., 70-80% repeatable) strongly favors H2/H5/H7; a low ratio (e.g., <40%) favors H9's claim that automation upside is structurally limited.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E2\",\n      \"description\": \"Sophisticated buyer sensitivity to AI involvement: evidence from client interviews, win/loss analyses, or NPS data on whether premium clients perceive and penalize AI-augmented delivery versus fully human delivery. Detection and negative reaction favors H9 and H12; indifference or positive reception (outcome-focused) favors H11, H2, H5, and H7.\",\n      \"diagnostic_score\": 0.08333333333333333\n    },\n    {\n      \"id\": \"E3\",\n      \"description\": \"Current inbound demand-to-capacity ratio and fate of turned-away prospects \\u2014 specifically, how many qualified opportunities we decline or lose to wait times, and whether those prospects convert to competitors or remain in orbit. A large unserved qualified pipeline favors H12 (scarcity as asset) and H1/H4/H8 (tiered capture); a thin pipeline undermines scarcity strategies and favors H6's volume logic.\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E4\",\n      \"description\": \"Precedent outcomes from comparable premium-services firms (e.g., boutique strategy consultancies, high-end design agencies) that introduced productized or self-serve tiers: did the premium tier's pricing power, win rate, and brand perception hold, erode, or strengthen post-launch? Sustained premiums favor H1/H4/H8/H10; observed brand cannibalization favors H9/H12.\",\n      \"diagnostic_score\": 0.08333333333333333\n    },\n    {\n      \"id\": \"E5\",\n      \"description\": \"Price elasticity and willingness-to-pay segmentation across our current and prospective client base \\u2014 specifically, whether there is a measurable mid-market segment willing to pay for 'good enough' standardized output at 30-50% of bespoke pricing. A clear bimodal distribution favors tiered models (H1/H4/H8); a flat or premium-only distribution favors H12 or H9's linear-growth thesis and undermines H6's margin-compression trade-off.\",\n      \"diagnostic_score\": 0.08333333333333333\n    },\n    {\n      \"id\": \"E6\",\n      \"description\": \"Current expert utilization breakdown: what percentage of each senior consultant's billable time is spent on repeatable analytical scaffolding (data gathering, formatting, standard frameworks) versus genuinely novel, high-judgment work that only they can perform. A high ratio of scaffolding (e.g., 60-80%) strongly supports AI-leverage hypotheses (H2/H5/H7), while a low ratio (e.g., <30%) undermines their throughput-multiplier claims and favors H9's linear-growth thesis.\",\n      \"diagnostic_score\": 0.08333333333333333\n    },\n    {\n      \"id\": \"E7\",\n      \"description\": \"Empirical price sensitivity and churn data segmented by client sophistication: do premium clients audit delivery process (demanding visible senior human hours) or evaluate based on outcome quality and speed? High process-scrutiny from buyers supports H9 and undermines H11; outcome-orientation supports H2/H5/H7/H11 and the viability of AI-assisted delivery at premium pricing.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E8\",\n      \"description\": \"Revenue concentration and deal-size distribution across the current client base (e.g., Gini coefficient of revenue, % from top-decile clients, average vs. median deal size). A highly concentrated, large-deal book favors H12 (engineered scarcity) and undermines tiered/PLG funnel models (H1/H4/H8) where cannibalization risk is high; a long-tail distribution with many mid-market prospects validates the tiered funnel economics.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E9\",\n      \"description\": \"Current and projected customer acquisition cost (CAC) by channel, blended CAC payback period, and the share of new revenue coming from inbound/referral versus paid acquisition. Very low CAC via organic referral supports H12's scarcity-driven growth and questions the ROI of building a PLG tier (H1/H4/H8); high and rising CAC supports investing in a self-serve funnel that lowers blended acquisition cost.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E10\",\n      \"description\": \"Comparable company and market data on gross margin trajectories of firms that transitioned from pure-services to AI-augmented or tiered models (e.g., consulting firms, legal-tech platforms, design agencies). Evidence of whether margins expanded (supporting H2/H5/H7), compressed but absolute profits grew (supporting H6), or collapsed due to commoditization pressure \\u2014 directly differentiates the margin-expansion hypotheses from H6's compression-acceptance thesis and H9's structural-cap argument.\",\n      \"diagnostic_score\": 0.08333333333333333\n    },\n    {\n      \"id\": \"E11\",\n      \"description\": \"Task decomposition audit of current expert engagements: measured percentage of delivery hours spent on repeatable analytical scaffolding (data gathering, formatting, standard framework application) vs. genuinely novel, context-dependent judgment calls \\u2014 directly tests whether the 80/20 automation assumption in H2/H5/H7 holds or whether H9's claim that expert work is non-separable is more accurate.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E12\",\n      \"description\": \"Blind quality evaluation data: when sophisticated enterprise buyers or internal senior reviewers assess deliverables produced with heavy AI augmentation vs. purely human-crafted work, can they reliably distinguish them and do satisfaction/trust scores diverge \\u2014 this is the decisive differentiator between H9 (detection erodes trust) and H2/H5/H7/H11 (AI-augmented output preserves perceived bespoke quality).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E13\",\n      \"description\": \"Current expert time allocation and utilization metrics: what fraction of senior expert capacity is consumed by non-billable operational toil (internal tooling, context-switching, admin) vs. sub-expert-level billable tasks vs. true high-judgment work \\u2014 differentiates H5's thesis (utilization is the real constraint, AI leverage unlocks throughput) from H9's thesis (investment should target operational toil reduction, not customer-facing automation).\",\n      \"diagnostic_score\": 0.16666666666666666\n    },\n    {\n      \"id\": \"E14\",\n      \"description\": \"Conversion funnel and LTV data from analogous expertise-driven firms that launched productized or self-serve tiers (e.g., McKinsey Solutions, Bain's productized analytics, design agencies with template tiers): did the lower tier reliably upsell into premium engagements, or did it cannibalize/dilute the premium brand \\u2014 directly differentiates H1/H4/H8/H10 (tiered funnel works) from H12 (scarcity is superior) and H9 (scaling is capped).\",\n      \"diagnostic_score\": 0.08333333333333333\n    },\n    {\n      \"id\": \"E15\",\n      \"description\": \"Engineering investment curve and AI encoding fidelity benchmarks: measured accuracy of current AI tooling when replicating senior expert decision patterns on historical case data, plus the marginal engineering effort required to move from current fidelity to production-grade reliability \\u2014 differentiates H7's feasibility (encoding expertise is a tractable engineering problem) from H9 (encoding is intractable or prohibitively expensive relative to the margin it unlocks), and informs whether H3's external-network approach is more capital-efficient than building proprietary AI encoding.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E16\",\n      \"description\": \"Buyer value-attribution data: when premium clients explain why they chose us (win/loss interviews, NPS verbatims, renewal justifications), do they cite the visible involvement of named human experts and the 'handcrafted' process, or do they cite the quality/uniqueness of the tailored output and proprietary methodology regardless of how it was produced? This directly separates H9 (automation detected = trust lost) from H11 (redefine bespoke around outcomes) and H7 (encoded expertise is invisible to buyer).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E17\",\n      \"description\": \"Current demand backlog and price elasticity: what is the size of the qualified pipeline we are turning away or waitlisting today, and how does win rate respond to 10-20% price increases? A large unmet-demand queue with price-inelastic buyers strongly favors H12 (engineered scarcity) and undermines the urgency behind tiered/PLG models (H1/H4/H8), while thin demand or price sensitivity favors volume-scaling hypotheses.\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E18\",\n      \"description\": \"Competitive precedent in adjacent premium-services markets: have comparable firms (e.g., boutique strategy consultancies, design studios, wealth management) successfully launched productized or AI-augmented lower tiers without measurable erosion of their premium brand's pricing power and close rates? Documented outcomes differentiate H10 (sub-brand works) and H8 (tiered architecture works) from H9 (brand dilution is inevitable).\",\n      \"diagnostic_score\": 0.08333333333333333\n    },\n    {\n      \"id\": \"E19\",\n      \"description\": \"Funnel conversion data from any existing lower-touch or templated engagements: among prospects who first interacted with a standardized deliverable, self-serve tool, or content-led touchpoint, what is their conversion rate and average contract value when they upgrade to the premium tier versus prospects acquired through referral or direct outreach? This differentiates the 'PLG-as-funnel' thesis (H1/H4/H8) from H12 (scarcity/referral is the superior acquisition engine).\",\n      \"diagnostic_score\": 0.25\n    },\n    {\n      \"id\": \"E20\",\n      \"description\": \"Expert throughput variance under current AI tooling: for engagements where consultants already use internal AI assistance, is there measurable difference in client satisfaction scores, retention rates, or willingness-to-pay compared to purely manual engagements \\u2014 and can clients or competitors distinguish between the two? This is the critical discriminator between H2/H5/H7 (leverage works without detection) and H9 (sophisticated buyers will notice and penalize).\",\n      \"diagnostic_score\": 0.25\n    }\n  ],\n  \"surviving\": [\n    \"H2\",\n    \"H3\",\n    \"H5\",\n    \"H7\",\n    \"H6\",\n    \"H11\",\n    \"H12\",\n    \"H1\",\n    \"H4\",\n    \"H8\",\n    \"H10\"\n  ],\n  \"eliminated\": [\n    \"H9\"\n  ],\n  \"synthesis\": {\n    \"conclusion\": \"The ACH matrix most strongly supports Expertise-Encoded AI Leverage (H2), along with its functionally identical variants H5 and H7, which all survived with zero inconsistent evidence. These three hypotheses converge on a single strategic thesis: the bespoke-versus-scale tension is a false dilemma that dissolves when expert judgment is systematically encoded into AI tooling, allowing each consultant to deliver bespoke-quality output at 5-10x current volume by automating the repeatable analytical scaffolding (estimated at ~80% of delivery effort) while humans focus on the genuinely novel, context-dependent judgment calls. Critically, this cluster of hypotheses accumulated the most consistent (C) evidence of any group\\u2014eight confirming evidence items each (E1, E7, E11, E12, E13, E15, E16, E20)\\u2014while generating no inconsistencies. By contrast, the tiered-model family (H1, H4, H8, H10) each carried two inconsistencies driven by evidence on margin cannibalization risk (E8) and buyer process-scrutiny patterns (E17). H9 (scaling is structurally capped) was decisively eliminated with eight inconsistencies, meaning the preponderance of available evidence contradicts the claim that expert work is non-automatable. The winning thesis preserves premium positioning because the human expert remains the accountable decision-maker and client-facing authority; AI serves as a force multiplier on their judgment rather than a substitute visible to buyers.\",\n    \"winning_hypothesis_id\": \"H2\",\n    \"confidence\": \"Medium\",\n    \"confidence_reasoning\": \"While H2 (and its variants H5/H7) achieved the strongest possible ACH outcome\\u2014zero inconsistencies and the highest count of consistent evidence\\u2014confidence is capped at Medium for three reasons: (1) Seven of twenty evidence items (E2, E4, E5, E6, E10, E14, E18) remain unscored, representing a 35% information gap that could introduce inconsistencies upon collection; (2) the foundational empirical assumption\\u2014that 70-80% of expert delivery time is repeatable scaffolding\\u2014has not been validated through the task decomposition audit called for by E1/E11, and the entire thesis collapses if the actual ratio is below ~50%; (3) H2, H5, and H7 are so structurally similar that the appearance of three independently surviving hypotheses overstates the true diversity of surviving explanations\\u2014there is effectively one surviving thesis, not three, which means a single disconfirming finding could eliminate all top-ranked options simultaneously.\",\n    \"key_uncertainties\": [\n      \"The actual ratio of repeatable analytical scaffolding to genuinely novel judgment in current expert engagements (E1/E11): if measured below ~50%, the 5-10x leverage assumption fails and the entire H2/H5/H7 thesis is invalidated, likely elevating H12 (engineered scarcity) or the tiered models as the next-best options.\",\n      \"Whether premium buyers evaluate delivery based on outcomes or process visibility (E7): if sophisticated clients audit and demand visible senior human hours rather than judging on output quality, AI-augmented delivery risks trust erosion even when output quality is maintained\\u2014directly undermining the scaling mechanism.\",\n      \"Seven unscored evidence items (E2, E4, E5, E6, E10, E14, E18) represent unknown competitive dynamics, technical feasibility constraints, and market-structure data that could introduce inconsistencies for H2 or remove inconsistencies for currently lower-ranked hypotheses.\",\n      \"Whether expertise can actually be encoded with sufficient fidelity: the hypothesis assumes codifiable decision heuristics, but if senior judgment proves to be largely tacit, contextual, and resistant to systematic extraction, implementation will underdeliver on the throughput multiplier.\",\n      \"Revenue concentration data (E8) and CAC structure (E9): if the current book is highly concentrated in bespoke mega-deals with referral-driven acquisition, H12's engineered-scarcity path may deliver higher risk-adjusted returns than the capital-intensive AI-encoding investment H2 requires.\"\n    ],\n    \"sensitivity_notes\": \"The conclusion is most sensitive to five diagnostic evidence items, all scoring 0.25 diagnosticity. E1 and E11 (task decomposition audit) are the single most consequential inputs: they directly test whether the 80/20 repeatable-to-novel split assumed by H2/H5/H7 reflects operational reality. A finding that expert work is predominantly non-separable (high tacit judgment throughout) would simultaneously invalidate all three top-ranked hypotheses and revive the tiered models or H12 as frontrunners. E7 (buyer process-scrutiny vs. outcome-orientation) is the key market-side diagnostic: it separates H2/H5/H7/H11 from H9 and the tiered models, because if buyers demand visible human labor as a trust signal, AI leverage cannot be deployed transparently at premium pricing regardless of output quality. E8 (revenue concentration) and E9 (CAC structure) are the primary discriminators between the leverage thesis and the tiered/scarcity alternatives\\u2014a long-tail, mid-market revenue distribution with high CAC would favor building a PLG funnel (H1/H4/H8), while a concentrated, referral-heavy book favors H12. Notably, the current assessment rests entirely on scored evidence; the seven unscored items create a substantial blind spot. If even two of those items introduce inconsistencies for H2, the gap between the leverage thesis and the tiered-model cluster (currently at two inconsistencies each) narrows to a statistical tie, making the conclusion fragile. The analyst team should prioritize the task decomposition audit (E1/E11) and the buyer-scrutiny analysis (E7) as the highest-value next investigations, as these have the greatest potential to either confirm or overturn the current ranking.\"\n  },\n  \"timings\": {\n    \"phase1_generate\": 15.581711053848267,\n    \"phase2_evidence\": 31.378199815750122,\n    \"phase3_matrix\": 204.52369713783264,\n    \"phase4_eliminate\": 0.005620002746582031,\n    \"phase5_synthesis\": 53.06922793388367\n  }\n}",
+        "cost": 0.0,
+        "duration_seconds": 305.0826711654663,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p17_red_blue_white": {
+        "name": "p17_red_blue_white",
+        "output_text": "[ERROR] p17_red_blue_white failed: usage: run.py [-h] --question QUESTION --plan PLAN [--red RED [RED ...]]\n              [--blue BLUE [BLUE ...]] [--white WHITE]\n              [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --plan/-p\n",
+        "cost": 0.0,
+        "duration_seconds": 0.4023408889770508,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p03_parallel_synthesis": {
+        "name": "p03_parallel_synthesis",
+        "output_text": "[ERROR] p03_parallel_synthesis failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.24954891204833984,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p04_multi_round_debate": {
+        "name": "p04_multi_round_debate",
+        "output_text": "[ERROR] p04_multi_round_debate failed: usage: run.py [-h] --question QUESTION [--agents AGENTS [AGENTS ...]]\n              [--agent-config AGENT_CONFIG] [--rounds ROUNDS]\n              [--thinking-model THINKING_MODEL]\n              [--thinking-budget THINKING_BUDGET]\nrun.py: error: unrecognized arguments: --json\n",
+        "cost": 0.0,
+        "duration_seconds": 0.24317598342895508,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      },
+      "p20_borda_count": {
+        "name": "p20_borda_count",
+        "output_text": "[ERROR] p20_borda_count failed: usage: run.py [-h] --question QUESTION --options OPTIONS [OPTIONS ...]\n              [--agents AGENTS [AGENTS ...]] [--thinking-model THINKING_MODEL]\n              [--orchestration-model ORCHESTRATION_MODEL] [--json]\nrun.py: error: the following arguments are required: --options/-o\n",
+        "cost": 0.0,
+        "duration_seconds": 0.2538490295410156,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p03_parallel_synthesis": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p04_multi_round_debate": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p16_ach": {
+          "actionability": 3.3333333333333335,
+          "answer_quality": 3.6666666666666665,
+          "coherence": 4.0,
+          "novelty": 3.6666666666666665,
+          "reasoning_depth": 4.666666666666667,
+          "tension_surfacing": 4.666666666666667
+        },
+        "p17_red_blue_white": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        },
+        "p20_borda_count": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.3333333333333333,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p16_ach",
+        "p04_multi_round_debate",
+        "p17_red_blue_white",
+        "p03_parallel_synthesis",
+        "p20_borda_count"
+      ],
+      "judge_reasoning": "Aggregated across 3 judges.",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p16_ach",
+        "Response B": "p04_multi_round_debate",
+        "Response C": "p03_parallel_synthesis",
+        "Response D": "p17_red_blue_white",
+        "Response E": "p20_borda_count"
+      },
+      "judge_input_tokens": 19280,
+      "judge_output_tokens": 1504,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 3.0,
+            "novelty": 4.0,
+            "coherence": 4.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis",
+          "p17_red_blue_white",
+          "p20_borda_count"
+        ],
+        "judge_reasoning": "Response A is the only response that actually produced substantive output. It delivers a thorough hypothesis-driven analysis with 12 hypotheses, 20 evidence items, a structured elimination matrix, and a clear winning thesis (expertise-encoded AI leverage). Its tension surfacing is excellent\u2014it genuinely grapples with the bespoke-vs-scale paradox, identifies the false dilemma framing, and surfaces key uncertainties like the 80/20 scaffolding assumption and buyer process-scrutiny vs. outcome-orientation. Reasoning depth is strong with diagnostic scoring and inconsistency counts. Weaknesses include moderate actionability (no concrete timelines/owners, though it identifies priority investigations) and some redundancy across hypotheses (H2/H5/H7 are acknowledged as near-identical). Coherence suffers slightly from formatting artifacts and the sheer volume of overlapping hypotheses. Responses B through E all failed with execution errors and provided zero substantive content.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p20_borda_count"
+        },
+        "judge_input_tokens": 6769,
+        "judge_output_tokens": 521,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 3.0,
+            "reasoning_depth": 4.0,
+            "tension_surfacing": 4.0,
+            "actionability": 3.0,
+            "novelty": 3.0,
+            "coherence": 3.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 2.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p17_red_blue_white",
+          "p20_borda_count",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis"
+        ],
+        "judge_reasoning": "Response A is the only substantive attempt: it frames multiple plausible scaling strategies (encode expertise into AI, tiering, expert networks, engineered scarcity), surfaces key trade-offs (brand dilution vs funnel, outcome-vs-process buyer preferences, margin compression), and proposes concrete discriminating evidence to collect. However, it\u2019s more an analysis matrix than a direct, prescriptive scaling plan (limited execution steps/owners/timelines) and has some internal inconsistencies/artefacts (duplicate hypotheses, odd scoring, malformed fields), reducing coherence. Responses B/C/D/E are tool invocation errors and do not answer the question; among them, D/E at least indicate missing required inputs, but all are effectively non-answers.",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p20_borda_count"
+        },
+        "judge_input_tokens": 5954,
+        "judge_output_tokens": 531,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 4.0,
+            "reasoning_depth": 5.0,
+            "tension_surfacing": 5.0,
+            "actionability": 4.0,
+            "novelty": 4.0,
+            "coherence": 5.0
+          },
+          "p04_multi_round_debate": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p03_parallel_synthesis": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p17_red_blue_white": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          },
+          "p20_borda_count": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach",
+          "p04_multi_round_debate",
+          "p03_parallel_synthesis",
+          "p17_red_blue_white",
+          "p20_borda_count"
+        ],
+        "judge_reasoning": "Response A is the only valid output, providing a highly structured, evidence-based analysis of competing hypotheses that directly addresses the scaling tension. Responses B, C, D, and E are all command-line error messages resulting from failed script executions.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p16_ach",
+          "Response B": "p04_multi_round_debate",
+          "Response C": "p03_parallel_synthesis",
+          "Response D": "p17_red_blue_white",
+          "Response E": "p20_borda_count"
+        },
+        "judge_input_tokens": 6557,
+        "judge_output_tokens": 452,
+        "judge_cost": 0.0
+      }
+    ]
+  }
+]

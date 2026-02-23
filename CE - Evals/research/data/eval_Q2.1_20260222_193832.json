@@ -1,0 +1,98 @@
+[
+  {
+    "question_id": "Q2.1",
+    "question_text": "What are the key risks in the current market environment and how should a firm position its portfolio?",
+    "candidates": {
+      "p16_ach": {
+        "name": "p16_ach",
+        "output_text": "[ERROR] p16_ach failed: /Users/scottewalt/.pyenv/versions/3.13.11/bin/python: Error while finding module specification for 'protocols.p16_ach.run' (ModuleNotFoundError: No module named 'protocols')\n",
+        "cost": 0.0,
+        "duration_seconds": 0.013093233108520508,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "metadata": {}
+      }
+    },
+    "judgment": {
+      "scores": {
+        "p16_ach": {
+          "actionability": 1.0,
+          "answer_quality": 1.0,
+          "coherence": 1.0,
+          "novelty": 1.0,
+          "reasoning_depth": 1.0,
+          "tension_surfacing": 1.0
+        }
+      },
+      "ranking": [
+        "p16_ach"
+      ],
+      "judge_reasoning": "Aggregated across 2 judges.",
+      "judge_model": "multi:claude-opus-4-6+gpt-5.2+gemini-3.1-pro-preview",
+      "label_to_candidate": {
+        "Response A": "p16_ach"
+      },
+      "judge_input_tokens": 903,
+      "judge_output_tokens": 267,
+      "judge_cost": 0.0
+    },
+    "per_judge_results": [
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach"
+        ],
+        "judge_reasoning": "Response A is a system error message that provides no substantive content whatsoever. It failed to execute and returned a ModuleNotFoundError, offering zero insight into market risks or portfolio positioning. As the only response provided, it ranks last by default with minimum scores across all dimensions.",
+        "judge_model": "claude-opus-4-6",
+        "label_to_candidate": {
+          "Response A": "p16_ach"
+        },
+        "judge_input_tokens": 459,
+        "judge_output_tokens": 145,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {},
+        "ranking": [],
+        "judge_reasoning": "Backend error: Error code: 400 - {'error': {'message': \"Unsupported value: 'temperature' does not support 0.0 with this model. Only the default (1) value is supported.\", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}",
+        "judge_model": "gpt-5.2",
+        "label_to_candidate": {},
+        "judge_input_tokens": 0,
+        "judge_output_tokens": 0,
+        "judge_cost": 0.0
+      },
+      {
+        "scores": {
+          "p16_ach": {
+            "answer_quality": 1.0,
+            "reasoning_depth": 1.0,
+            "tension_surfacing": 1.0,
+            "actionability": 1.0,
+            "novelty": 1.0,
+            "coherence": 1.0
+          }
+        },
+        "ranking": [
+          "p16_ach"
+        ],
+        "judge_reasoning": "Response A is a system error message and completely fails to address the prompt.",
+        "judge_model": "gemini-3.1-pro-preview",
+        "label_to_candidate": {
+          "Response A": "p16_ach"
+        },
+        "judge_input_tokens": 444,
+        "judge_output_tokens": 122,
+        "judge_cost": 0.0
+      }
+    ]
+  }
+]

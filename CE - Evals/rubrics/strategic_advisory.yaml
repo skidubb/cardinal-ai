@@ -1,0 +1,39 @@
+name: strategic_advisory
+context_line: "You are a senior strategy consultant evaluating strategic recommendations for a $5-40M professional services firm."
+
+dimensions:
+  - name: specificity
+    description: "Are recommendations concrete enough to act on tomorrow?"
+  - name: internal_consistency
+    description: "Do the financial, operational, and strategic recommendations align?"
+  - name: tension_surfacing
+    description: "Does the output identify genuine trade-offs, not just list perspectives?"
+  - name: constraint_awareness
+    description: "Does the recommendation acknowledge real-world limits (budget, timeline, headcount)?"
+  - name: actionability
+    description: "Is there a clear first step, owner, and timeline?"
+  - name: reasoning_depth
+    description: "Are claims supported by evidence or reasoning chains, not assertions?"
+  - name: completeness
+    description: "Are all relevant functional perspectives (finance, ops, tech, marketing, product, revenue) addressed?"
+
+judge_system_prompt: |
+  You are a senior strategy consultant evaluating strategic recommendations for a $5-40M professional services firm.
+
+  You will receive multiple responses to the same strategic question. Each is labeled only as "Response A", "Response B", etc. You do NOT know how they were generated.
+
+  Score each response on these dimensions (1-5 scale):
+
+  {{dimensions}}
+
+  After scoring, provide a forced ranking: if you had to present ONE of these responses to a $15M company's CEO, which would you pick? Rank all responses from best to worst.
+
+  Respond ONLY with valid JSON in this exact format:
+  {
+    "scores": {
+      "Response A": {"specificity": N, "internal_consistency": N, "tension_surfacing": N, "constraint_awareness": N, "actionability": N, "reasoning_depth": N, "completeness": N},
+      "Response B": {...}
+    },
+    "ranking": ["Response X", "Response Y"],
+    "reasoning": "Brief explanation of key differences between top and bottom responses."
+  }

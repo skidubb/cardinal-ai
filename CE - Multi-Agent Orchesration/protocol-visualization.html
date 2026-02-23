@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coordination Lab — Protocol Visualization</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #242836;
+    --text: #e8e8e8; --text-dim: #9a9fb4; --radius: 10px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; line-height: 1.5; }
+  h1 { font-size: 1.8rem; margin-bottom: 4px; }
+  .subtitle { color: var(--text-dim); margin-bottom: 24px; font-size: 0.95rem; }
+  .insight-panel {
+    background: var(--surface); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 28px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;
+  }
+  .insight-panel h2 { grid-column: 1/-1; font-size: 1.1rem; margin-bottom: 4px; }
+  .insight-item { padding: 12px; border-radius: 8px; background: var(--surface2); }
+  .insight-item strong { display: block; margin-bottom: 4px; font-size: 0.85rem; }
+  .insight-item p { font-size: 0.8rem; color: var(--text-dim); }
+  .filters { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: transparent;
+    color: var(--text); cursor: pointer; font-size: 0.82rem; transition: all .2s;
+  }
+  .filter-btn:hover { border-color: #888; }
+  .filter-btn.active { background: #fff; color: #000; border-color: #fff; }
+  .cluster {
+    background: var(--surface); border-radius: var(--radius); margin-bottom: 16px;
+    overflow: hidden; border-left: 4px solid var(--cluster-color);
+  }
+  .cluster-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; cursor: pointer; user-select: none;
+  }
+  .cluster-header h3 { font-size: 1rem; display: flex; align-items: center; gap: 10px; }
+  .cluster-header .count {
+    font-size: 0.75rem; color: var(--text-dim); background: var(--surface2);
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .cluster-header .arrow { transition: transform .25s; font-size: 0.8rem; color: var(--text-dim); }
+  .cluster.collapsed .arrow { transform: rotate(-90deg); }
+  .cluster-body {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px; padding: 0 16px 16px;
+  }
+  .cluster.collapsed .cluster-body { display: none; }
+  .card {
+    background: var(--surface2); border-radius: 8px; padding: 14px 16px;
+    position: relative; transition: transform .15s, box-shadow .15s; cursor: pointer;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+  .card.hidden { display: none; }
+  .card-id { font-size: 0.7rem; color: var(--text-dim); letter-spacing: .5px; }
+  .card-name { font-size: 0.92rem; font-weight: 600; margin: 2px 0 6px; }
+  .card-purpose { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 8px; }
+  .card-hint { font-size: 0.68rem; color: var(--text-dim); opacity: 0.6; margin-top: 6px; }
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 10px;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: .3px;
+  }
+  .badge-t0 { background: #27ae60; color: #fff; }
+  .badge-t1 { background: #f1c40f; color: #000; }
+  .badge-t2 { background: #e74c3c; color: #fff; }
+  .badge-pg { background: repeating-linear-gradient(135deg, #f39c12 0 6px, #e67e22 6px 12px); color: #fff; }
+
+  /* Detail overlay */
+  .detail-overlay {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: var(--bg); overflow-y: auto;
+  }
+  .detail-overlay.open { display: block; }
+  .detail-inner {
+    max-width: 960px; margin: 0 auto; padding: 32px 24px;
+  }
+  .detail-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1px solid #444; color: var(--text);
+    padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+    margin-bottom: 20px; transition: border-color .2s;
+  }
+  .detail-back:hover { border-color: #888; }
+  .detail-title { font-size: 1.6rem; margin-bottom: 4px; }
+  .detail-meta { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .detail-cluster-tag { font-size: 0.78rem; padding: 3px 10px; border-radius: 10px; color: #fff; }
+  .detail-purpose { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 6px; }
+  .detail-description { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 24px; line-height: 1.6; }
+  .diagram-section { margin-bottom: 32px; }
+  .diagram-section h3 { font-size: 1rem; margin-bottom: 12px; color: var(--text-dim); }
+  .diagram-box {
+    background: #fff; border-radius: 8px; padding: 24px; overflow-x: auto;
+    min-height: 120px;
+  }
+  .diagram-box svg { max-width: 100%; height: auto; }
+
+  /* Example & Walkthrough */
+  .example-callout {
+    background: var(--surface2); border-left: 4px solid var(--cluster-color, #607D8B);
+    border-radius: 0 8px 8px 0; padding: 18px 20px; margin-bottom: 28px; position: relative;
+  }
+  .example-callout::before {
+    content: '\201C'; position: absolute; top: 8px; left: 12px;
+    font-size: 2.4rem; color: var(--text-dim); opacity: .3; line-height: 1;
+  }
+  .example-callout .example-label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--text-dim); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .example-callout .example-label .problem-tag {
+    background: var(--cluster-color, #607D8B); color: #fff; padding: 2px 8px;
+    border-radius: 10px; font-size: 0.68rem; text-transform: none; letter-spacing: 0;
+  }
+  .example-callout .example-q {
+    font-size: 1.05rem; font-style: italic; color: var(--text); line-height: 1.5;
+    padding-left: 18px;
+  }
+  .walkthrough-section { margin-bottom: 32px; }
+  .walkthrough-section h3 { font-size: 1rem; margin-bottom: 14px; color: var(--text-dim); }
+  .walkthrough-steps { list-style: none; padding: 0; position: relative; }
+  .walkthrough-steps::before {
+    content: ''; position: absolute; left: 15px; top: 8px; bottom: 8px;
+    width: 2px; background: var(--cluster-color, #444); opacity: .4;
+  }
+  .walkthrough-steps li {
+    position: relative; padding: 10px 16px 10px 44px; margin-bottom: 4px;
+    font-size: 0.88rem; color: var(--text); line-height: 1.55;
+  }
+  .walkthrough-steps li::before {
+    content: attr(data-step); position: absolute; left: 4px; top: 10px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--cluster-color, #607D8B); color: #fff;
+    font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .walkthrough-steps .step-label {
+    font-weight: 700; color: var(--text);
+  }
+  .walkthrough-steps .step-detail {
+    color: var(--text-dim);
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    .cluster-body { grid-template-columns: 1fr; }
+    .insight-panel { grid-template-columns: 1fr; }
+    .detail-inner { padding: 16px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="main-view">
+  <h1>Coordination Lab — Protocol Map</h1>
+  <p class="subtitle">30 protocols grouped by decision-making use case. Click any card to see the complete flow.</p>
+
+  <div class="insight-panel">
+    <h2>Tool-Use Insight</h2>
+    <div class="insight-item"><strong class="badge badge-t0">T0</strong><p>No tools. Wins for creativity, preference revelation, and paradox — tools narrow thinking prematurely.</p></div>
+    <div class="insight-item"><strong class="badge badge-t1">T1</strong><p>Read-only tools. Wins for fact-checking, rebuttals, and calibration — tools ground reasoning without distortion.</p></div>
+    <div class="insight-item"><strong class="badge badge-t2">T2</strong><p>Full tool access. Wins for root-cause diagnosis — requires real data retrieval and computation.</p></div>
+    <div class="insight-item"><strong class="badge badge-pg">Phase-Gated</strong><p>Generate tool-free first, then validate with tools. Prevents anchoring while ensuring rigor.</p></div>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div id="clusters"></div>
+</div>
+
+<div class="detail-overlay" id="detail-overlay">
+  <div class="detail-inner" id="detail-inner"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function() {
+  "use strict";
+
+  mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
+
+  var TOOL_LABELS = {t0:"T0",t1:"T1",t2:"T2",pg:"Phase-Gated"};
+  var BADGE_CLASS = {t0:"badge-t0",t1:"badge-t1",t2:"badge-t2",pg:"badge-pg"};
+
+  var DIAGRAMS = {};
+
+  // P0a
+  DIAGRAMS["P0a"] = {
+    summary: 'graph LR\n    U([User]):::agent -->|"query"| CLASS([Classifier]):::router\n    CLASS --> TOT["Tree-of-Thoughts"]:::stage\n    CLASS --> TOOL["Tool-Augmented"]:::stage\n    CLASS --> DIV["Divergent"]:::stage\n    CLASS --> VOTE["Aggregation"]:::stage\n    TOT & TOOL & DIV & VOTE --> EXEC[Execute Protocol]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef router fill:#607D8B,stroke:#455A64,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"query"| FEAT[Extract Feature Vector:<br/>complexity, ambiguity,<br/>risk, domain]:::stage\n    FEAT --> CLASS([Classifier Agent<br/>- BERT or lightweight LLM]):::router\n    CLASS --> EVAL{Problem Type?}:::decision\n    EVAL -->|"multi-hop logic"| TOT["Route > Tree-of-Thoughts<br/>e.g. P4 Debate"]:::stage\n    EVAL -->|"fact verification"| TOOL["Route > Tool-Augmented<br/>e.g. P16 ACH"]:::stage\n    EVAL -->|"ideation needed"| DIV["Route > Divergent<br/>e.g. P14 1-2-4-All"]:::stage\n    EVAL -->|"contradiction"| TRIZ["Route > TRIZ P6"]:::stage\n    EVAL -->|"consensus needed"| VOTE["Route > Aggregation<br/>e.g. P20 Borda"]:::stage\n    TOT --> EXEC[Execute Selected Protocol]:::stage\n    TOOL --> EXEC\n    DIV --> EXEC\n    TRIZ --> EXEC\n    VOTE --> EXEC\n    EXEC --> O[Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef router fill:#607D8B,stroke:#455A64,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P0b
+  DIAGRAMS["P0b"] = {
+    summary: 'graph LR\n    U([User]):::agent -->|"query"| GATE([Skip Gate]):::router\n    GATE -->|"simple"| FAST([Single Agent]):::agent\n    GATE -->|"complex"| FULL[Multi-Agent Pipeline]:::stage\n    FAST & FULL --> O[Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef router fill:#607D8B,stroke:#455A64,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"query"| GATE([Skip Gate<br/>- Learned Router]):::router\n    GATE --> ASSESS{Schema complexity?<br/>Query ambiguity?<br/>Stakes?}:::decision\n    ASSESS -->|"low complexity"| SIMPLE([Single Agent<br/>- Fast Baseline]):::agent\n    ASSESS -->|"high complexity"| FULL[Full Multi-Agent Pipeline]:::stage\n    FULL --> SELECT[Select Protocol P1-P27]:::stage\n    SELECT --> EXEC[Execute with N Agents]:::stage\n    SIMPLE -->|"response"| O[Output]:::stage\n    EXEC -->|"response"| O\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef router fill:#607D8B,stroke:#455A64,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P0c
+  DIAGRAMS["P0c"] = {
+    summary: 'graph LR\n    U([User]):::agent --> T1[Tier 1: Fast]:::stage\n    T1 -->|"low confidence"| T2[Tier 2: Multi-Agent]:::stage\n    T2 -->|"no consensus"| T3[Tier 3: Full Rigor]:::stage\n    T1 & T2 & T3 --> O[Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"query"| T1[Tier 1: Fast Agent<br/>- Low latency, simple]:::stage\n    T1 --> C1{Confidence above threshold?}:::decision\n    C1 -->|"yes"| O[Output]:::stage\n    C1 -->|"no: escalate"| T2[Tier 2: Multi-Agent<br/>- Moderate rigor<br/>e.g. P3 Parallel Synthesis]:::stage\n    T2 --> C2{Consensus reached?}:::decision\n    C2 -->|"yes"| O\n    C2 -->|"no: escalate"| T3[Tier 3: Full Consensus<br/>- Max rigor<br/>e.g. P16 ACH or P4 Debate]:::stage\n    T3 --> REVIEW([Oversight Agent]):::agent\n    REVIEW --> C3{Passes safety check?}:::decision\n    C3 -->|"yes"| O\n    C3 -->|"fail: flag"| HUMAN[Flag for Human Review]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P1
+  DIAGRAMS["P1"] = {
+    summary: 'graph LR\n    U([User]):::agent -->|"prompt"| A([Agent]):::agent -->|"response"| O[Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"full prompt + constraints"| A([Single Agent]):::agent\n    A --> P[Process: Analyze + Generate]:::stage\n    P --> O[Final Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P2
+  DIAGRAMS["P2"] = {
+    summary: 'graph LR\n    C[C-Suite Context]:::stage -->|"inject roles"| A([Agent]):::agent\n    U([User]):::agent -->|"prompt"| A\n    A -->|"response"| O[Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    C[Role Definitions:<br/>CEO, CFO, CTO, CMO, COO, CPO]:::stage\n    U([User]):::agent -->|"task prompt"| SYS[System Prompt Assembly]:::stage\n    C -->|"role context"| SYS\n    SYS -->|"enriched prompt"| A([Single Agent]):::agent\n    A --> P[Process with multi-perspective awareness]:::stage\n    P --> O[Final Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P3
+  DIAGRAMS["P3"] = {
+    summary: 'graph LR\n    U([User]):::agent -->|"prompt"| A1([Agent 1]):::agent\n    U -->|"prompt"| A2([Agent 2]):::agent\n    U -->|"prompt"| AN([Agent N]):::agent\n    A1 & A2 & AN --> S([Synthesizer]):::agent\n    S --> O[Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"identical prompt"| FAN[Fan-Out: Distribute to N agents]:::stage\n    FAN --> A1([Agent 1 e.g. CEO]):::agent\n    FAN --> A2([Agent 2 e.g. CTO]):::agent\n    FAN --> AN([Agent N e.g. CFO]):::agent\n    A1 -->|"independent analysis"| COLLECT[Collect All Responses]:::stage\n    A2 -->|"independent analysis"| COLLECT\n    AN -->|"independent analysis"| COLLECT\n    COLLECT -->|"all N responses"| S([Synthesizer Agent]):::agent\n    S --> MERGE[Merge: Identify agreements,<br/>conflicts, unique insights]:::stage\n    MERGE --> O[Unified Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P4
+  DIAGRAMS["P4"] = {
+    summary: 'graph LR\n    A1([Debater A]):::agent <-->|"Round 1+2"| A2([Debater B]):::agent\n    A1 & A2 --> J([Judge]):::agent\n    J --> O[Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"debate topic"| SETUP[Assign Positions]:::stage\n    SETUP -->|"position A"| A([Debater A]):::agent\n    SETUP -->|"position B"| B([Debater B]):::agent\n    A -->|"opening argument"| R1A[Argument A1]:::stage\n    B -->|"opening argument"| R1B[Argument B1]:::stage\n    R1A -->|"sees B1"| A\n    R1B -->|"sees A1"| B\n    A -->|"rebuttal"| R2A[Argument A2]:::stage\n    B -->|"rebuttal"| R2B[Argument B2]:::stage\n    R2A --> JUDGE_IN[All Arguments A1+B1+A2+B2]:::stage\n    R2B --> JUDGE_IN\n    JUDGE_IN -->|"full transcript"| J([Judge Agent]):::agent\n    J --> EVAL{Evaluate: evidence quality,<br/>logical consistency, coverage}:::decision\n    EVAL -->|"verdict + reasoning"| O[Final Decision]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P5
+  DIAGRAMS["P5"] = {
+    summary: 'graph LR\n    A([Agents]):::agent -->|"proposals"| CC{Constraint Check}:::decision\n    CC -->|"pass"| O[Output]:::stage\n    CC -->|"fail + feedback"| A\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"problem + constraints"| INIT[Initialize: Define hard and soft constraints]:::stage\n    INIT -->|"constraints list"| CC([Constraint Checker]):::agent\n    INIT -->|"problem"| AGENTS[Proposal Round]:::stage\n    AGENTS --> A1([Agent 1]):::agent\n    AGENTS --> A2([Agent 2]):::agent\n    AGENTS --> AN([Agent N]):::agent\n    A1 -->|"proposal"| COLLECT[Collect Proposals]:::stage\n    A2 -->|"proposal"| COLLECT\n    AN -->|"proposal"| COLLECT\n    COLLECT -->|"all proposals"| CC\n    CC --> EVAL{All hard constraints satisfied?}:::decision\n    EVAL -->|"yes"| RANK[Rank by soft constraint satisfaction]:::stage\n    EVAL -->|"no"| FEEDBACK[Feedback: which constraints failed]:::stage\n    FEEDBACK -->|"revise"| AGENTS\n    RANK -->|"best proposal"| O[Final Output]:::stage\n    classDef agent fill:#4A90D9,stroke:#2C5F8A,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P6
+  DIAGRAMS["P6"] = {
+    summary: 'graph LR\n    U([User]):::agent -->|"challenge"| INV([Inversion Agents]):::agent\n    INV -->|"failure list"| FLIP[Invert Failures]:::stage\n    FLIP --> S([Synthesizer]):::agent --> O[Output]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"desired outcome"| Q[Reframe: How to guarantee failure?]:::stage\n    Q -->|"inverted prompt"| A1([Agent 1]):::agent\n    Q -->|"inverted prompt"| A2([Agent 2]):::agent\n    Q -->|"inverted prompt"| AN([Agent N]):::agent\n    A1 -->|"failure modes"| COLLECT[Collect All Failure Modes]:::stage\n    A2 -->|"failure modes"| COLLECT\n    AN -->|"failure modes"| COLLECT\n    COLLECT --> DEDUP[Deduplicate and Categorize]:::stage\n    DEDUP --> INVERT[Invert Each Failure into Solution]:::stage\n    INVERT --> RANK{Prioritize by impact and feasibility}:::decision\n    RANK --> S([Synthesizer]):::agent\n    S --> O[Actionable Solutions]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P7
+  DIAGRAMS["P7"] = {
+    summary: 'graph LR\n    U([User]):::agent -->|"topic"| AG([Agents]):::agent\n    AG -->|"paradoxes"| F{Filter: truly wicked?}:::decision\n    F -->|"wicked questions"| O[Output]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"strategic topic"| FRAME[Frame: Identify competing demands]:::stage\n    FRAME --> A1([Agent 1]):::agent\n    FRAME --> A2([Agent 2]):::agent\n    FRAME --> AN([Agent N]):::agent\n    A1 -->|"tension pairs"| COLLECT[Collect All Tensions]:::stage\n    A2 -->|"tension pairs"| COLLECT\n    AN -->|"tension pairs"| COLLECT\n    COLLECT --> TEST{Wickedness Test:<br/>1. Both sides true?<br/>2. Cannot choose one?<br/>3. Creates real tension?}:::decision\n    TEST -->|"pass all 3"| FORMAT["Format as: How is it that X AND Y?"]:::stage\n    TEST -->|"fail"| DISCARD[Discard: Not truly wicked]:::stage\n    FORMAT --> RANK[Rank by strategic relevance]:::stage\n    RANK --> O[Top Wicked Questions]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P8
+  DIAGRAMS["P8"] = {
+    summary: 'graph LR\n    U([User]):::agent -->|"goal"| GEN([Agents]):::agent\n    GEN -->|"all specs"| ELIM{Eliminate non-essential}:::decision\n    ELIM -->|"min specs"| O[Output]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"goal / purpose"| GEN[Generate: List ALL rules and constraints]:::stage\n    GEN --> A1([Agent 1]):::agent\n    GEN --> A2([Agent 2]):::agent\n    GEN --> AN([Agent N]):::agent\n    A1 -->|"spec list"| UNION[Union of All Specs]:::stage\n    A2 -->|"spec list"| UNION\n    AN -->|"spec list"| UNION\n    UNION --> LOOP{For each spec:<br/>Would removing this<br/>make purpose impossible?}:::decision\n    LOOP -->|"yes: keep"| MUST[Must-Have List]:::stage\n    LOOP -->|"no: remove"| DROP[Remove Spec]:::stage\n    DROP -->|"next spec"| LOOP\n    MUST --> VOTE[Agents vote on borderline specs]:::stage\n    VOTE --> O[Minimum Specification Set]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P9
+  DIAGRAMS["P9"] = {
+    summary: 'graph LR\n    CL([Client]):::agent -->|"problem"| C1([Consultant 1]):::agent\n    CL -->|"problem"| C2([Consultant 2]):::agent\n    C1 & C2 -->|"advice"| CL\n    CL -->|"reflection"| O[Output]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    CL([Client Agent]):::agent -->|"problem statement + context"| BRIEF[Brief to Consultants]:::stage\n    BRIEF -->|"problem"| C1([Consultant 1]):::agent\n    BRIEF -->|"problem"| C2([Consultant 2]):::agent\n    C1 -->|"initial thoughts"| DISC[Open Discussion - Client LISTENS only]:::stage\n    C2 -->|"initial thoughts"| DISC\n    DISC --> C1\n    DISC --> C2\n    C1 -->|"refined advice"| ADV[Consolidated Advice]:::stage\n    C2 -->|"refined advice"| ADV\n    ADV -->|"all advice"| CL\n    CL --> REFL[Client Reflection:<br/>What resonated? What will I do?]:::stage\n    REFL --> O[Action Plan]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P10
+  DIAGRAMS["P10"] = {
+    summary: 'graph LR\n    SA([Stakeholder A]):::agent -->|"experience"| L([Listener]):::agent -->|"reflected back"| SA\n    SA --> O[Shared Understanding]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"multi-stakeholder challenge"| ASSIGN[Assign Stakeholder Perspectives]:::stage\n    ASSIGN --> SA([Agent A: Stakeholder View]):::agent\n    ASSIGN --> SB([Agent B: Stakeholder View]):::agent\n    SA -->|"experience narrative"| SHARE[Each shares lived experience]:::stage\n    SB -->|"experience narrative"| SHARE\n    SHARE --> RA[Agent A reflects back what B shared]:::stage\n    SHARE --> RB[Agent B reflects back what A shared]:::stage\n    RA --> BRIDGE[Identify common ground and differences]:::stage\n    RB --> BRIDGE\n    BRIDGE --> TRANS[Translate concerns across perspectives]:::stage\n    TRANS --> O[Shared Understanding + Translation Guide]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P11
+  DIAGRAMS["P11"] = {
+    summary: 'graph LR\n    U([User]):::agent -->|"problem"| SCAN([Scouts]):::agent\n    SCAN -->|"positive deviants"| EXT[Extract Practices]:::stage\n    EXT --> O[Output]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"persistent problem"| Q1[Question: Who succeeds despite same constraints?]:::stage\n    Q1 --> A1([Scout Agent 1]):::agent\n    Q1 --> A2([Scout Agent 2]):::agent\n    Q1 --> AN([Scout Agent N]):::agent\n    A1 -->|"positive deviants + behaviors"| COLLECT[Collect Deviant Behaviors]:::stage\n    A2 -->|"positive deviants + behaviors"| COLLECT\n    AN -->|"positive deviants + behaviors"| COLLECT\n    COLLECT --> FILTER{Is behavior:<br/>1. Uncommon?<br/>2. Accessible?<br/>3. Actually effective?}:::decision\n    FILTER -->|"pass"| EXTRACT[Extract Core Practice]:::stage\n    FILTER -->|"fail"| DISCARD[Discard]:::stage\n    EXTRACT --> ADAPT[Adapt for target context]:::stage\n    ADAPT --> O[Transferable Action Practices]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P12
+  DIAGRAMS["P12"] = {
+    summary: 'graph LR\n    AG([All Agents]):::agent -->|"ideas"| SCORE{Blind Score}:::decision\n    SCORE -->|"top ideas"| O[Output]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"challenge"| GEN[Phase 1: Generate - each agent writes bold idea]:::stage\n    GEN --> A1([Agent 1]):::agent\n    GEN --> A2([Agent 2]):::agent\n    GEN --> AN([Agent N]):::agent\n    A1 -->|"idea card"| POOL[Idea Pool - anonymized]:::stage\n    A2 -->|"idea card"| POOL\n    AN -->|"idea card"| POOL\n    POOL --> ROUND[Phase 2: Score - 5 rounds of blind 1-5 scoring]:::stage\n    ROUND --> TALLY[Tally All Scores]:::stage\n    TALLY --> RANK[Rank by total score]:::stage\n    RANK --> TOP[Top 25% Ideas]:::stage\n    TOP --> O[Winning Ideas + Scores]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P13
+  DIAGRAMS["P13"] = {
+    summary: 'graph LR\n    AG([Agents]):::agent -->|"initiatives"| MAP[Map to Lifecycle]:::stage\n    MAP --> ACT{Action per stage}:::decision --> O[Output]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"portfolio of initiatives"| LIST[List All Current Initiatives]:::stage\n    LIST --> A1([Agent 1]):::agent\n    LIST --> A2([Agent 2]):::agent\n    LIST --> AN([Agent N]):::agent\n    A1 -->|"stage assignments"| COLLECT[Collect Assessments]:::stage\n    A2 -->|"stage assignments"| COLLECT\n    AN -->|"stage assignments"| COLLECT\n    COLLECT --> CONSENSUS[Consensus: Resolve disagreements]:::stage\n    CONSENSUS --> BIRTH["Birth/Startup: Invest and nurture"]:::stage\n    CONSENSUS --> MATURE["Maturity: Optimize and scale"]:::stage\n    CONSENSUS --> DESTRUCT["Creative Destruction: Sunset and harvest"]:::stage\n    CONSENSUS --> RENEW["Renewal: Repurpose and reimagine"]:::stage\n    BIRTH & MATURE & DESTRUCT & RENEW --> PLAN[Action Plan per Initiative]:::stage\n    PLAN --> O[Portfolio Strategy]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P14
+  DIAGRAMS["P14"] = {
+    summary: 'graph LR\n    SOLO["1: Solo"]:::stage --> PAIR["2: Pairs"]:::stage --> QUAD["4: Quads"]:::stage --> ALL["All: Synthesize"]:::stage --> O[Output]:::stage\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"prompt"| S1["Stage 1 - Solo: Each agent generates ideas independently"]:::stage\n    S1 --> A1([Agent 1]):::agent\n    S1 --> A2([Agent 2]):::agent\n    S1 --> A3([Agent 3]):::agent\n    S1 --> A4([Agent 4]):::agent\n    A1 -->|"ideas"| P1[Pair 1 Merge: Find shared themes]:::stage\n    A2 -->|"ideas"| P1\n    A3 -->|"ideas"| P2[Pair 2 Merge: Find shared themes]:::stage\n    A4 -->|"ideas"| P2\n    P1 -->|"pair themes"| Q1[Quad Merge: Refine and prioritize]:::stage\n    P2 -->|"pair themes"| Q1\n    Q1 -->|"quad output"| SYNTH([Synthesizer]):::agent\n    SYNTH --> O[Final Unified Output]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P15
+  DIAGRAMS["P15"] = {
+    summary: 'graph LR\n    WHAT["What? Observations"]:::stage --> SO["So What? Implications"]:::stage --> NOW["Now What? Actions"]:::stage --> O[Output]:::stage\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"experience / data"| PH1["Phase 1 - WHAT: What happened?"]:::stage\n    PH1 --> A1([Agent 1]):::agent\n    PH1 --> A2([Agent 2]):::agent\n    PH1 --> AN([Agent N]):::agent\n    A1 -->|"observations"| OBS[Collect Observations]:::stage\n    A2 -->|"observations"| OBS\n    AN -->|"observations"| OBS\n    OBS --> PH2["Phase 2 - SO WHAT: Why does this matter?"]:::stage\n    PH2 --> IMP[Collect Implications]:::stage\n    IMP --> PH3["Phase 3 - NOW WHAT: What actions follow?"]:::stage\n    PH3 --> ACT[Collect Actions]:::stage\n    ACT --> SYNTH([Synthesizer]):::agent\n    SYNTH --> O[Observations > Implications > Actions]:::stage\n    classDef agent fill:#9B59B6,stroke:#7D3C98,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333'
+  };
+
+  // P16
+  DIAGRAMS["P16"] = {
+    summary: 'graph LR\n    AG([Analysts]):::agent -->|"hypotheses"| MAT[Evidence Matrix]:::stage\n    MAT --> ELIM{Eliminate weakest}:::decision -->|"surviving"| O[Output]:::stage\n    classDef agent fill:#E74C3C,stroke:#C0392B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"intelligence question"| PH1[Phase 1: Generate all plausible hypotheses]:::stage\n    PH1 --> A1([Analyst 1]):::agent\n    PH1 --> A2([Analyst 2]):::agent\n    PH1 --> AN([Analyst N]):::agent\n    A1 -->|"hypotheses"| HPOOL[Hypothesis Pool H1, H2, ... Hk]:::stage\n    A2 -->|"hypotheses"| HPOOL\n    AN -->|"hypotheses"| HPOOL\n    HPOOL --> PH2[Phase 2: List all available evidence]:::stage\n    PH2 --> ELIST[Evidence List E1, E2, ... Em]:::stage\n    ELIST --> PH3[Phase 3: Build Matrix - score each E against each H]:::stage\n    PH3 --> MATRIX["Evidence-Hypothesis Matrix<br/>C=Consistent / I=Inconsistent / N=Neutral"]:::stage\n    MATRIX --> PH4{Phase 4: Eliminate hypotheses with most Inconsistent evidence}:::decision\n    PH4 -->|"eliminated"| REMOVED[Rejected Hypotheses]:::stage\n    PH4 -->|"surviving"| SENSITIVITY[Phase 5: Sensitivity Analysis]:::stage\n    SENSITIVITY --> O[Surviving Hypotheses + Key Evidence + Confidence]:::stage\n    classDef agent fill:#E74C3C,stroke:#C0392B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P17
+  DIAGRAMS["P17"] = {
+    summary: 'graph LR\n    R([Red Team]):::agent -->|"attacks"| W([White Team]):::agent\n    B([Blue Team]):::agent -->|"defenses"| W\n    W -->|"assessment"| O[Output]:::stage\n    classDef agent fill:#E74C3C,stroke:#C0392B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"strategy to stress-test"| SETUP[Assign Teams]:::stage\n    SETUP -->|"find flaws"| R([Red Team - Adversary]):::agent\n    SETUP -->|"defend plan"| B([Blue Team - Defender]):::agent\n    SETUP -->|"referee"| W([White Team - Arbiter]):::agent\n    R -->|"vulnerabilities, failure modes, blind spots"| ATTACKS[Attack Report]:::stage\n    ATTACKS -->|"attacks to address"| B\n    B -->|"mitigations, counterarguments, evidence"| DEFENSE[Defense Report]:::stage\n    ATTACKS --> W\n    DEFENSE --> W\n    W --> EVAL{For each attack: Defense adequate?}:::decision\n    EVAL -->|"yes"| RESOLVED[Resolved Risks]:::stage\n    EVAL -->|"no"| OPEN[Open Risks - need action]:::stage\n    RESOLVED --> O[Final Assessment: Resolved + Open Risks + Recommendations]:::stage\n    OPEN --> O\n    classDef agent fill:#E74C3C,stroke:#C0392B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P18
+  DIAGRAMS["P18"] = {
+    summary: 'graph LR\n    AG([Experts]):::agent -->|"estimates"| SHARE[Share Reasoning]:::stage\n    SHARE -->|"re-estimate"| AG\n    AG -->|"converged"| O[Output]:::stage\n    classDef agent fill:#E74C3C,stroke:#C0392B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"estimation question"| R1[Round 1: Independent Estimates]:::stage\n    R1 --> A1([Expert 1]):::agent\n    R1 --> A2([Expert 2]):::agent\n    R1 --> AN([Expert N]):::agent\n    A1 -->|"estimate + reasoning"| C1[Collect Round 1]:::stage\n    A2 -->|"estimate + reasoning"| C1\n    AN -->|"estimate + reasoning"| C1\n    C1 --> STATS1[Compute: Median, IQR, Spread]:::stage\n    STATS1 --> SHARE1[Share: Anonymous summary + all reasoning]:::stage\n    SHARE1 --> R2[Round 2: Revise Estimates]:::stage\n    R2 --> C2[Collect Round 2]:::stage\n    C2 --> CONV{Convergence test: IQR below threshold?}:::decision\n    CONV -->|"yes"| O[Final Estimate: Median + Confidence Interval]:::stage\n    CONV -->|"no"| SHARE2[Share and run another round]:::stage\n    SHARE2 --> R2\n    classDef agent fill:#E74C3C,stroke:#C0392B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P19
+  DIAGRAMS["P19"] = {
+    summary: 'graph LR\n    AG([Bidder Agents]):::agent -->|"sealed bids"| AUC{Auction: highest bid wins, pays 2nd price}:::decision\n    AUC --> O[Output]:::stage\n    classDef agent fill:#F39C12,stroke:#D68910,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"options to evaluate"| SETUP[Present Options + Evaluation Criteria]:::stage\n    SETUP --> A1([Agent 1]):::agent\n    SETUP --> A2([Agent 2]):::agent\n    SETUP --> AN([Agent N]):::agent\n    A1 -->|"bid: option + confidence"| BIDS[Sealed Bid Box]:::stage\n    A2 -->|"bid: option + confidence"| BIDS\n    AN -->|"bid: option + confidence"| BIDS\n    BIDS --> REVEAL[Reveal All Bids Simultaneously]:::stage\n    REVEAL --> RANK{Rank by confidence score}:::decision\n    RANK --> WINNER[Winner: Highest bid BUT pays 2nd-highest confidence cost]:::stage\n    WINNER --> JUSTIFY[Winner must justify at 2nd-price confidence level]:::stage\n    JUSTIFY --> O[Selected Option + Calibrated Confidence + Justification]:::stage\n    classDef agent fill:#F39C12,stroke:#D68910,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P20
+  DIAGRAMS["P20"] = {
+    summary: 'graph LR\n    AG([Voter Agents]):::agent -->|"ranked ballots"| COUNT[Borda Count]:::stage --> O[Output]:::stage\n    classDef agent fill:#F39C12,stroke:#D68910,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"K options to rank"| PRESENT[Present All Options with Context]:::stage\n    PRESENT --> A1([Voter 1]):::agent\n    PRESENT --> A2([Voter 2]):::agent\n    PRESENT --> AN([Voter N]):::agent\n    A1 -->|"ranking + reasoning"| BALLOTS[Collect Ballots]:::stage\n    A2 -->|"ranking + reasoning"| BALLOTS\n    AN -->|"ranking + reasoning"| BALLOTS\n    BALLOTS --> POINTS["Assign Borda Points:<br/>1st = K-1 pts, 2nd = K-2, ... Last = 0"]:::stage\n    POINTS --> TALLY[Sum Points per Option]:::stage\n    TALLY --> RANK{Clear winner or tie?}:::decision\n    RANK -->|"clear winner"| WINNER[Winner + Margin]:::stage\n    RANK -->|"tie"| TIEBREAK[Tiebreak: Head-to-head preferences]:::stage\n    TIEBREAK --> WINNER\n    WINNER --> O[Selected Option + Consensus Analysis]:::stage\n    classDef agent fill:#F39C12,stroke:#D68910,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P21
+  DIAGRAMS["P21"] = {
+    summary: 'graph LR\n    AG([Negotiators]):::agent -->|"interests"| GEN[Generate Options]:::stage\n    GEN --> COMMIT{Commit?}:::decision --> O[Output]:::stage\n    classDef agent fill:#F39C12,stroke:#D68910,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"negotiation scenario"| PH1[Phase 1: Surface Interests - NOT positions]:::stage\n    PH1 --> A1([Party A]):::agent\n    PH1 --> A2([Party B]):::agent\n    A1 -->|"underlying interests, needs, fears"| INT[Interest Map]:::stage\n    A2 -->|"underlying interests, needs, fears"| INT\n    INT --> SHARED{Identify: Shared? Compatible? Conflicting?}:::decision\n    SHARED --> BRAINSTORM[Brainstorm Options satisfying multiple interests]:::stage\n    BRAINSTORM --> EVAL[Score each option against both interest maps]:::stage\n    EVAL --> BEST{Pareto optimal option found?}:::decision\n    BEST -->|"yes"| COMMIT[Both parties commit to terms]:::stage\n    BEST -->|"no: expand"| BRAINSTORM\n    COMMIT --> O[Agreement: Terms + Interest Satisfaction Map]:::stage\n    classDef agent fill:#F39C12,stroke:#D68910,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P22
+  DIAGRAMS["P22"] = {
+    summary: 'graph LR\n    A([Agent A]):::agent -->|"output A"| B([Agent B]):::agent -->|"output B"| C([Agent C]):::agent --> O[Output]:::stage\n    classDef agent fill:#1ABC9C,stroke:#16A085,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"initial input"| A([Agent A: Research]):::agent\n    A --> PA[Process A: Generate raw material]:::stage\n    PA -->|"output A + metadata"| B([Agent B: Analysis]):::agent\n    B --> PB[Process B: Refine and structure using output A]:::stage\n    PB -->|"output B + lineage"| C([Agent C: Synthesis]):::agent\n    C --> PC[Process C: Final integration using outputs A + B]:::stage\n    PC --> QA{Quality Gate: meets requirements?}:::decision\n    QA -->|"pass"| O[Final Output with full lineage]:::stage\n    QA -->|"fail"| REWORK[Identify failing stage and re-run]:::stage\n    REWORK --> A\n    classDef agent fill:#1ABC9C,stroke:#16A085,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P23
+  DIAGRAMS["P23"] = {
+    summary: 'graph LR\n    CLASSIFY{Classify Domain}:::decision -->|"complex"| PROBE[Probe]:::stage --> SENSE[Sense]:::stage --> RESPOND[Respond]:::stage --> O[Output]:::stage\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"problem"| CLASS{Phase 1: Classify - Which Cynefin domain?}:::decision\n    CLASS -->|"Clear"| CLEAR[Best Practice: Sense-Categorize-Respond]:::stage\n    CLASS -->|"Complicated"| COMP[Expert Analysis: Sense-Analyze-Respond]:::stage\n    CLASS -->|"Complex"| COMPLEX[Probe-Sense-Respond]:::stage\n    CLASS -->|"Chaotic"| CHAOS[Act-Sense-Respond: Stabilize first]:::stage\n    COMPLEX --> DESIGN[Design Safe-to-Fail Probes]:::stage\n    DESIGN --> P1([Probe Agent 1]):::agent\n    DESIGN --> P2([Probe Agent 2]):::agent\n    DESIGN --> P3([Probe Agent 3]):::agent\n    P1 -->|"probe result"| SENSE2[Sense: Monitor for emergent patterns]:::stage\n    P2 -->|"probe result"| SENSE2\n    P3 -->|"probe result"| SENSE2\n    SENSE2 --> EVAL{Patterns emerging? Amplify or dampen?}:::decision\n    EVAL -->|"positive"| AMP[Amplify: Scale what works]:::stage\n    EVAL -->|"negative"| DAMP[Dampen: Contain what fails]:::stage\n    EVAL -->|"no pattern"| DESIGN\n    AMP --> O[Response Strategy]:::stage\n    DAMP --> O\n    classDef agent fill:#1ABC9C,stroke:#16A085,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P24
+  DIAGRAMS["P24"] = {
+    summary: 'graph LR\n    AG([Agents]):::agent -->|"variables + relationships"| MAP[Build Causal Loop Diagram]:::stage --> O[Output]:::stage\n    classDef agent fill:#2ECC71,stroke:#27AE60,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"system description"| PH1[Phase 1: Extract Key Variables]:::stage\n    PH1 --> A1([Agent 1]):::agent\n    PH1 --> A2([Agent 2]):::agent\n    PH1 --> AN([Agent N]):::agent\n    A1 -->|"variable list"| VARS[Merge and Deduplicate Variables]:::stage\n    A2 -->|"variable list"| VARS\n    AN -->|"variable list"| VARS\n    VARS --> PH2[Phase 2: Identify Causal Links]:::stage\n    PH2 --> LINKS[Merge All Causal Links]:::stage\n    LINKS --> PH3[Phase 3: Trace Loops]:::stage\n    PH3 --> DETECT{Detect loop type}:::decision\n    DETECT -->|"all + links"| R["Reinforcing Loop R: Amplifying feedback"]:::stage\n    DETECT -->|"has - link"| B["Balancing Loop B: Stabilizing feedback"]:::stage\n    R --> DIAGRAM[Causal Loop Diagram with R and B labels]:::stage\n    B --> DIAGRAM\n    DIAGRAM --> LEVER[Identify Leverage Points]:::stage\n    LEVER --> O[CLD + Leverage Point Analysis]:::stage\n    classDef agent fill:#2ECC71,stroke:#27AE60,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P25
+  DIAGRAMS["P25"] = {
+    summary: 'graph LR\n    AG([Agents]):::agent -->|"dynamics"| MATCH{Match to Archetype}:::decision -->|"archetype + leverage"| O[Output]:::stage\n    classDef agent fill:#2ECC71,stroke:#27AE60,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff',
+    detailed: 'graph TB\n    U([User]):::agent -->|"situation description"| PH1[Phase 1: Describe Observed Dynamics]:::stage\n    PH1 --> A1([Agent 1]):::agent\n    PH1 --> A2([Agent 2]):::agent\n    PH1 --> AN([Agent N]):::agent\n    A1 -->|"dynamic patterns"| DYN[Collect Observed Dynamics]:::stage\n    A2 -->|"dynamic patterns"| DYN\n    AN -->|"dynamic patterns"| DYN\n    DYN --> PH2[Phase 2: Compare to Known Archetypes]:::stage\n    PH2 --> LIB["Archetype Library:<br/>Fixes That Fail, Shifting the Burden,<br/>Limits to Growth, Eroding Goals,<br/>Escalation, Success to Successful,<br/>Tragedy of Commons"]:::stage\n    LIB --> MATCH{Match Score: How well does each fit?}:::decision\n    MATCH -->|"best matches"| EXPLAIN[Explain Match: Map situation to archetype]:::stage\n    EXPLAIN --> LEVER[Archetype-Specific Leverage Points]:::stage\n    LEVER --> O[Matched Archetypes + Intervention Strategy]:::stage\n    classDef agent fill:#2ECC71,stroke:#27AE60,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P26
+  DIAGRAMS["P26"] = {
+    summary: 'graph LR\n    AG([Agents]):::agent -->|"8 rapid ideas each"| COLLECT[Collect All]:::stage --> O[Output]:::stage\n    classDef agent fill:#E91E63,stroke:#C2185B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"design challenge"| CONSTRAIN[Set Extreme Constraints: 8 ideas, minimal tokens, no self-editing]:::stage\n    CONSTRAIN --> A1([Agent 1]):::agent\n    CONSTRAIN --> A2([Agent 2]):::agent\n    CONSTRAIN --> AN([Agent N]):::agent\n    A1 -->|"8 raw ideas"| POOL["Idea Pool - 8 x N ideas total"]:::stage\n    A2 -->|"8 raw ideas"| POOL\n    AN -->|"8 raw ideas"| POOL\n    POOL --> CLUSTER[Cluster Similar Ideas by Theme]:::stage\n    CLUSTER --> DOT{Dot Voting: Each agent gets 3 votes}:::decision\n    DOT --> TOP[Top Voted Ideas]:::stage\n    TOP --> DEVELOP[Develop Top 3-5 Ideas into Concepts]:::stage\n    DEVELOP --> O[Concept Sketches with Rationale]:::stage\n    classDef agent fill:#E91E63,stroke:#C2185B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  // P27
+  DIAGRAMS["P27"] = {
+    summary: 'graph LR\n    AG([Agents]):::agent -->|"items"| EMB[Embedding Cluster]:::stage --> LABEL[Label Themes]:::stage --> O[Output]:::stage\n    classDef agent fill:#E91E63,stroke:#C2185B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333',
+    detailed: 'graph TB\n    U([User]):::agent -->|"topic / data"| PH1[Phase 1: Generate Individual Items]:::stage\n    PH1 --> A1([Agent 1]):::agent\n    PH1 --> A2([Agent 2]):::agent\n    PH1 --> AN([Agent N]):::agent\n    A1 -->|"items"| POOL[Item Pool - all items]:::stage\n    A2 -->|"items"| POOL\n    AN -->|"items"| POOL\n    POOL --> PH2[Phase 2: Embed and Cluster]:::stage\n    PH2 --> EMBED[Generate Embeddings for each item]:::stage\n    EMBED --> CLUSTER[Cluster: k-means or hierarchical]:::stage\n    CLUSTER --> LABEL([Labeler Agent]):::agent\n    LABEL --> THEMES[Generate Theme Name per Cluster]:::stage\n    THEMES --> REVIEW{Clusters coherent? Items misplaced?}:::decision\n    REVIEW -->|"clean"| HIERARCHY[Build Theme Hierarchy]:::stage\n    REVIEW -->|"adjust"| CLUSTER\n    HIERARCHY --> O[Affinity Map: Themes > Sub-themes > Items]:::stage\n    classDef agent fill:#E91E63,stroke:#C2185B,color:#fff\n    classDef stage fill:#E8E8E8,stroke:#999,color:#333\n    classDef decision fill:#F5A623,stroke:#D48A1A,color:#fff'
+  };
+
+  var DATA = [
+    {cluster:"Meta / Router",color:"#607D8B",protocols:[
+      {id:"P0a",name:"Reasoning Router",purpose:"Classifies incoming question by Cynefin domain and selects optimal protocol",tool:"t1",detail:"Uses lightweight LLM call to classify problem type (Clear/Complicated/Complex/Chaotic) and routes to the best-fit protocol family. Read-only tool access for context retrieval.",agents:"1 classifier",mechanism:"Classify problem features, select protocol",problemTag:"Diagnostic",example:"Revenue per client dropped 22% despite adding 3 clients. Why?",walkthrough:[{label:"Feature extraction",text:"Parse query: high ambiguity, multi-causal, quantitative data present, high stakes."},{label:"Cynefin classification",text:"Domain = Complicated (analyzable root cause, needs expert diagnosis)."},{label:"Problem type mapping",text:"Diagnostic problem \u2192 ACH family protocols best fit."},{label:"Protocol selection",text:"Route to P16 ACH with T2 full tool access for evidence gathering."},{label:"Output",text:"Selected protocol: P16 ACH. Reason: multi-hypothesis diagnostic requiring real data."}]},
+      {id:"P0b",name:"Skip Gate",purpose:"Detects trivial questions that need no multi-agent coordination",tool:"t1",detail:"Quick pre-filter: if confidence is high and question is unambiguous, routes directly to single-agent. Saves cost and latency.",agents:"1 gate",mechanism:"Decide: single-agent vs. full pipeline",problemTag:"Trivial / Clear",example:"What\u2019s our current runway?",walkthrough:[{label:"Complexity scan",text:"Single metric lookup, no ambiguity, no competing interpretations."},{label:"Confidence check",text:"Gate confidence: 0.94 (above 0.85 threshold). Low stakes, factual."},{label:"Route decision",text:"SKIP \u2192 Single agent (P1) with read-only tool access for data lookup."},{label:"Output",text:"\u201cBased on $42K MRR and $18K burn, current runway is ~28 months.\u201d Latency: 1.2s vs. 12s for full pipeline."}]},
+      {id:"P0c",name:"Tiered Escalation",purpose:"Escalates from lightweight to heavyweight protocols as complexity emerges",tool:"pg",detail:"Starts with P1/P2 single-agent; if quality threshold not met, escalates to 3-agent then 5+ agent protocols. Tool access increases with tier.",agents:"1+ per tier",mechanism:"Tier 1 > Tier 2 > Tier 3 on failure",problemTag:"Escalating Complexity",example:"Should we take the $500K enterprise deal outside our ICP?",walkthrough:[{label:"Tier 1 attempt",text:"Single agent: \u201cProbably yes for revenue.\u201d Confidence: 0.61 (below 0.75 threshold)."},{label:"Escalate to Tier 2",text:"3-agent parallel synthesis (P3): CEO sees growth, CFO flags margin risk, COO warns about delivery strain."},{label:"Conflict detected",text:"No consensus \u2014 CEO and CFO disagree on risk tolerance. Escalate."},{label:"Tier 3 full rigor",text:"P17 Red/Blue/White: Red team attacks the deal, Blue defends, White adjudicates."},{label:"Output",text:"Take the deal IF: dedicated team, SOW caps scope, 90-day exit clause. Confidence: 0.87."}]},
+      {id:"P1",name:"Single Agent",purpose:"Baseline: one agent, no tools, direct answer",tool:"t0",detail:"Control condition. One LLM agent answers directly. Used to measure the marginal value of coordination and tools.",agents:"1",mechanism:"Direct response",problemTag:"Simple / Clear",example:"Summarize our Q2 pipeline status.",walkthrough:[{label:"Receive prompt",text:"Agent gets the full question with no additional context injection."},{label:"Generate response",text:"Single pass: analyzes from training knowledge, produces pipeline summary."},{label:"Output",text:"\u201cQ2 pipeline: 12 active opportunities, $340K weighted value, 3 expected to close this month.\u201d No verification step."}]},
+      {id:"P2",name:"Single Agent + Context",purpose:"Baseline: one agent with retrieval-augmented context",tool:"t1",detail:"Same as P1 but with read-only retrieval. Measures the value of grounding without coordination overhead.",agents:"1",mechanism:"Role context injection",problemTag:"Simple + Context",example:"What would each C-Suite leader say about conference spend?",walkthrough:[{label:"Context injection",text:"System prompt loaded with CEO, CFO, CTO, CMO, COO, CPO role definitions and priorities."},{label:"Role-aware generation",text:"Single agent synthesizes all perspectives: CEO sees brand value, CFO flags ROI, CMO wants lead gen metrics."},{label:"Output",text:"Multi-perspective summary from one agent, grounded in role context. Faster than spawning 6 agents."}]}
+    ]},
+    {cluster:"Diagnose & Root-Cause",color:"#E74C3C",protocols:[
+      {id:"P16",name:"ACH",purpose:"Systematically evaluates evidence for/against multiple hypotheses",tool:"t2",detail:"Agents generate competing hypotheses, then gather real evidence via tools to score each. Full tool access for evidence retrieval and consistency checking.",agents:"N analysts + 1 coordinator",mechanism:"Evidence matrix scoring",problemTag:"Diagnostic",example:"Revenue per client dropped 22% over two quarters. Why?",walkthrough:[{label:"Analysts generate hypotheses",text:"H1: Scope creep diluting per-client revenue. H2: New clients are smaller accounts. H3: Pricing pressure from competition. H4: Delivery capacity forcing rushed engagements."},{label:"Evidence gathering (T2)",text:"Pull client data, contract sizes, delivery timelines, NPS scores via tool calls."},{label:"Matrix scoring",text:"Score each evidence item C/I/N against each hypothesis. H3 gets 4 Inconsistent marks."},{label:"Elimination",text:"H3 eliminated (pricing unchanged). H1 and H2 survive with strongest Consistent evidence."},{label:"Output",text:"\u201cMost likely: mix of smaller new clients (H2) and scope creep (H1). Key diagnostic: compare average contract value of new vs. legacy clients.\u201d"}]},
+      {id:"P11",name:"DAD",purpose:"Surfaces hidden solutions already working in the system",tool:"t1",detail:"Agents interview each other to discover positive deviance. Read-only tools help retrieve existing data/metrics.",agents:"N scouts + 1 analyst",mechanism:"Positive deviance discovery",problemTag:"Diagnostic",example:"Client satisfaction is 4.7/5 but renewal dropped to 55%. What\u2019s actually going on?",walkthrough:[{label:"Frame the paradox",text:"High satisfaction + low renewal = something unmeasured is driving churn."},{label:"Scout for positive deviants",text:"Scouts search: which clients renewed despite same conditions? Find 3 accounts with 100% renewal."},{label:"Extract deviant behaviors",text:"Renewed clients all had: monthly exec check-ins, named success manager, QBR with roadmap preview."},{label:"Filter for transferability",text:"Monthly exec check-ins are uncommon (only 20% of clients), accessible (no cost), and effective."},{label:"Output",text:"\u201cRenewal gap driven by relationship depth, not delivery quality. Prescribe: monthly exec touchpoints for all accounts above $15K.\u201d"}]},
+      {id:"P15",name:"What / So What / Now What",purpose:"Structured reflection: observe facts, derive meaning, decide action",tool:"pg",detail:"Phase 1 (What): tool-free observation. Phase 2 (So What): tool-free meaning-making. Phase 3 (Now What): tools enabled for action validation.",agents:"N per phase + 1 synthesizer",mechanism:"Three temporal frames",problemTag:"Diagnostic",example:"AI tools cut delivery time 40% but margin fell from 68% to 52%. Why?",walkthrough:[{label:"WHAT (observe, no tools)",text:"Agents list facts: delivery time down 40%, margin down 16pts, headcount unchanged, tool costs up $8K/mo, clients not seeing price reduction."},{label:"SO WHAT (interpret, no tools)",text:"Speed gains aren\u2019t translating to margin because: tool costs offset savings, team still billing same hours (now on lower-value tasks), no pricing adjustment for faster delivery."},{label:"NOW WHAT (act, tools enabled)",text:"Tools validate: actual tool spend is $9.2K/mo. Team utilization data shows 30% time on admin tasks AI could handle."},{label:"Synthesizer merges",text:"\u201cMargin erosion is a pricing/utilization problem, not a tool cost problem. Action: reprice for value delivered, redeploy freed hours to new clients.\u201d"}]},
+      {id:"P24",name:"Causal Loop Mapping",purpose:"Maps feedback loops and system dynamics driving the problem",tool:"t2",detail:"Agents collaboratively build causal loop diagrams. Full tool access for data retrieval to validate causal relationships.",agents:"N extractors + 1 analyst",mechanism:"Feedback loop identification",problemTag:"Systems / Type 12",example:"Delivery overruns: is it a capacity loop, scope loop, or communication loop?",walkthrough:[{label:"Extract variables",text:"Agents identify: team capacity, scope changes, client communication frequency, delivery timeline, rework rate, team morale."},{label:"Map causal links",text:"Scope changes \u2192(+) rework \u2192(+) timeline \u2192(-) morale \u2192(-) capacity \u2192(+) timeline. Communication \u2192(-) scope changes."},{label:"Trace loops",text:"R1 (reinforcing): scope \u2192 rework \u2192 timeline \u2192 morale \u2192 capacity \u2192 more rework. B1 (balancing): communication \u2192 fewer scope changes."},{label:"Identify leverage points",text:"Highest leverage: increase communication frequency (B1 loop) to dampen the reinforcing R1 spiral."},{label:"Output",text:"CLD diagram + recommendation: \u201cIt\u2019s primarily the scope loop, amplified by a morale-capacity reinforcing loop. Leverage: weekly scope check-ins.\u201d"}]},
+      {id:"P25",name:"System Archetype Detection",purpose:"Identifies recurring system patterns (Fixes that Fail, Shifting the Burden, etc.)",tool:"t1",detail:"Agents match problem symptoms to known system archetypes. Read-only access for pattern reference.",agents:"N observers + 1 matcher",mechanism:"Pattern matching to archetypes",problemTag:"Diagnostic",example:"Sales cycle lengthened from 18 to 41 days. Win rate unchanged.",walkthrough:[{label:"Describe dynamics",text:"Agents observe: longer cycles, same win rate, more touches per deal, team adding more collateral, proposals getting longer."},{label:"Compare to archetypes",text:"Match against library: Fixes That Fail (62% match), Shifting the Burden (78% match), Escalation (41% match)."},{label:"Best match: Shifting the Burden",text:"Symptomatic fix: adding more content/touches to \u201cfix\u201d slow cycles. Fundamental solution: qualify harder upfront to shorten cycles."},{label:"Archetype-specific leverage",text:"\u201cStop adding collateral (symptom fix). Instead, implement MEDDPICC qualification at Stage 1 to filter out slow-close deals early.\u201d"}]}
+    ]},
+    {cluster:"Explore & Generate",color:"#2ECC71",protocols:[
+      {id:"P14",name:"1-2-4-All",purpose:"Scales ideas from individual to small group to full team progressively",tool:"t0",detail:"Phase 1: solo ideation. Phase 2: pairs merge. Phase 3: quads synthesize. Phase 4: all converge. No tools to preserve creative independence.",agents:"N (power of 2) + 1 synthesizer",mechanism:"Progressive merging",problemTag:"Exploration",example:"$200K free cash flow, no urgent needs. What should we do with it?",walkthrough:[{label:"Solo (4 agents independently)",text:"Agent 1: \u201cBuild PLG product.\u201d Agent 2: \u201cHire senior seller.\u201d Agent 3: \u201cAcquire a niche tool.\u201d Agent 4: \u201cCreate training academy.\u201d"},{label:"Pairs merge",text:"Pair A (1+2): \u201cInvest in revenue generation \u2014 PLG or seller.\u201d Pair B (3+4): \u201cBuild defensible assets \u2014 IP or education.\u201d"},{label:"Quad synthesis",text:"All 4: Theme emerges \u2014 \u201cBuild a revenue-generating asset (not just hire).\u201d PLG product + training content as top combo."},{label:"Output",text:"\u201cAllocate $120K to PLG product MVP + $80K to packaged training content. Both generate recurring revenue AND build IP moat.\u201d"}]},
+      {id:"P26",name:"Crazy Eights",purpose:"Rapid parallel ideation under tight time constraints",tool:"t0",detail:"Each agent generates 8 distinct ideas rapidly. No tools to prevent anchoring to existing solutions.",agents:"N generators + 1 facilitator",mechanism:"Constrained divergence",problemTag:"Exploration",example:"400 hours of client calls + 50 audit reports sitting in storage. What could we build from them?",walkthrough:[{label:"Constraints set",text:"8 ideas per agent, max 50 tokens each, no self-editing, no tools. 3 agents = 24 raw ideas."},{label:"Rapid generation",text:"Ideas range from \u201cAI-generated benchmark report\u201d to \u201canonymized case study library\u201d to \u201cpredictive churn model\u201d to \u201cpodcast content extraction.\u201d"},{label:"Cluster by theme",text:"6 clusters emerge: data products, content repurposing, training material, predictive models, client tools, marketing assets."},{label:"Dot voting",text:"Each agent gets 3 votes. Winner: \u201cAnonymized benchmark database\u201d (7 votes) and \u201cPredictive churn model\u201d (5 votes)."},{label:"Output",text:"Top 3 concepts developed into one-pagers with effort estimate and revenue potential."}]},
+      {id:"P27",name:"Affinity Mapping",purpose:"Clusters raw ideas into emergent themes without premature categorization",tool:"t0",detail:"Agents generate ideas independently, then collaboratively group by affinity. Tool-free to avoid biasing clusters.",agents:"N generators + 1 labeler",mechanism:"Embedding-based clustering",problemTag:"Exploration",example:"University AI program wants to partner. 200 students, compute access, research faculty. What are the possibilities?",walkthrough:[{label:"Generate items",text:"3 agents produce 30+ individual opportunity items: internship pipeline, research collaborations, co-branded certifications, student projects, faculty consulting, etc."},{label:"Embed and cluster",text:"Semantic similarity groups items into 5 natural clusters (not predefined categories)."},{label:"Label themes",text:"Labeler agent names clusters: \u201cTalent Pipeline,\u201d \u201cResearch IP,\u201d \u201cRevenue Streams,\u201d \u201cBrand Credibility,\u201d \u201cTech Infrastructure.\u201d"},{label:"Review coherence",text:"Two items moved: \u201cguest lectures\u201d from Revenue to Brand; \u201ccompute sharing\u201d from Research to Infrastructure."},{label:"Output",text:"Affinity map with 5 themes, 30+ items organized, hierarchy showing quick wins vs. long-term plays."}]},
+      {id:"P23",name:"Cynefin Probe-Sense-Respond",purpose:"Safe-to-fail experiments for complex/chaotic problem spaces",tool:"pg",detail:"Phase 1: tool-free probe design. Phase 2: tools enabled to simulate or model probe outcomes.",agents:"1 classifier + N probers + 1 sensor",mechanism:"Domain classification + probes",problemTag:"Exploration",example:"Our proprietary audit produces competitive intel maps as a byproduct. What could it become?",walkthrough:[{label:"Classify domain",text:"Complex \u2014 no clear cause-effect, emergent opportunity, multiple possible futures."},{label:"Design safe-to-fail probes",text:"Probe 1: Offer intel maps as standalone $2K product to 5 clients. Probe 2: Bundle free with audits and measure upsell. Probe 3: License to partners."},{label:"Simulate outcomes",text:"Tools model each probe: revenue potential, cannibalization risk, operational cost."},{label:"Sense patterns",text:"Probe 1 shows highest signal: 3 of 5 clients willing to pay. Probe 3 shows partner interest but IP risk."},{label:"Output",text:"\u201cAmplify Probe 1: launch intel maps as standalone product. Dampen Probe 3: IP risk too high without legal framework. Design next probe cycle for pricing.\u201d"}]}
+    ]},
+    {cluster:"Stress-Test & Challenge",color:"#F39C12",protocols:[
+      {id:"P4",name:"Structured Debate",purpose:"Adversarial argumentation to find weaknesses in proposals",tool:"t1",detail:"Pro and Con agents argue. A Judge evaluates. Read-only tools for fact-checking rebuttals.",agents:"2 debaters + 1 judge",mechanism:"Argue > Judge",problemTag:"Adversarial",example:"McKinsey published a free playbook covering 60% of our $25K audit. How is ours different?",walkthrough:[{label:"Assign positions",text:"Debater A: \u201cOur audit is still worth $25K.\u201d Debater B: \u201cWe need to fundamentally reprice or differentiate.\u201d"},{label:"Opening arguments",text:"A: \u201cCustomization, implementation support, and proprietary data make ours 10x more actionable.\u201d B: \u201cClients won\u2019t pay $25K when 60% is free. Perception matters more than reality.\u201d"},{label:"Rebuttals (T1 tools)",text:"A pulls client testimonials showing implementation ROI. B pulls market data showing price sensitivity trends in consulting."},{label:"Judge evaluates",text:"Evidence quality: A\u2019s ROI data is stronger. But B\u2019s perception argument is valid \u2014 prospects who\u2019ve seen the playbook will anchor on free."},{label:"Output",text:"\u201cKeep premium pricing but add visible differentiation layer: proprietary benchmarking data McKinsey can\u2019t replicate. Lead with what\u2019s NOT in the free playbook.\u201d"}]},
+      {id:"P17",name:"Red / Blue / White Team",purpose:"Red team attacks, blue defends, white evaluates",tool:"pg",detail:"Red generates attacks tool-free. Blue uses read-only tools for defense. White synthesizes with full context.",agents:"1+ Red, 1+ Blue, 1 White",mechanism:"Attack / Defend / Referee",problemTag:"Adversarial",example:"We took the $500K enterprise deal. What kills us?",walkthrough:[{label:"Red Team attacks (no tools)",text:"R1: Delivery team stretched \u2014 quality drops across all clients. R2: Enterprise client demands custom features, draining product roadmap. R3: Payment terms are net-90, creating cash flow gap."},{label:"Blue Team defends (T1 tools)",text:"B1: Pulls capacity data \u2014 team at 78%, has headroom. B2: SOW explicitly limits scope. B3: Can\u2019t counter \u2014 cash reserves only cover 45 days."},{label:"White Team adjudicates",text:"R1: Resolved (data shows capacity). R2: Resolved (SOW protects). R3: OPEN \u2014 real risk, no mitigation."},{label:"Output",text:"\u201c2 of 3 risks mitigated. Critical open risk: net-90 terms create 45-day cash gap. Recommendation: negotiate net-30 or request 25% upfront deposit.\u201d"}]},
+      {id:"P6",name:"TRIZ Inversion",purpose:"Inverts the problem to reveal hidden risks",tool:"t0",detail:"Agents deliberately generate ways to cause failure. No tools needed \u2014 inversion works best with unconstrained thinking.",agents:"N generators + 1 synthesizer",mechanism:"Failure > Invert",problemTag:"Adversarial",example:"Launching PLG at $497/mo alongside $25K audits. Pre-mortem this.",walkthrough:[{label:"Invert the question",text:"\u201cHow do we guarantee this PLG launch destroys our consulting business?\u201d"},{label:"Generate failure modes",text:"F1: PLG cannibalizes audit leads \u2014 prospects self-serve instead of buying audits. F2: Support burden overwhelms small team. F3: PLG quality is so low it damages brand. F4: Pricing anchors clients at $497, making $25K feel absurd."},{label:"Deduplicate and categorize",text:"4 unique failures across 3 categories: cannibalization, operations, brand."},{label:"Invert into solutions",text:"S1: Gate PLG so it surfaces problems only audits can solve. S2: Cap PLG users at 50 for 6 months. S3: Premium onboarding. S4: Position PLG as \u201cdiagnostic\u201d and audit as \u201ctreatment.\u201d"},{label:"Output",text:"\u201cBiggest risk is price anchoring (F4). Mitigation: never show both prices on same page. Position as separate products for separate buyer personas.\u201d"}]}
+    ]},
+    {cluster:"Prioritize & Rank",color:"#4A90D9",protocols:[
+      {id:"P12",name:"25/10 Crowd Sourcing",purpose:"Rapid distributed scoring to surface top ideas from a large set",tool:"t0",detail:"Each agent scores ideas 1-5 across multiple blind rounds. No tools \u2014 pure preference aggregation.",agents:"N (generate AND score)",mechanism:"Blind scoring",problemTag:"Prioritization",example:"8 growth initiatives, $150K budget, 18 months runway. Rank them.",walkthrough:[{label:"Each agent writes one bold idea",text:"8 ideas: partner program, PLG product, content engine, outbound SDR, conference circuit, referral program, vertical specialization, acquisition."},{label:"Anonymize and distribute",text:"Ideas stripped of author. Each agent receives all 8 cards."},{label:"5 rounds of blind scoring (1-5)",text:"Each round, agents score each idea. Scores accumulate across rounds."},{label:"Tally",text:"PLG product: 108 pts. Partner program: 97 pts. Content engine: 94 pts. \u2026 Conference circuit: 62 pts (lowest)."},{label:"Output",text:"\u201cTop 3: PLG product, partner program, content engine. Combined budget: $130K. Deprioritize: conference circuit and acquisition (lowest scores, highest cost).\u201d"}]},
+      {id:"P20",name:"Borda Count",purpose:"Ranked-choice voting to find consensus priorities",tool:"t0",detail:"Each agent submits ranked ballot. Points assigned by rank position, summed across agents. No tools needed.",agents:"N voters + 1 tallier",mechanism:"Ranked aggregation",problemTag:"Prioritization",example:"4 potential client engagements, capacity for 2. Which do we take?",walkthrough:[{label:"Present options",text:"A: $40K audit, existing client. B: $25K audit, new logo. C: $15K workshop, strategic partner. D: $60K implementation, outside ICP."},{label:"Each agent submits ranked ballot",text:"CEO: D>A>B>C. CFO: A>B>C>D. COO: A>C>B>D. CMO: B>C>A>D."},{label:"Assign Borda points (K=4)",text:"1st=3pts, 2nd=2pts, 3rd=1pt, 4th=0pts. A: 3+2+3+1=9. B: 1+2+1+3=7. C: 0+1+2+2=5. D: 3+0+0+0=3."},{label:"Clear winner",text:"A wins decisively (9 pts). B is second (7 pts). D polarizing \u2014 ranked 1st by CEO but last by everyone else."},{label:"Output",text:"\u201cTake engagements A and B. A has strongest consensus. B adds new logo. D rejected despite highest revenue \u2014 only CEO valued it.\u201d"}]},
+      {id:"P19",name:"Vickrey Auction",purpose:"Truthful preference revelation via second-price sealed bids",tool:"t0",detail:"Agents submit sealed bids; winner pays second-highest price. Incentive-compatible. No tools.",agents:"N bidders + 1 auctioneer",mechanism:"Second-price bid",problemTag:"Prioritization",example:"Prioritize C-Suite product improvements: 6 options, limited dev budget.",walkthrough:[{label:"Present options",text:"6 improvements: better prompts, memory system, tool integration, UI redesign, analytics dashboard, API access."},{label:"Sealed bids",text:"Each agent bids confidence (0-100) on their top pick. CEO: analytics (92). CTO: API (88). CMO: UI (85). CFO: memory (71). COO: tools (79). CPO: prompts (90)."},{label:"Reveal and rank",text:"Highest bid: CEO on analytics (92). Second-highest: CPO on prompts (90)."},{label:"Second-price mechanism",text:"Analytics wins but must justify at confidence level 90 (second price), not 92. Forces honest calibration."},{label:"Output",text:"\u201cBuild analytics dashboard first (strongest conviction). Second: prompt improvements. Mechanism prevented strategic overbidding.\u201d"}]},
+      {id:"P13",name:"Ecocycle Planning",purpose:"Maps initiatives by maturity stage to allocate resources",tool:"t1",detail:"Agents place initiatives on the ecocycle. Read-only tools for current performance data.",agents:"N assessors + 1 facilitator",mechanism:"Lifecycle mapping",problemTag:"Prioritization",example:"60 consultant hours, 5 competing demands. How do we allocate?",walkthrough:[{label:"List all initiatives",text:"5 initiatives: growth audits (core), PLG product (new), partner program (growing), conference series (mature), legacy reporting (declining)."},{label:"Agents assess lifecycle stage",text:"Tools pull performance data. Agents independently assign stages: audits=Maturity, PLG=Birth, partners=Birth, conferences=Creative Destruction, legacy=Creative Destruction."},{label:"Resolve disagreements",text:"Consensus on all except partners \u2014 2 agents say Birth, 1 says Maturity. Data shows only 2 partners active. Verdict: Birth."},{label:"Assign actions per stage",text:"Birth (PLG, partners): invest 25 hrs. Maturity (audits): optimize 20 hrs. Creative Destruction (conferences, legacy): sunset and harvest 15 hrs."},{label:"Output",text:"\u201cAllocate: 25 hrs to PLG+partners (nurture), 20 hrs to audits (optimize), 15 hrs to sunset conferences and automate legacy reporting.\u201d"}]}
+    ]},
+    {cluster:"Integrate & Synthesize",color:"#9B59B6",protocols:[
+      {id:"P3",name:"Parallel Synthesis",purpose:"Multiple agents work independently, then a synthesizer merges",tool:"pg",detail:"Phase 1: parallel agents work tool-free. Phase 2: synthesizer uses tools to verify and integrate.",agents:"N workers + 1 synthesizer",mechanism:"Independent > Merge",problemTag:"Binary Decision",example:"Hire a senior consultant or invest in AI automation for delivery?",walkthrough:[{label:"Fan-out (no tools)",text:"3 agents independently analyze: CEO focuses on growth leverage, CFO on unit economics, COO on operational risk."},{label:"Independent responses",text:"CEO: \u201cHire \u2014 humans close deals.\u201d CFO: \u201cAutomate \u2014 better margins.\u201d COO: \u201cHire \u2014 AI can\u2019t handle client relationships yet.\u201d"},{label:"Synthesizer merges (tools enabled)",text:"Pulls actual delivery data: 40% of consultant time is on automatable tasks. Identifies agreement (need more capacity) and conflict (how to get it)."},{label:"Output",text:"\u201cDo both sequentially: automate first ($30K, 3 months), then hire with the freed-up margin. Automation handles 40% of delivery; hire focuses on relationship-heavy work.\u201d"}]},
+      {id:"P8",name:"Min Specs",purpose:"Identifies the absolute minimum rules needed",tool:"t0",detail:"Agents propose rules, then challenge each: 'Can we succeed without this?' No tools \u2014 pure deliberation.",agents:"N generators + 1 facilitator",mechanism:"Eliminate non-essentials",problemTag:"Synthesis",example:"PLG tier alongside consulting \u2014 what are the absolute minimum requirements to launch?",walkthrough:[{label:"Generate all specs",text:"Agents list everything: pricing page, onboarding flow, support system, analytics, billing, free trial, documentation, video demos, integrations, etc. (23 total specs)."},{label:"Elimination test",text:"For each: \u201cWould removing this make the PLG launch impossible?\u201d Analytics: no. Video demos: no. Billing: YES. Onboarding: YES."},{label:"Borderline votes",text:"Free trial: 2 say must-have, 1 says no. Facilitator calls it: must-have (revenue risk if missing)."},{label:"Output",text:"\u201cMinimum viable launch: pricing page, billing system, basic onboarding flow, free trial, and one support channel. Everything else is Phase 2. 5 specs from 23.\u201d"}]},
+      {id:"P22",name:"Sequential Pipeline",purpose:"Each agent adds a layer of analysis, building on prior output",tool:"t1",detail:"Assembly-line: scope > research > analyze > recommend. Read-only tools for research stages.",agents:"N in sequence (3-5)",mechanism:"Chain processing",problemTag:"Binary Decision",example:"Should we hire a consultant or invest in AI automation for capacity?",walkthrough:[{label:"Agent A (Research)",text:"Scopes the problem: current utilization at 92%, 3 bottleneck areas identified, market rates for senior consultants pulled."},{label:"Agent B (Analysis)",text:"Builds on A\u2019s output: models both options. Hire: $180K/yr, 3-month ramp. AI: $30K setup + $5K/mo, 2-month deploy."},{label:"Agent C (Synthesis)",text:"Integrates A+B: AI handles 40% of bottleneck tasks. Post-AI utilization drops to 65%, creating room for organic growth before hiring."},{label:"Quality gate",text:"Checks: does recommendation address original capacity question? Yes. Are assumptions documented? Yes. Pass."},{label:"Output",text:"\u201cPhase 1: AI automation (Q1). Phase 2: Hire when utilization exceeds 85% post-automation (likely Q3). Full lineage from research through analysis attached.\u201d"}]},
+      {id:"P10",name:"Heard Seen Respected",purpose:"Ensures all perspectives are captured before solutions",tool:"t0",detail:"Structured listening: each agent shares while others listen without interrupting. No tools.",agents:"N stakeholder perspectives",mechanism:"Empathy translation",problemTag:"Stakeholder / Type 10",example:"Client VP of Engineering pushing back on SOW. How do we approach the renewal conversation?",walkthrough:[{label:"Assign perspectives",text:"Agent A: VP of Engineering\u2019s view. Agent B: CE account lead\u2019s view."},{label:"Share experiences",text:"A: \u201cI feel the SOW overpromises on timeline. My team is stretched and I\u2019ll get blamed.\u201d B: \u201cI see a client who\u2019s engaged but scared of internal politics.\u201d"},{label:"Reflect back",text:"A reflects B: \u201cI hear that CE sees us as engaged, which is true \u2014 we want this to work.\u201d B reflects A: \u201cI hear the VP is protecting their team from unrealistic expectations.\u201d"},{label:"Bridge",text:"Common ground: both want realistic timelines. Difference: VP needs political cover, CE needs signed SOW."},{label:"Output",text:"\u201cRevise SOW with phased milestones (gives VP cover) and success criteria co-defined with engineering team. Renewal framing: partnership, not vendor obligation.\u201d"}]}
+    ]},
+    {cluster:"Negotiate & Resolve Tension",color:"#1ABC9C",protocols:[
+      {id:"P5",name:"Constraint Negotiation",purpose:"Agents negotiate trade-offs between competing requirements",tool:"t1",detail:"Each agent represents a stakeholder with non-negotiable constraints. Read-only tools for verification.",agents:"N proposers + 1 checker",mechanism:"Propose > Filter > Iterate",problemTag:"Negotiation",example:"Strategic partner wants 40% margin on co-sell. They guarantee 20 leads/quarter.",walkthrough:[{label:"Define constraints",text:"Hard: CE margin \u226525% (CFO), partner gets attribution (partner), no SOW changes for co-sell (COO). Soft: CE prefers 30%+ margin, partner prefers exclusivity."},{label:"Round 1 proposals",text:"Agent 1: \u201c30% to partner, CE keeps 70%.\u201d Agent 2: \u201c40% to partner but only on first engagement per client.\u201d Agent 3: \u201c35% flat.\u201d"},{label:"Constraint check",text:"Proposal 1: fails partner\u2019s 40% requirement. Proposal 2: passes all hard constraints. Proposal 3: passes but partner prefers higher."},{label:"Round 2 refinement",text:"Proposal 2 refined: 40% on first engagement, 20% on renewals. Passes all hard constraints."},{label:"Output",text:"\u201cDeal: 40% partner commission on initial engagement, 20% on renewals. 20 leads/quarter minimum or margin reverts to 25%. Non-exclusive.\u201d"}]},
+      {id:"P21",name:"Interests-Based Negotiation",purpose:"Fisher-Ury: separate positions from interests",tool:"t0",detail:"Agents surface underlying interests, then generate options satisfying core interests. No tools.",agents:"N parties + 1 mediator",mechanism:"Mutual gains",problemTag:"Negotiation",example:"Largest client demands 25% discount on renewal. They represent 30% of revenue.",walkthrough:[{label:"Surface interests (not positions)",text:"Client position: \u201c25% discount.\u201d Client interests: budget pressure from board, need to show cost savings, fear of switching costs. CE interests: maintain margin, retain client, avoid precedent."},{label:"Map interest types",text:"Shared: long-term partnership. Compatible: client wants predictability, CE wants commitment. Conflicting: price level."},{label:"Brainstorm options",text:"Options: multi-year lock-in for 10% discount, expanded scope at same price, tiered pricing with volume guarantee, quarterly payment vs. annual."},{label:"Score against both interest maps",text:"Multi-year + 10% discount: satisfies client\u2019s \u201cshow savings\u201d + CE\u2019s \u201cretain + commitment.\u201d Pareto optimal."},{label:"Output",text:"\u201cOffer 2-year contract at 10% discount (not 25%). Client gets board-presentable savings + locked pricing. CE gets 24-month commitment + protected margin.\u201d"}]},
+      {id:"P7",name:"Wicked Questions",purpose:"Surfaces the paradox at the heart of the situation",tool:"t0",detail:"Agents craft: 'How is it that X and Y are both true?' No tools \u2014 paradox requires unconstrained thinking.",agents:"N generators + 1 evaluator",mechanism:"Surface paradoxes",problemTag:"Paradox / Type 7",example:"How do we scale without hiring when our value prop is human expertise delivered through AI?",walkthrough:[{label:"Generate tension pairs",text:"Agents identify competing demands: scale vs. quality, AI vs. human, standardize vs. customize, grow revenue vs. keep team small."},{label:"Wickedness test",text:"Each pair tested: (1) Both sides true? (2) Cannot choose one? (3) Creates real tension? \u201cScale vs. human expertise\u201d passes all 3."},{label:"Format as wicked question",text:"\u201cHow is it that we must scale delivery beyond human capacity AND our competitive advantage is the irreplaceable judgment of our human experts?\u201d"},{label:"Rank by strategic relevance",text:"This is THE central tension of the business model. Ranked #1 out of 6 candidates."},{label:"Output",text:"\u201cWicked question: How do we scale human judgment? This paradox suggests the answer isn\u2019t AI replacing humans but AI amplifying each human\u2019s judgment radius.\u201d"}]},
+      {id:"P9",name:"Troika Consulting",purpose:"Structured peer consulting: client presents, consultants advise",tool:"t1",detail:"Rotating roles: client presents, consultants discuss while client listens, then client reflects. Read-only tools for research.",agents:"1 client + 2 consultants",mechanism:"Client + Consultants",problemTag:"Paradox / Type 7",example:"Our best growth strategy requires giving away our core methodology. How do we proceed?",walkthrough:[{label:"Client presents",text:"CEO agent: \u201cWe want to publish our audit framework as thought leadership, but it\u2019s literally what clients pay $25K for.\u201d"},{label:"Consultants discuss (client listens)",text:"C1: \u201cThe methodology isn\u2019t the value \u2014 the application is. Publishing attracts buyers who can\u2019t DIY.\u201d C2: \u201cBut some can DIY. We\u2019d lose the bottom 20% of clients.\u201d C1: \u201cThose are our lowest-margin clients anyway.\u201d"},{label:"Client reflection",text:"CEO: \u201cWhat resonated: methodology vs. application distinction. The clients we\u2019d lose are ones we should fire anyway.\u201d"},{label:"Output",text:"\u201cPublish the framework (attract), keep proprietary data and benchmarks (differentiate), offer implementation support (monetize). The bottom 20% self-selecting out improves our margins.\u201d"}]}
+    ]},
+    {cluster:"Estimate & Forecast",color:"#E91E63",protocols:[
+      {id:"P18",name:"Delphi Method",purpose:"Iterative expert estimation with anonymized feedback",tool:"pg",detail:"Round 1: independent estimates tool-free. Round 2+: share distribution, re-estimate with read-only tools. Converges over 3-4 rounds.",agents:"N experts (anonymous)",mechanism:"Iterative convergence",problemTag:"Forecast / Type 11",example:"What probability does the $500K enterprise deal close? What\u2019s our Q3 revenue?",walkthrough:[{label:"Round 1 (independent, no tools)",text:"4 experts estimate close probability: 65%, 40%, 75%, 55%. Median: 60%. IQR: 40-75% (wide spread)."},{label:"Share anonymous summary",text:"All experts see: median 60%, range 40-75%, each expert\u2019s reasoning (anonymized)."},{label:"Round 2 (tools enabled)",text:"Experts pull pipeline data, similar deal history. Revised estimates: 55%, 50%, 60%, 52%. Median: 53.5%. IQR: 50-60% (converging)."},{label:"Convergence check",text:"IQR dropped from 35 to 10 points. Below threshold. Converged in 2 rounds."},{label:"Output",text:"\u201cDeal close probability: 54% (CI: 50-60%). Q3 revenue forecast: $270K base + $270K if deal closes = $270-540K range. Recommend planning for $380K midpoint.\u201d"}]}
+    ]}
+  ];
+
+  // Utility
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text;
+    return e;
+  }
+
+  // Build filters
+  var filtersEl = document.getElementById("filters");
+  var filterDefs = [
+    {key:"all",label:"All"},{key:"t0",label:"T0 \u2014 No Tools"},
+    {key:"t1",label:"T1 \u2014 Read-Only"},{key:"t2",label:"T2 \u2014 Full"},
+    {key:"pg",label:"Phase-Gated"}
+  ];
+  filterDefs.forEach(function(f) {
+    var btn = el("button","filter-btn" + (f.key === "all" ? " active" : ""), f.label);
+    btn.setAttribute("data-filter", f.key);
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".filter-btn").forEach(function(b){b.classList.remove("active")});
+      btn.classList.add("active");
+      var fv = f.key;
+      document.querySelectorAll(".card").forEach(function(c){
+        c.classList.toggle("hidden", fv !== "all" && c.getAttribute("data-tool") !== fv);
+      });
+      document.querySelectorAll(".cluster").forEach(function(cl){
+        var vis = cl.querySelectorAll(".card:not(.hidden)").length;
+        cl.querySelector(".count").textContent = vis;
+        cl.style.display = vis === 0 ? "none" : "";
+      });
+    });
+    filtersEl.appendChild(btn);
+  });
+
+  // Build clusters
+  var container = document.getElementById("clusters");
+  DATA.forEach(function(cluster) {
+    var clusterEl = el("div","cluster");
+    clusterEl.style.setProperty("--cluster-color", cluster.color);
+
+    var header = el("div","cluster-header");
+    var h3 = el("h3");
+    var dot = el("span","","\u25CF");
+    dot.style.color = cluster.color;
+    h3.appendChild(dot);
+    h3.appendChild(document.createTextNode(" " + cluster.cluster + " "));
+    var count = el("span","count", String(cluster.protocols.length));
+    h3.appendChild(count);
+    header.appendChild(h3);
+    header.appendChild(el("span","arrow","\u25BC"));
+    header.addEventListener("click", function(){ clusterEl.classList.toggle("collapsed"); });
+    clusterEl.appendChild(header);
+
+    var body = el("div","cluster-body");
+    cluster.protocols.forEach(function(p) {
+      var card = el("div","card");
+      card.setAttribute("data-tool", p.tool);
+      card.setAttribute("data-id", p.id);
+      card.appendChild(el("div","card-id", p.id));
+      card.appendChild(el("div","card-name", p.name));
+      card.appendChild(el("div","card-purpose", p.purpose));
+      card.appendChild(el("span","badge " + BADGE_CLASS[p.tool], TOOL_LABELS[p.tool]));
+      card.appendChild(el("div","card-hint","Click to see full flow \u2192"));
+
+      card.addEventListener("click", function() {
+        openDetail(p, cluster);
+      });
+
+      body.appendChild(card);
+    });
+    clusterEl.appendChild(body);
+    container.appendChild(clusterEl);
+  });
+
+  // Detail view
+  var overlay = document.getElementById("detail-overlay");
+  var detailInner = document.getElementById("detail-inner");
+  var renderCounter = 0;
+
+  function openDetail(p, cluster) {
+    // Clear
+    while (detailInner.firstChild) detailInner.removeChild(detailInner.firstChild);
+
+    // Back button
+    var back = el("button","detail-back","\u2190 Back to Map");
+    back.addEventListener("click", closeDetail);
+    detailInner.appendChild(back);
+
+    // Title
+    detailInner.appendChild(el("div","detail-title", p.id + ": " + p.name));
+
+    // Meta row
+    var meta = el("div","detail-meta");
+    var clusterTag = el("span","detail-cluster-tag badge", cluster.cluster);
+    clusterTag.style.background = cluster.color;
+    meta.appendChild(clusterTag);
+    meta.appendChild(el("span","badge " + BADGE_CLASS[p.tool], TOOL_LABELS[p.tool]));
+    if (p.agents) {
+      var agentTag = el("span","","Agents: " + p.agents);
+      agentTag.style.cssText = "font-size:0.78rem;color:#9a9fb4;";
+      meta.appendChild(agentTag);
+    }
+    detailInner.appendChild(meta);
+
+    // Purpose
+    detailInner.appendChild(el("div","detail-purpose", p.purpose));
+    detailInner.appendChild(el("div","detail-description", p.detail));
+
+    var diagramData = DIAGRAMS[p.id];
+    if (diagramData) {
+      // Summary flow
+      var sec1 = el("div","diagram-section");
+      sec1.appendChild(el("h3","","Summary Flow"));
+      var box1 = el("div","diagram-box");
+      var summaryId = "mermaid-summary-" + (++renderCounter);
+      var summaryDiv = el("div");
+      summaryDiv.id = summaryId;
+      box1.appendChild(summaryDiv);
+      sec1.appendChild(box1);
+      detailInner.appendChild(sec1);
+
+      // Detailed mechanics
+      var sec2 = el("div","diagram-section");
+      sec2.appendChild(el("h3","","Detailed Mechanics"));
+      var box2 = el("div","diagram-box");
+      var detailId = "mermaid-detail-" + (++renderCounter);
+      var detailDiv = el("div");
+      detailDiv.id = detailId;
+      box2.appendChild(detailDiv);
+      sec2.appendChild(box2);
+      detailInner.appendChild(sec2);
+
+      // Key info
+      if (p.mechanism) {
+        var info = el("div","diagram-section");
+        info.appendChild(el("h3","","Key Mechanism"));
+        var infoP = el("p","detail-description", p.mechanism);
+        info.appendChild(infoP);
+        detailInner.appendChild(info);
+      }
+
+      // Example question callout
+      if (p.example) {
+        var exSec = el("div","example-callout");
+        exSec.style.setProperty("--cluster-color", cluster.color);
+        var exLabel = el("div","example-label");
+        exLabel.textContent = "Try It With\u2026 ";
+        if (p.problemTag) {
+          var tag = el("span","problem-tag", p.problemTag);
+          exLabel.appendChild(tag);
+        }
+        exSec.appendChild(exLabel);
+        exSec.appendChild(el("div","example-q", p.example));
+        detailInner.appendChild(exSec);
+      }
+
+      // Demo walkthrough
+      if (p.walkthrough) {
+        var wSec = el("div","walkthrough-section");
+        wSec.appendChild(el("h3","","How It Works on This Question"));
+        var ol = el("ol","walkthrough-steps");
+        ol.style.setProperty("--cluster-color", cluster.color);
+        p.walkthrough.forEach(function(step, i) {
+          var li = document.createElement("li");
+          li.setAttribute("data-step", String(i + 1));
+          var lbl = el("span","step-label", step.label + ": ");
+          var det = el("span","step-detail", step.text);
+          li.appendChild(lbl);
+          li.appendChild(det);
+          ol.appendChild(li);
+        });
+        wSec.appendChild(ol);
+        detailInner.appendChild(wSec);
+      }
+
+      overlay.classList.add("open");
+      window.scrollTo(0,0);
+
+      // Render mermaid after DOM is visible
+      setTimeout(function() {
+        mermaid.render(summaryId + "-svg", diagramData.summary).then(function(result) {
+          summaryDiv.insertAdjacentHTML("beforeend", result.svg);
+        }).catch(function(){});
+        mermaid.render(detailId + "-svg", diagramData.detailed).then(function(result) {
+          detailDiv.insertAdjacentHTML("beforeend", result.svg);
+        }).catch(function(){});
+      }, 50);
+    }
+  }
+
+  function closeDetail() {
+    overlay.classList.remove("open");
+  }
+
+  // ESC to close
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && overlay.classList.contains("open")) closeDetail();
+  });
+})();
+</script>
+</body>
+</html>

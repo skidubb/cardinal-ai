@@ -1,0 +1,49 @@
+{
+  "question": "Should Cardinal Element pursue a 2M government contract that requires FedRAMP certification we don't have?",
+  "options": [
+    "Pursue with FedRAMP partner",
+    "Build FedRAMP in-house",
+    "Decline the contract"
+  ],
+  "bids": [
+    {
+      "agent": "CEO",
+      "selected_option": "Pursue with FedRAMP partner",
+      "confidence": 72,
+      "reasoning": "Partnering with an established FedRAMP-certified entity allows Cardinal Element to capture this $2M contract immediately without the 12-18 month timeline and significant capital investment required to build FedRAMP in-house, which would likely cause us to miss this specific opportunity entirely. From a strategic positioning standpoint, this also opens a beachhead into the government sector, giving us a reference contract and operational experience that strengthens future bids while we evaluate whether to pursue full in-house certification long-term. The primary risk is margin compression and dependency on a partner, but for a first government contract, the strategic optionality gained outweighs those concerns."
+    },
+    {
+      "agent": "CFO",
+      "selected_option": "Pursue with FedRAMP partner",
+      "confidence": 72,
+      "reasoning": "Partnering with an established FedRAMP-certified provider allows Cardinal Element to capture the $2M contract revenue without the capital-intensive, multi-year investment required for in-house certification, which typically costs $500K-$2M+ and takes 12-18 months minimum. The partnership model preserves cash flow and limits downside risk \u2014 if the contract underperforms or isn't renewed, we haven't sunk significant capital into a compliance infrastructure. Key financial risks to monitor are partner revenue share reducing margins and contract dependency on a third party, but these are manageable compared to the opportunity cost of declining or the capital burden of building in-house for a single contract."
+    }
+  ],
+  "winner": "CEO",
+  "winning_option": "Pursue with FedRAMP partner",
+  "original_confidence": 72,
+  "second_price_confidence": 72,
+  "calibrated_justification": "Pursuing this $2M government contract via a FedRAMP-certified partner is the most viable path forward, though at 72/100 confidence we should be clear-eyed that this is a sound but imperfect option with meaningful uncertainties. The core strategic logic holds: building FedRAMP in-house would require $500K-$2M+ and 12-18 months minimum, almost certainly causing us to miss this specific opportunity entirely. Partnering allows us to participate now, generate revenue, and gain government sector operational experience that strengthens future positioning. Both CEO and CFO perspectives align on this framing, which provides some confidence in the directional choice. However, the 72/100 confidence level appropriately reflects several unresolved variables: we don't yet know the partner's revenue share requirements and whether the margin profile remains attractive after split, we haven't fully validated our ability to execute operationally within a partner's compliance framework, and we lack certainty that this initial contract creates genuine pipeline momentum versus a one-off engagement that doesn't justify the partnership overhead. There's also execution risk in coordinating a subcontractor relationship on a government contract where compliance failures carry reputational and legal consequences. This option is clearly preferable to declining outright or attempting in-house certification on this timeline, but leadership should enter with realistic margin expectations and predefined criteria for evaluating whether to pursue full in-house certification after this contract, rather than assuming the partnership model is indefinitely scalable.",
+  "bid_distribution": {
+    "Pursue with FedRAMP partner": [
+      72,
+      72
+    ]
+  },
+  "consensus_score": 1.0,
+  "synthesis": {
+    "summary": "Cardinal Element should pursue the $2M government contract through a FedRAMP-certified partner, capturing immediate market opportunity and government sector experience at 72/100 confidence. This approach avoids the 12-18 month, $500K-$2M+ capital burden of in-house certification while preserving cash flow and limiting downside risk relative to declining the contract outright.",
+    "winning_option": "Pursue with FedRAMP partner",
+    "calibrated_confidence": 72,
+    "consensus_analysis": "Perfect consensus across both decision-makers, with CEO and CFO independently selecting the same option at identical confidence levels (72/100). Both agents reasoned from aligned frameworks: time-to-market urgency, capital preservation, and strategic optionality of government sector entry justified the partnership model despite margin compression and third-party dependency risks. The convergence on a mid-confidence level (rather than high confidence) is notably healthy\u2014both leaders explicitly acknowledged unresolved variables around partner economics, operational execution, and pipeline durability, suggesting realistic rather than overoptimistic assessment. No dissenting perspective emerged to challenge the directional choice or surface alternative prioritizations.",
+    "consensus_score": 1.0,
+    "distribution_insights": "All bids consolidated behind a single option with zero distribution across alternatives. The 'Pursue with FedRAMP partner' option received 2/2 bids at matched confidence (72/100 each), while 'Build FedRAMP in-house' and 'Decline the contract' attracted zero support. This complete concentration indicates strong organizational alignment on rejecting both the capital-intensive build path and the foregone-opportunity cost of decline, but the identical mid-range confidence levels reveal shared caution about execution and partnership dynamics rather than enthusiastic certainty.",
+    "dissenting_perspectives": []
+  },
+  "timings": {
+    "phase1_sealed_bidding": 5.202361106872559,
+    "phase2_reveal_rank": 5.602836608886719e-05,
+    "phase3_calibrated_justification": 15.919984817504883,
+    "phase4_final_assessment": 4.8873419761657715
+  }
+}

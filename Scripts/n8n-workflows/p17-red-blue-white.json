@@ -1,0 +1,337 @@
+{
+  "name": "P17 Red/Blue/White Team",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"question\": \"Should our B2B SaaS company (50 employees, $8M ARR, 15% growth) pursue an acquisition of a smaller competitor ($2M ARR, complementary product) versus building the capability in-house over 18 months?\",\n  \"plan\": \"Acquire the competitor for $6-8M (3-4x ARR multiple). Finance via $4M cash reserves + $4M debt facility. Integrate their engineering team (12 people) over 6 months. Cross-sell to existing customer base to reach $12M combined ARR within 12 months. Retain key talent with 2-year earnout tied to integration milestones.\",\n  \"red_agents\": [\n    {\"name\": \"CMO\", \"system_prompt\": \"You are a CMO focused on market positioning, brand risk, customer acquisition, messaging, and competitive dynamics.\"},\n    {\"name\": \"CFO\", \"system_prompt\": \"You are a CFO focused on financial risk, cash flow, unit economics, margins, and capital allocation.\"}\n  ],\n  \"blue_agents\": [\n    {\"name\": \"CTO\", \"system_prompt\": \"You are a CTO focused on technical architecture, scalability, security, tech debt, and engineering execution.\"},\n    {\"name\": \"COO\", \"system_prompt\": \"You are a COO focused on operations, process execution, resource allocation, scaling, and cross-functional coordination.\"}\n  ],\n  \"white_agent\": {\"name\": \"CEO\", \"system_prompt\": \"You are a CEO focused on strategy, vision, competitive positioning, and stakeholder management.\"}\n}",
+        "options": {}
+      },
+      "id": "set-config",
+      "name": "Set Question, Plan & Teams",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const cfg = $json;\n  const a = cfg.red_agents[0];\n  return JSON.stringify({\n    model: 'claude-opus-4-6',\n    max_tokens: 12288,\n    thinking: { type: 'enabled', budget_tokens: 8192 },\n    messages: [{ role: 'user', content: `You are a RED TEAM analyst conducting adversarial stress-testing of a proposed plan.\\n\\nYour role: ${a.name}\\n${a.system_prompt}\\n\\n## Strategic Question\\n${cfg.question}\\n\\n## Plan Under Review\\n${cfg.plan}\\n\\nYour job is to ATTACK this plan. Identify vulnerabilities, failure modes, blind spots, hidden risks, flawed assumptions, and scenarios where this plan breaks down. Be thorough and adversarial — your goal is to find every weakness before reality does.\\n\\nThink from your domain perspective. What could go wrong in your area of expertise? What has the plan failed to consider? What second-order effects could derail execution?\\n\\nRespond in JSON:\\n{\\n  \"agent\": \"${a.name}\",\\n  \"vulnerabilities\": [\\n    {\\n      \"id\": \"V1\",\\n      \"category\": \"category\",\\n      \"title\": \"short title\",\\n      \"severity\": \"Critical|High|Medium|Low\",\\n      \"description\": \"detailed description of the vulnerability\",\\n      \"failure_scenario\": \"concrete scenario where this vulnerability causes plan failure\"\\n    }\\n  ]\\n}\\n\\nIdentify 3-5 vulnerabilities, prioritized by severity. Be specific and concrete — vague risks are not useful.` }]\n  });\n})() }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "red1",
+      "name": "RED: CMO Attack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [560, 320],
+      "credentials": { "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const cfg = $json;\n  const a = cfg.red_agents[1];\n  return JSON.stringify({\n    model: 'claude-opus-4-6',\n    max_tokens: 12288,\n    thinking: { type: 'enabled', budget_tokens: 8192 },\n    messages: [{ role: 'user', content: `You are a RED TEAM analyst conducting adversarial stress-testing of a proposed plan.\\n\\nYour role: ${a.name}\\n${a.system_prompt}\\n\\n## Strategic Question\\n${cfg.question}\\n\\n## Plan Under Review\\n${cfg.plan}\\n\\nYour job is to ATTACK this plan. Identify vulnerabilities, failure modes, blind spots, hidden risks, flawed assumptions, and scenarios where this plan breaks down. Be thorough and adversarial — your goal is to find every weakness before reality does.\\n\\nThink from your domain perspective. What could go wrong in your area of expertise? What has the plan failed to consider? What second-order effects could derail execution?\\n\\nRespond in JSON:\\n{\\n  \"agent\": \"${a.name}\",\\n  \"vulnerabilities\": [\\n    {\\n      \"id\": \"V1\",\\n      \"category\": \"category\",\\n      \"title\": \"short title\",\\n      \"severity\": \"Critical|High|Medium|Low\",\\n      \"description\": \"detailed description of the vulnerability\",\\n      \"failure_scenario\": \"concrete scenario where this vulnerability causes plan failure\"\\n    }\\n  ]\\n}\\n\\nIdentify 3-5 vulnerabilities, prioritized by severity. Be specific and concrete — vague risks are not useful.` }]\n  });\n})() }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "red2",
+      "name": "RED: CFO Attack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [560, 680],
+      "credentials": { "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => {\n  const r1 = $('RED: CMO Attack').first().json;\n  const r2 = $('RED: CFO Attack').first().json;\n  const parse = (r) => {\n    const txt = r.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n    try { return JSON.parse(txt); } catch(e) {\n      const m = txt.match(/\\{[\\s\\S]*\\}/);\n      return m ? JSON.parse(m[0]) : { agent: '?', vulnerabilities: [] };\n    }\n  };\n  const a1 = parse(r1);\n  const a2 = parse(r2);\n  const formatBlock = (attacks) => {\n    return attacks.map(atk => \n      atk.vulnerabilities.map(v => \n        `[${v.id}] (${v.severity}) ${v.title} — from ${atk.agent}\\n  Description: ${v.description}\\n  Failure scenario: ${v.failure_scenario}`\n      ).join('\\n\\n')\n    ).join('\\n\\n');\n  };\n  return {\n    attacks: [a1, a2],\n    attacks_block: formatBlock([a1, a2])\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "merge-attacks",
+      "name": "Merge Red Attacks",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const cfg = $('Set Question, Plan & Teams').first().json;\n  const a = cfg.blue_agents[0];\n  const attacks_block = $json.attacks_block;\n  return JSON.stringify({\n    model: 'claude-opus-4-6',\n    max_tokens: 12288,\n    thinking: { type: 'enabled', budget_tokens: 8192 },\n    messages: [{ role: 'user', content: `You are a BLUE TEAM defender tasked with strengthening a proposed plan against identified attacks.\\n\\nYour role: ${a.name}\\n${a.system_prompt}\\n\\n## Strategic Question\\n${cfg.question}\\n\\n## Plan Under Review\\n${cfg.plan}\\n\\n## Red Team Attacks\\nThe following vulnerabilities have been identified by the Red Team:\\n\\n${attacks_block}\\n\\nYour job is to DEFEND the plan. For each vulnerability, provide mitigations, counterarguments, evidence that the risk is manageable, or concrete modifications to the plan that would address the concern. Be rigorous — hand-waving is not defense.\\n\\nThink from your domain perspective. What resources, capabilities, or strategies can address these vulnerabilities? What precedents suggest the risks are overstated?\\n\\nRespond in JSON:\\n{\\n  \"agent\": \"${a.name}\",\\n  \"mitigations\": [\\n    {\\n      \"vulnerability_id\": \"V1\",\\n      \"defense_type\": \"Mitigation|Counterargument|Plan Modification|Risk Acceptance\",\\n      \"response\": \"detailed defense or mitigation strategy\",\\n      \"evidence\": \"supporting evidence, precedents, or data points\",\\n      \"residual_risk\": \"any remaining risk after this defense is applied\"\\n    }\\n  ]\\n}\\n\\nAddress EVERY vulnerability listed above. If a vulnerability is genuinely undefendable, say so honestly and propose a risk-acceptance rationale.` }]\n  });\n})() }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "blue1",
+      "name": "BLUE: CTO Defense",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 320],
+      "credentials": { "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const cfg = $('Set Question, Plan & Teams').first().json;\n  const a = cfg.blue_agents[1];\n  const attacks_block = $json.attacks_block;\n  return JSON.stringify({\n    model: 'claude-opus-4-6',\n    max_tokens: 12288,\n    thinking: { type: 'enabled', budget_tokens: 8192 },\n    messages: [{ role: 'user', content: `You are a BLUE TEAM defender tasked with strengthening a proposed plan against identified attacks.\\n\\nYour role: ${a.name}\\n${a.system_prompt}\\n\\n## Strategic Question\\n${cfg.question}\\n\\n## Plan Under Review\\n${cfg.plan}\\n\\n## Red Team Attacks\\nThe following vulnerabilities have been identified by the Red Team:\\n\\n${attacks_block}\\n\\nYour job is to DEFEND the plan. For each vulnerability, provide mitigations, counterarguments, evidence that the risk is manageable, or concrete modifications to the plan that would address the concern. Be rigorous — hand-waving is not defense.\\n\\nThink from your domain perspective. What resources, capabilities, or strategies can address these vulnerabilities? What precedents suggest the risks are overstated?\\n\\nRespond in JSON:\\n{\\n  \"agent\": \"${a.name}\",\\n  \"mitigations\": [\\n    {\\n      \"vulnerability_id\": \"V1\",\\n      \"defense_type\": \"Mitigation|Counterargument|Plan Modification|Risk Acceptance\",\\n      \"response\": \"detailed defense or mitigation strategy\",\\n      \"evidence\": \"supporting evidence, precedents, or data points\",\\n      \"residual_risk\": \"any remaining risk after this defense is applied\"\\n    }\\n  ]\\n}\\n\\nAddress EVERY vulnerability listed above. If a vulnerability is genuinely undefendable, say so honestly and propose a risk-acceptance rationale.` }]\n  });\n})() }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "blue2",
+      "name": "BLUE: COO Defense",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 680],
+      "credentials": { "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => {\n  const b1 = $('BLUE: CTO Defense').first().json;\n  const b2 = $('BLUE: COO Defense').first().json;\n  const attacks_block = $('Merge Red Attacks').first().json.attacks_block;\n  const parse = (r) => {\n    const txt = r.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n    try { return JSON.parse(txt); } catch(e) {\n      const m = txt.match(/\\{[\\s\\S]*\\}/);\n      return m ? JSON.parse(m[0]) : { agent: '?', mitigations: [] };\n    }\n  };\n  const d1 = parse(b1);\n  const d2 = parse(b2);\n  const formatBlock = (defenses) => {\n    return defenses.map(def => \n      def.mitigations.map(m => \n        `Defense for ${m.vulnerability_id} (${m.defense_type}) — from ${def.agent}\\n  Response: ${m.response}\\n  Evidence: ${m.evidence}\\n  Residual risk: ${m.residual_risk}`\n      ).join('\\n\\n')\n    ).join('\\n\\n');\n  };\n  return {\n    defenses: [d1, d2],\n    defenses_block: formatBlock([d1, d2]),\n    attacks_block: attacks_block\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "merge-defenses",
+      "name": "Merge Blue Defenses",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1520, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const cfg = $('Set Question, Plan & Teams').first().json;\n  const attacks_block = $json.attacks_block;\n  const defenses_block = $json.defenses_block;\n  return JSON.stringify({\n    model: 'claude-opus-4-6',\n    max_tokens: 14096,\n    thinking: { type: 'enabled', budget_tokens: 10000 },\n    messages: [{ role: 'user', content: `You are the WHITE TEAM arbiter adjudicating a Red/Blue team exercise.\\n\\n## Strategic Question\\n${cfg.question}\\n\\n## Plan Under Review\\n${cfg.plan}\\n\\n## Red Team Attacks\\n${attacks_block}\\n\\n## Blue Team Defenses\\n${defenses_block}\\n\\nFor EACH vulnerability raised by the Red Team, evaluate whether the Blue Team's defense is adequate. You must be impartial — neither reflexively siding with attackers nor defenders.\\n\\nCategorize each as:\\n- **Resolved**: The defense fully addresses the vulnerability. The risk is adequately mitigated.\\n- **Partially Resolved**: The defense addresses some concerns but gaps remain. Additional action needed.\\n- **Open**: The defense is inadequate. This remains an active risk requiring attention.\\n\\nRespond in JSON:\\n{\\n  \"adjudications\": [\\n    {\\n      \"vulnerability_id\": \"V1\",\\n      \"vulnerability_title\": \"title from Red Team\",\\n      \"severity\": \"Critical|High|Medium|Low\",\\n      \"verdict\": \"Resolved|Partially Resolved|Open\",\\n      \"reasoning\": \"detailed reasoning for the verdict\",\\n      \"defense_gaps\": \"specific gaps in the defense, if any\",\\n      \"recommended_action\": \"what should be done next, if anything\"\\n    }\\n  ]\\n}` }]\n  });\n})() }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "white-adjudicate",
+      "name": "WHITE: CEO Adjudication",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1840, 500],
+      "credentials": { "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => {\n  const txt = $json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  let parsed;\n  try { parsed = JSON.parse(txt); } catch(e) {\n    const m = txt.match(/\\{[\\s\\S]*\\}/);\n    parsed = m ? JSON.parse(m[0]) : { adjudications: [] };\n  }\n  const adjs = parsed.adjudications || [];\n  const formatBlock = adjs.map(a => \n    `[${a.vulnerability_id}] ${a.vulnerability_title} (severity: ${a.severity})\\n  Verdict: ${a.verdict}\\n  Reasoning: ${a.reasoning}\\n  Defense gaps: ${a.defense_gaps}\\n  Recommended action: ${a.recommended_action}`\n  ).join('\\n\\n');\n  return {\n    adjudications: adjs,\n    adjudication_block: formatBlock\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "parse-adjudication",
+      "name": "Parse Adjudication",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2120, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const cfg = $('Set Question, Plan & Teams').first().json;\n  const adjudication_block = $json.adjudication_block;\n  return JSON.stringify({\n    model: 'claude-opus-4-6',\n    max_tokens: 4096,\n    messages: [{ role: 'user', content: `You are the WHITE TEAM lead producing the final assessment of a Red/Blue/White team exercise.\\n\\n## Strategic Question\\n${cfg.question}\\n\\n## Plan Under Review\\n${cfg.plan}\\n\\n## Adjudication Results\\n${adjudication_block}\\n\\nSynthesize the full exercise into a final risk assessment and set of recommendations.\\n\\nRespond in JSON:\\n{\\n  \"resolved_risks\": [{\"vulnerability_id\": \"V1\", \"title\": \"title\", \"summary\": \"how it was resolved\"}],\\n  \"open_risks\": [{\"vulnerability_id\": \"V2\", \"title\": \"title\", \"severity\": \"Critical|High|Medium|Low\", \"summary\": \"why it remains open\", \"recommended_action\": \"specific next step\"}],\\n  \"plan_strength_score\": 7,\\n  \"score_reasoning\": \"paragraph explaining the 1-10 score\",\\n  \"recommendations\": [\"specific, actionable recommendation 1\", \"specific, actionable recommendation 2\"],\\n  \"overall_assessment\": \"1-2 paragraph executive summary of the plan's viability after stress-testing\"\\n}` }]\n  });\n})() }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "final-assessment",
+      "name": "WHITE: Final Assessment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2400, 500],
+      "credentials": { "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => {\n  const cfg = $('Set Question, Plan & Teams').first().json;\n  const txt = $json.content.filter(b => b.type === 'text').map(b => b.text).join('\\n');\n  let result;\n  try { result = JSON.parse(txt); } catch(e) {\n    const m = txt.match(/\\{[\\s\\S]*\\}/);\n    result = m ? JSON.parse(m[0]) : {};\n  }\n  const attacks = $('Merge Red Attacks').first().json.attacks;\n  const defenses = $('Merge Blue Defenses').first().json.defenses;\n  const adjudications = $('Parse Adjudication').first().json.adjudications;\n  return {\n    question: cfg.question,\n    plan: cfg.plan,\n    red_team_attacks: attacks,\n    blue_team_defenses: defenses,\n    white_team_adjudications: adjudications,\n    plan_strength_score: result.plan_strength_score,\n    score_reasoning: result.score_reasoning,\n    resolved_risks: result.resolved_risks,\n    open_risks: result.open_risks,\n    recommendations: result.recommendations,\n    overall_assessment: result.overall_assessment\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2680, 500]
+    },
+    {
+      "parameters": {
+        "content": "## RED TEAM\nAdversarial Attack Phase\nCMO + CFO identify vulnerabilities in parallel",
+        "height": 380,
+        "width": 300,
+        "color": 5
+      },
+      "id": "note-red",
+      "name": "Red Team Zone",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [480, 240]
+    },
+    {
+      "parameters": {
+        "content": "## BLUE TEAM\nDefensive Response Phase\nCTO + COO defend against ALL attacks in parallel",
+        "height": 380,
+        "width": 300,
+        "color": 4
+      },
+      "id": "note-blue",
+      "name": "Blue Team Zone",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "content": "## WHITE TEAM\nImpartial Adjudication\nCEO evaluates each attack/defense pair",
+        "height": 380,
+        "width": 600,
+        "color": 2
+      },
+      "id": "note-white",
+      "name": "White Team Zone",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1760, 240]
+    },
+    {
+      "parameters": {
+        "content": "## FINAL REPORT\nRisk assessment, score,\nand recommendations",
+        "height": 380,
+        "width": 340,
+        "color": 6
+      },
+      "id": "note-final",
+      "name": "Final Report Zone",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [2380, 240]
+    },
+    {
+      "parameters": {
+        "content": "# P17: Red/Blue/White Team — Adversarial Stress-Testing\n\nRed team attacks a plan from multiple angles. Blue team defends. White team adjudicates. All agents use Claude Opus 4.6 with extended thinking.\n\n**Setup:** Create an HTTP Header Auth credential named \"Anthropic API Key\" with header name `x-api-key` and your API key as the value.",
+        "height": 160,
+        "width": 780,
+        "color": 1
+      },
+      "id": "note-title",
+      "name": "Title",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 40]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Set Question, Plan & Teams", "type": "main", "index": 0 }]]
+    },
+    "Set Question, Plan & Teams": {
+      "main": [[
+        { "node": "RED: CMO Attack", "type": "main", "index": 0 },
+        { "node": "RED: CFO Attack", "type": "main", "index": 0 }
+      ]]
+    },
+    "RED: CMO Attack": {
+      "main": [[{ "node": "Merge Red Attacks", "type": "main", "index": 0 }]]
+    },
+    "RED: CFO Attack": {
+      "main": [[{ "node": "Merge Red Attacks", "type": "main", "index": 0 }]]
+    },
+    "Merge Red Attacks": {
+      "main": [[
+        { "node": "BLUE: CTO Defense", "type": "main", "index": 0 },
+        { "node": "BLUE: COO Defense", "type": "main", "index": 0 }
+      ]]
+    },
+    "BLUE: CTO Defense": {
+      "main": [[{ "node": "Merge Blue Defenses", "type": "main", "index": 0 }]]
+    },
+    "BLUE: COO Defense": {
+      "main": [[{ "node": "Merge Blue Defenses", "type": "main", "index": 0 }]]
+    },
+    "Merge Blue Defenses": {
+      "main": [[{ "node": "WHITE: CEO Adjudication", "type": "main", "index": 0 }]]
+    },
+    "WHITE: CEO Adjudication": {
+      "main": [[{ "node": "Parse Adjudication", "type": "main", "index": 0 }]]
+    },
+    "Parse Adjudication": {
+      "main": [[{ "node": "WHITE: Final Assessment", "type": "main", "index": 0 }]]
+    },
+    "WHITE: Final Assessment": {
+      "main": [[{ "node": "Final Output", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-22T00:00:00.000Z",
+  "versionId": "1"
+}

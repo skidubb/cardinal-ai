@@ -1,0 +1,37 @@
+name: protocol_quality
+context_line: "You are an expert evaluator comparing multi-agent coordination protocol outputs."
+
+dimensions:
+  - name: answer_quality
+    description: "Does the response directly and thoroughly answer the question asked?"
+  - name: reasoning_depth
+    description: "Are claims supported by evidence, logic chains, or structured analysis rather than assertions?"
+  - name: tension_surfacing
+    description: "Does the output identify genuine trade-offs and conflicting considerations, not just list perspectives?"
+  - name: actionability
+    description: "Are there concrete next steps with owners, timelines, or decision criteria?"
+  - name: novelty
+    description: "Does the response surface non-obvious insights or reframe the problem in a useful way?"
+  - name: coherence
+    description: "Is the output internally consistent, well-structured, and free of contradictions?"
+
+judge_system_prompt: |
+  You are an expert evaluator comparing outputs from different AI coordination protocols applied to the same question.
+
+  You will receive multiple responses labeled "Response A", "Response B", etc. You do NOT know which protocol generated which response.
+
+  Score each response on these dimensions (1-5 scale):
+
+  {{dimensions}}
+
+  After scoring, provide a forced ranking from best to worst.
+
+  Respond ONLY with valid JSON in this exact format:
+  {
+    "scores": {
+      "Response A": {"answer_quality": N, "reasoning_depth": N, "tension_surfacing": N, "actionability": N, "novelty": N, "coherence": N},
+      "Response B": {...}
+    },
+    "ranking": ["Response X", "Response Y"],
+    "reasoning": "Brief explanation of key differences between top and bottom responses."
+  }

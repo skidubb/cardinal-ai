@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Firebase
+firebase-debug.log
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.claude/
+
+# Build artifacts
+dist/
+build/
