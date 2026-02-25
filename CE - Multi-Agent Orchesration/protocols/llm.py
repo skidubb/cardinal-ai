@@ -27,6 +27,8 @@ async def agent_complete(
     max_tokens: int = 14_096,
     anthropic_client: anthropic.AsyncAnthropic | None = None,
     system: str | None = None,
+    tools: list[dict] | None = None,
+    no_tools: bool = False,
 ) -> str:
     """Dispatch an agent call to LiteLLM or Anthropic SDK.
 
@@ -38,6 +40,8 @@ async def agent_complete(
         max_tokens: Max output tokens.
         anthropic_client: Required for fallback path (no agent model).
         system: System prompt override. If None, uses agent["system_prompt"].
+        tools: Anthropic tool schemas to pass to the model.
+        no_tools: If True, strip all tools for clean mechanical execution.
 
     Returns:
         Response text as a string.
@@ -61,6 +65,9 @@ async def agent_complete(
         if _is_anthropic_model(agent_model):
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
 
+        if not no_tools and tools:
+            kwargs["tools"] = tools
+
         response = await litellm.acompletion(**kwargs)
         return response.choices[0].message.content
 
@@ -70,13 +77,68 @@ async def agent_complete(
             "anthropic_client is required when agent has no 'model' field"
         )
 
-    response = await anthropic_client.messages.create(
-        model=fallback_model,
-        max_tokens=thinking_budget + 4096 if max_tokens == 14_096 else max_tokens,
-        thinking={"type": "enabled", "budget_tokens": thinking_budget},
-        system=system_prompt,
-        messages=messages,
-    )
+    # Resolve tools: explicit param > agent-level schemas > agent tool key strings
+    if not no_tools:
+        effective_tools = tools
+        if not effective_tools:
+            effective_tools = agent.get("tools_schemas")
+        if not effective_tools and agent.get("tools"):
+            try:
+                from csuite.tools.schemas import ALL_TOOL_SCHEMAS
+                effective_tools = [
+                    ALL_TOOL_SCHEMAS[t] for t in agent["tools"] if t in ALL_TOOL_SCHEMAS
+                ]
+            except ImportError:
+                effective_tools = None
+    else:
+        effective_tools = None
+
+    create_kwargs = {
+        "model": fallback_model,
+        "max_tokens": thinking_budget + 4096 if max_tokens == 14_096 else max_tokens,
+        "thinking": {"type": "enabled", "budget_tokens": thinking_budget},
+        "system": system_prompt,
+        "messages": messages,
+    }
+    if effective_tools:
+        create_kwargs["tools"] = effective_tools
+
+    response = await anthropic_client.messages.create(**create_kwargs)
+
+    # If no tools or no tool_use in response, return text directly
+    if not effective_tools or response.stop_reason != "tool_use":
+        return extract_text(response)
+
+    # Agentic tool loop
+    from api.tool_executor import execute_tool, MAX_TOOL_ITERATIONS
+
+    loop_messages = list(messages)
+    for iteration in range(MAX_TOOL_ITERATIONS):
+        loop_messages.append({"role": "assistant", "content": response.content})
+
+        tool_results = []
+        for block in response.content:
+            if block.type == "tool_use":
+                result = await execute_tool(block.name, block.input)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result,
+                })
+
+        if not tool_results:
+            break
+
+        loop_messages.append({"role": "user", "content": tool_results})
+
+        response = await anthropic_client.messages.create(**{
+            **create_kwargs,
+            "messages": loop_messages,
+        })
+
+        if response.stop_reason != "tool_use":
+            break
+
     return extract_text(response)
 
 

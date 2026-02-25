@@ -41,6 +41,7 @@ def parallel_agent_stage(
                 messages=[{"role": "user", "content": prompt}],
                 thinking_budget=thinking_budget if use_thinking else 1000,
                 anthropic_client=client,
+                no_tools=config.get("no_tools", False),
             )
             bb.write(topic_out, response, author=agent["name"], stage=topic_out)
 
@@ -80,6 +81,7 @@ def sequential_agent_stage(
                 messages=[{"role": "user", "content": prompt}],
                 thinking_budget=thinking_budget,
                 anthropic_client=client,
+                no_tools=config.get("no_tools", False),
             )
             bb.write(topic_out, response, author=agent["name"], stage=topic_out)
 
