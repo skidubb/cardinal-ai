@@ -1,0 +1,13 @@
+protocol_id: P10
+name: Heard Seen Respected
+category: Liberating Structures
+problem_types:
+- Multi-Stakeholder
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Deep listening protocol — surface experiences and perspectives before
+  solutions.
+when_to_use: Stakeholder alignment, empathy-building before decisions.
+when_not_to_use: Urgent decisions, quantitative analysis.

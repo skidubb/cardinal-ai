@@ -1,0 +1,13 @@
+protocol_id: P42
+name: Aristotle Square of Opposition
+category: Wave 2 Research
+problem_types:
+- Diagnostic
+- Adversarial
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Map logical relationships between propositions using Aristotelian logic.
+when_to_use: Clarifying logical structure of competing claims.
+when_not_to_use: Creative ideation, quantitative estimation.

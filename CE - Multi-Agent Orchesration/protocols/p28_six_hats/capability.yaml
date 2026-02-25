@@ -1,0 +1,13 @@
+protocol_id: P28
+name: Six Thinking Hats
+category: Wave 2 Research
+problem_types:
+- General Analysis
+- Multi-Stakeholder
+cost_tier: medium
+min_agents: 2
+max_agents: 6
+supports_rounds: false
+description: De Bono parallel thinking — each agent wears a different thinking hat.
+when_to_use: Ensuring all thinking modes (facts, emotions, risks, benefits) are covered.
+when_not_to_use: Pure quantitative estimation.

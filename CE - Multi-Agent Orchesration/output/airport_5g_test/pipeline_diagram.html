@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFW 5G Pipeline — Protocol Pathways</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a14;
+    --bg2: #0f0f1e;
+    --cyan: #00b4d8;
+    --cyan-dim: rgba(0,180,216,0.15);
+    --cyan-glow: rgba(0,180,216,0.4);
+    --magenta: #e040a0;
+    --magenta-dim: rgba(224,64,160,0.15);
+    --amber: #f0a030;
+    --amber-dim: rgba(240,160,48,0.15);
+    --green: #10d080;
+    --green-dim: rgba(16,208,128,0.15);
+    --red: #f04060;
+    --red-dim: rgba(240,64,96,0.15);
+    --blue-def: #40a0f0;
+    --blue-dim: rgba(64,160,240,0.15);
+    --white-team: #c0c8d0;
+    --text: #c8d0d8;
+    --text-dim: #607080;
+    --border: rgba(0,180,216,0.2);
+    --card: rgba(15,15,30,0.85);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .header {
+    text-align: center;
+    padding: 60px 40px 20px;
+    position: relative;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  }
+  .header h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 2.8rem;
+    background: linear-gradient(135deg, var(--cyan), var(--magenta));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+  }
+  .header .sub {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 8px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .header .meta {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 20px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+  .header .meta span { color: var(--cyan); }
+
+  /* Agent legend bar */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px 20px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.3s;
+  }
+  .legend-item:hover { color: var(--text); }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid;
+  }
+
+  /* Main pipeline container */
+  .pipeline {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px 40px 80px;
+    position: relative;
+  }
+
+  /* Central spine */
+  .pipeline::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 8px, transparent 8px, transparent 16px);
+    transform: translateX(-50%);
+  }
+
+  /* Stage container */
+  .stage {
+    position: relative;
+    margin-bottom: 60px;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .stage:nth-child(1) { animation-delay: 0.1s; }
+  .stage:nth-child(2) { animation-delay: 0.3s; }
+  .stage:nth-child(3) { animation-delay: 0.5s; }
+  .stage:nth-child(4) { animation-delay: 0.7s; }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .stage-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    position: relative;
+    z-index: 2;
+  }
+  .stage-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 3rem;
+    line-height: 1;
+    opacity: 0.15;
+    position: absolute;
+    left: 0;
+  }
+  .stage-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    position: relative;
+  }
+  .stage-badge::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 4px;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--stage-color), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+  .stage-protocol {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .stage-time {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .stage-time span { color: var(--stage-color); }
+
+  /* Phase rows */
+  .phases {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .phase {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .phase::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--stage-color);
+  }
+  .phase-label {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--stage-color);
+    margin-bottom: 10px;
+  }
+  .phase-desc {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    line-height: 1.6;
+  }
+
+  /* Agent flow row */
+  .agent-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .agent-node {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    letter-spacing: 0.5px;
+    border: 1px solid;
+    transition: all 0.3s;
+    cursor: default;
+    position: relative;
+  }
+  .agent-node:hover {
+    transform: scale(1.05);
+    z-index: 5;
+  }
+  .agent-node .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Flow arrows */
+  .flow-arrow {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+  .flow-arrow.down {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    font-size: 1.2rem;
+    padding: 4px 0;
+  }
+
+  /* Pair grouping */
+  .pair-group {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .pair {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.02);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+  }
+  .pair-label {
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-right: 4px;
+  }
+
+  /* Model badges */
+  .model-tag {
+    font-size: 0.5rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .model-opus {
+    background: rgba(224,64,160,0.15);
+    color: var(--magenta);
+    border: 1px solid rgba(224,64,160,0.3);
+  }
+  .model-haiku {
+    background: rgba(16,208,128,0.15);
+    color: var(--green);
+    border: 1px solid rgba(16,208,128,0.3);
+  }
+
+  /* Synthesis node */
+  .synthesis-node {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, rgba(0,180,216,0.1), rgba(224,64,160,0.1));
+    border: 1px solid var(--cyan);
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin: 8px auto;
+    width: fit-content;
+    box-shadow: 0 0 20px rgba(0,180,216,0.1);
+  }
+
+  /* Team assignment boxes (Stage 4) */
+  .teams-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .team-box {
+    flex: 1;
+    min-width: 200px;
+    max-width: 340px;
+    padding: 14px 16px;
+    border-radius: 6px;
+    border: 1px solid;
+  }
+  .team-box.red {
+    background: var(--red-dim);
+    border-color: rgba(240,64,96,0.3);
+  }
+  .team-box.blue {
+    background: var(--blue-dim);
+    border-color: rgba(64,160,240,0.3);
+  }
+  .team-box.white {
+    background: rgba(192,200,208,0.05);
+    border-color: rgba(192,200,208,0.2);
+  }
+  .team-label {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .team-box.red .team-label { color: var(--red); }
+  .team-box.blue .team-label { color: var(--blue-def); }
+  .team-box.white .team-label { color: var(--white-team); }
+  .team-role {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  /* Rounds indicator */
+  .rounds {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 8px 0;
+  }
+  .round-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    border: 2px solid;
+    transition: all 0.3s;
+  }
+  .round-dot.active {
+    box-shadow: 0 0 12px;
+  }
+
+  /* Constraint extraction callout */
+  .extraction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border: 1px dashed var(--amber);
+    border-radius: 4px;
+    font-size: 0.6rem;
+    color: var(--amber);
+    width: fit-content;
+    margin: 8px auto;
+    background: var(--amber-dim);
+  }
+
+  /* Output connector */
+  .output-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+  }
+  .output-bar .file {
+    color: var(--stage-color);
+    font-weight: 700;
+  }
+
+  /* Connector between stages */
+  .stage-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 0;
+    color: var(--text-dim);
+    font-size: 0.55rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .stage-connector .pipe {
+    width: 2px;
+    height: 24px;
+    background: linear-gradient(to bottom, var(--from-color), var(--to-color));
+  }
+
+  /* Final output */
+  .final-output {
+    text-align: center;
+    padding: 30px;
+    margin-top: 20px;
+    background: linear-gradient(135deg, rgba(0,180,216,0.05), rgba(224,64,160,0.05));
+    border: 1px solid var(--cyan);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .final-output::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0,180,216,0.08), transparent 70%);
+  }
+  .final-output h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--cyan);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .final-output .verdict {
+    font-size: 0.75rem;
+    color: var(--green);
+    font-weight: 700;
+    letter-spacing: 1px;
+    position: relative;
+  }
+  .final-output .score {
+    font-size: 2rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    color: var(--amber);
+    margin: 8px 0;
+    position: relative;
+  }
+  .final-output .conditions {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    position: relative;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    border: 1px solid var(--cyan);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    color: var(--text);
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .agent-node:hover .tooltip { display: block; }
+
+  /* Parallel indicator */
+  .parallel-badge {
+    font-size: 0.5rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(240,160,48,0.15);
+    color: var(--amber);
+    border: 1px solid rgba(240,160,48,0.3);
+    letter-spacing: 1px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header h1 { font-size: 1.6rem; }
+    .pipeline { padding: 20px 16px 60px; }
+    .pair-group { flex-direction: column; align-items: center; }
+    .teams-row { flex-direction: column; }
+    .team-box { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Protocol Pipeline Execution</h1>
+  <div class="sub">DFW Airport Private 5G Decision-Maker Simulation</div>
+  <div class="meta">
+    <div><span>6</span> Agents</div>
+    <div><span>4</span> Stages</div>
+    <div><span>48 min</span> Total Runtime</div>
+    <div><span>42</span> Opus Calls</div>
+    <div><span>Feb 24, 2026</span></div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="border-color:#00b4d8;background:rgba(0,180,216,0.3)"></div>Airport CIO</div>
+  <div class="legend-item"><div class="legend-dot" style="border-color:#f0a030;background:rgba(240,160,48,0.3)"></div>Airport CRO</div>
+  <div class="legend-item"><div class="legend-dot" style="border-color:#e040a0;background:rgba(224,64,160,0.3)"></div>Airline VP</div>
+  <div class="legend-item"><div class="legend-dot" style="border-color:#10d080;background:rgba(16,208,128,0.3)"></div>Cargo Director</div>
+  <div class="legend-item"><div class="legend-dot" style="border-color:#a070e0;background:rgba(160,112,224,0.3)"></div>Concessions Lead</div>
+  <div class="legend-item"><div class="legend-dot" style="border-color:#f04060;background:rgba(240,64,96,0.3)"></div>AT&T Rep</div>
+</div>
+
+<div class="pipeline">
+
+  <!-- ============ STAGE 1: DISCOVER ============ -->
+  <div class="stage" style="--stage-color: var(--cyan);">
+    <div class="stage-header">
+      <span class="stage-num" style="color:var(--cyan)">01</span>
+      <div class="stage-badge" style="color:var(--cyan)">Stage 1 — Discover</div>
+    </div>
+    <div class="stage-protocol">Protocol P14 · 1-2-4-All · Liberating Structure</div>
+    <div class="stage-time">Runtime: <span>~12 min</span> · Question: "What must be true for your constituency to fully support this?"</div>
+
+    <div class="phases">
+      <!-- Phase 1: Solo -->
+      <div class="phase">
+        <div class="phase-label">Phase 1 — Individual Discovery <span class="parallel-badge">parallel</span> <span class="model-tag model-opus">Opus</span></div>
+        <div class="phase-desc">Each agent independently states requirements, non-negotiables, and success criteria from their constituency's perspective.</div>
+        <div class="agent-flow">
+          <div class="agent-node" style="border-color:#00b4d8;background:rgba(0,180,216,0.08)">
+            <div class="dot" style="background:#00b4d8"></div>CIO
+            <div class="tooltip">Airport CIO — Technical reliability, AT&T CWP protection, CBRS compliance</div>
+          </div>
+          <div class="agent-node" style="border-color:#f0a030;background:rgba(240,160,48,0.08)">
+            <div class="dot" style="background:#f0a030"></div>CRO
+            <div class="tooltip">Airport CRO — Revenue platform, tenant monetization, $80M+ 5yr opportunity</div>
+          </div>
+          <div class="agent-node" style="border-color:#e040a0;background:rgba(224,64,160,0.08)">
+            <div class="dot" style="background:#e040a0"></div>Airline
+            <div class="tooltip">Anchor Airline VP — 99.99% uptime, dedicated slice, 168+ gates</div>
+          </div>
+          <div class="agent-node" style="border-color:#10d080;background:rgba(16,208,128,0.08)">
+            <div class="dot" style="background:#10d080"></div>Cargo
+            <div class="tooltip">Cargo Director — Construction urgency, automation-grade SLAs, 20-year lockout risk</div>
+          </div>
+          <div class="agent-node" style="border-color:#a070e0;background:rgba(160,112,224,0.08)">
+            <div class="dot" style="background:#a070e0"></div>Concessions
+            <div class="tooltip">Concessions Tech Lead — Turnkey POS, 200+ locations, zero CapEx</div>
+          </div>
+          <div class="agent-node" style="border-color:#f04060;background:rgba(240,64,96,0.08)">
+            <div class="dot" style="background:#f04060"></div>AT&T
+            <div class="tooltip">AT&T Carrier Rep — Protect $10M CWP investment, carrier-layer positioning</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow down">↓</div>
+
+      <!-- Phase 2: Pairs -->
+      <div class="phase">
+        <div class="phase-label">Phase 2 — Pair Alignment <span class="parallel-badge">parallel</span> <span class="model-tag model-haiku">Haiku</span></div>
+        <div class="phase-desc">Strategic pairings merge individual requirements into aligned themes. Haiku synthesizes each pair's overlapping and conflicting positions.</div>
+        <div class="pair-group">
+          <div class="pair">
+            <span class="pair-label">Technical</span>
+            <div class="agent-node" style="border-color:#00b4d8;background:rgba(0,180,216,0.08)"><div class="dot" style="background:#00b4d8"></div>CIO</div>
+            <span class="flow-arrow">⟷</span>
+            <div class="agent-node" style="border-color:#f04060;background:rgba(240,64,96,0.08)"><div class="dot" style="background:#f04060"></div>AT&T</div>
+          </div>
+          <div class="pair">
+            <span class="pair-label">Revenue</span>
+            <div class="agent-node" style="border-color:#f0a030;background:rgba(240,160,48,0.08)"><div class="dot" style="background:#f0a030"></div>CRO</div>
+            <span class="flow-arrow">⟷</span>
+            <div class="agent-node" style="border-color:#a070e0;background:rgba(160,112,224,0.08)"><div class="dot" style="background:#a070e0"></div>Concessions</div>
+          </div>
+          <div class="pair">
+            <span class="pair-label">Operations</span>
+            <div class="agent-node" style="border-color:#e040a0;background:rgba(224,64,160,0.08)"><div class="dot" style="background:#e040a0"></div>Airline</div>
+            <span class="flow-arrow">⟷</span>
+            <div class="agent-node" style="border-color:#10d080;background:rgba(16,208,128,0.08)"><div class="dot" style="background:#10d080"></div>Cargo</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow down">↓</div>
+
+      <!-- Phase 3: Synthesis -->
+      <div class="phase">
+        <div class="phase-label">Phase 3 — Full Group Synthesis <span class="model-tag model-opus">Opus</span></div>
+        <div class="phase-desc">All 3 pair outputs converge into a unified requirements map with priority clusters and thematic groupings.</div>
+        <div class="synthesis-node">◆ Opus Synthesis — Consolidated Requirements Map</div>
+      </div>
+    </div>
+
+    <div class="output-bar">
+      Output → <span class="file">discover.md</span> · Requirement themes feed Stage 2 as evaluation criteria
+    </div>
+  </div>
+
+  <!-- Connector -->
+  <div class="stage-connector">
+    <div class="pipe" style="--from-color:var(--cyan);--to-color:var(--amber)"></div>
+    requirements → hypotheses
+    <div class="pipe" style="--from-color:var(--cyan);--to-color:var(--amber)"></div>
+  </div>
+
+  <!-- ============ STAGE 2: DIAGNOSE ============ -->
+  <div class="stage" style="--stage-color: var(--amber);">
+    <div class="stage-header">
+      <span class="stage-num" style="color:var(--amber)">02</span>
+      <div class="stage-badge" style="color:var(--amber)">Stage 2 — Diagnose</div>
+    </div>
+    <div class="stage-protocol">Protocol P16 · Analysis of Competing Hypotheses · Intelligence Method</div>
+    <div class="stage-time">Runtime: <span>~8 min</span> · Question: "Which deployment architecture best satisfies all requirements?"</div>
+
+    <div class="phases">
+      <!-- Hypotheses -->
+      <div class="phase">
+        <div class="phase-label">4 Competing Hypotheses</div>
+        <div class="agent-flow" style="justify-content:center; gap:12px;">
+          <div class="agent-node" style="border-color:var(--amber);background:var(--amber-dim);font-weight:700">H1 · AT&T-Led Expansion</div>
+          <div class="agent-node" style="border-color:var(--amber);background:var(--amber-dim);font-weight:700">H2 · Airport-Sovereign</div>
+          <div class="agent-node" style="border-color:var(--amber);background:var(--amber-dim);font-weight:700">H3 · Hybrid Co-Investment</div>
+          <div class="agent-node" style="border-color:var(--amber);background:var(--amber-dim);font-weight:700">H4 · Phased Sovereignty</div>
+        </div>
+      </div>
+
+      <div class="flow-arrow down">↓</div>
+
+      <!-- Evidence evaluation -->
+      <div class="phase">
+        <div class="phase-label">Evidence Evaluation <span class="parallel-badge">parallel</span> <span class="model-tag model-opus">Opus + Extended Thinking</span></div>
+        <div class="phase-desc">Each agent evaluates evidence for/against ALL 4 hypotheses from their constituency. Produces C/I/N scores (Consistent / Inconsistent / Neutral) per evidence item per hypothesis.</div>
+        <div class="agent-flow">
+          <div class="agent-node" style="border-color:#00b4d8;background:rgba(0,180,216,0.08)"><div class="dot" style="background:#00b4d8"></div>CIO → H1-H4</div>
+          <div class="agent-node" style="border-color:#f0a030;background:rgba(240,160,48,0.08)"><div class="dot" style="background:#f0a030"></div>CRO → H1-H4</div>
+          <div class="agent-node" style="border-color:#e040a0;background:rgba(224,64,160,0.08)"><div class="dot" style="background:#e040a0"></div>Airline → H1-H4</div>
+          <div class="agent-node" style="border-color:#10d080;background:rgba(16,208,128,0.08)"><div class="dot" style="background:#10d080"></div>Cargo → H1-H4</div>
+          <div class="agent-node" style="border-color:#a070e0;background:rgba(160,112,224,0.08)"><div class="dot" style="background:#a070e0"></div>Concessions → H1-H4</div>
+          <div class="agent-node" style="border-color:#f04060;background:rgba(240,64,96,0.08)"><div class="dot" style="background:#f04060"></div>AT&T → H1-H4</div>
+        </div>
+      </div>
+
+      <div class="flow-arrow down">↓</div>
+
+      <!-- Matrix + Synthesis -->
+      <div class="phase">
+        <div class="phase-label">Matrix Aggregation + Synthesis <span class="model-tag model-opus">Opus</span></div>
+        <div class="phase-desc">Majority vote across 6 agents per evidence×hypothesis cell. Inconsistency counts, diagnosticity scores, and final ranking produced.</div>
+        <div class="synthesis-node">◆ Opus Synthesis — Evidence Matrix · Winner: <span style="color:var(--amber)">H4 Phased Sovereignty</span></div>
+      </div>
+    </div>
+
+    <div class="output-bar">
+      Output → <span class="file">diagnose.md</span> · Winning hypothesis feeds Stage 3 as negotiation framework
+    </div>
+  </div>
+
+  <!-- Connector -->
+  <div class="stage-connector">
+    <div class="pipe" style="--from-color:var(--amber);--to-color:var(--magenta)"></div>
+    winning hypothesis → constraint space
+    <div class="pipe" style="--from-color:var(--amber);--to-color:var(--magenta)"></div>
+  </div>
+
+  <!-- ============ STAGE 3: NEGOTIATE ============ -->
+  <div class="stage" style="--stage-color: var(--magenta);">
+    <div class="stage-header">
+      <span class="stage-num" style="color:var(--magenta)">03</span>
+      <div class="stage-badge" style="color:var(--magenta)">Stage 3 — Negotiate</div>
+    </div>
+    <div class="stage-protocol">Protocol P5 · Constraint Negotiation · 3 Rounds</div>
+    <div class="stage-time">Runtime: <span>~18 min</span> · Framework: "Phased Sovereignty" · Hard vs Soft constraints, trade proposals</div>
+
+    <div class="phases">
+      <!-- Round indicators -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:8px;">
+        <div class="rounds">
+          <div class="round-dot active" style="border-color:var(--magenta);color:var(--magenta);box-shadow:0 0 12px rgba(224,64,160,0.4)">R1</div>
+          <div class="round-dot active" style="border-color:var(--magenta);color:var(--magenta);box-shadow:0 0 12px rgba(224,64,160,0.3)">R2</div>
+          <div class="round-dot active" style="border-color:var(--magenta);color:var(--magenta);box-shadow:0 0 12px rgba(224,64,160,0.2)">R3</div>
+        </div>
+      </div>
+
+      <!-- Round 1 -->
+      <div class="phase">
+        <div class="phase-label">Round 1 — Opening Positions <span class="parallel-badge">parallel</span> <span class="model-tag model-opus">Opus + Thinking</span></div>
+        <div class="phase-desc">Each agent declares HARD constraints (non-negotiable) and SOFT constraints (tradeable) for the Phased Sovereignty framework.</div>
+        <div class="agent-flow">
+          <div class="agent-node" style="border-color:#00b4d8;background:rgba(0,180,216,0.08)"><div class="dot" style="background:#00b4d8"></div>CIO: 4 HARD</div>
+          <div class="agent-node" style="border-color:#f0a030;background:rgba(240,160,48,0.08)"><div class="dot" style="background:#f0a030"></div>CRO: 14 HARD</div>
+          <div class="agent-node" style="border-color:#e040a0;background:rgba(224,64,160,0.08)"><div class="dot" style="background:#e040a0"></div>Airline: 12 HARD</div>
+          <div class="agent-node" style="border-color:#10d080;background:rgba(16,208,128,0.08)"><div class="dot" style="background:#10d080"></div>Cargo: 6 HARD</div>
+          <div class="agent-node" style="border-color:#a070e0;background:rgba(160,112,224,0.08)"><div class="dot" style="background:#a070e0"></div>Conc: 8 HARD</div>
+          <div class="agent-node" style="border-color:#f04060;background:rgba(240,64,96,0.08)"><div class="dot" style="background:#f04060"></div>AT&T: 6 HARD</div>
+        </div>
+        <div class="extraction">⚡ Haiku extracts constraints → ConstraintStore (per agent, graceful failures)</div>
+      </div>
+
+      <div class="flow-arrow down">↓ peer constraints visible</div>
+
+      <!-- Round 2 -->
+      <div class="phase">
+        <div class="phase-label">Round 2 — Conflict Resolution & Trades <span class="parallel-badge">parallel</span> <span class="model-tag model-opus">Opus + Thinking</span></div>
+        <div class="phase-desc">Agents see all peer constraints, identify conflicts, and propose trades. Each agent responds to specific cross-constituency tensions.</div>
+        <div class="agent-flow">
+          <div class="agent-node" style="border-color:#00b4d8;background:rgba(0,180,216,0.08)"><div class="dot" style="background:#00b4d8"></div>CIO revises</div>
+          <div class="agent-node" style="border-color:#f0a030;background:rgba(240,160,48,0.08)"><div class="dot" style="background:#f0a030"></div>CRO revises</div>
+          <div class="agent-node" style="border-color:#e040a0;background:rgba(224,64,160,0.08)"><div class="dot" style="background:#e040a0"></div>Airline revises</div>
+          <div class="agent-node" style="border-color:#10d080;background:rgba(16,208,128,0.08)"><div class="dot" style="background:#10d080"></div>Cargo revises</div>
+          <div class="agent-node" style="border-color:#a070e0;background:rgba(160,112,224,0.08)"><div class="dot" style="background:#a070e0"></div>Conc revises</div>
+          <div class="agent-node" style="border-color:#f04060;background:rgba(240,64,96,0.08)"><div class="dot" style="background:#f04060"></div>AT&T revises</div>
+        </div>
+        <div class="extraction">⚡ Haiku re-extracts → ConstraintStore updated</div>
+      </div>
+
+      <div class="flow-arrow down">↓ updated constraints + prior arguments</div>
+
+      <!-- Round 3 -->
+      <div class="phase">
+        <div class="phase-label">Round 3 — Final Positions <span class="parallel-badge">parallel</span> <span class="model-tag model-opus">Opus + Thinking</span></div>
+        <div class="phase-desc">Final constraint declarations. Remaining gaps identified. Consensus framework crystallizes.</div>
+        <div class="agent-flow" style="justify-content:center;">
+          <div class="agent-node" style="border-color:#00b4d8;background:rgba(0,180,216,0.08)"><div class="dot" style="background:#00b4d8"></div>CIO final</div>
+          <div class="agent-node" style="border-color:#f0a030;background:rgba(240,160,48,0.08)"><div class="dot" style="background:#f0a030"></div>CRO final</div>
+          <div class="agent-node" style="border-color:#e040a0;background:rgba(224,64,160,0.08)"><div class="dot" style="background:#e040a0"></div>Airline final</div>
+          <div class="agent-node" style="border-color:#10d080;background:rgba(16,208,128,0.08)"><div class="dot" style="background:#10d080"></div>Cargo final</div>
+          <div class="agent-node" style="border-color:#a070e0;background:rgba(160,112,224,0.08)"><div class="dot" style="background:#a070e0"></div>Conc final</div>
+          <div class="agent-node" style="border-color:#f04060;background:rgba(240,64,96,0.08)"><div class="dot" style="background:#f04060"></div>AT&T final</div>
+        </div>
+        <div class="extraction">⚡ Final constraint extraction</div>
+      </div>
+
+      <div class="flow-arrow down">↓</div>
+
+      <!-- Synthesis -->
+      <div class="phase">
+        <div class="phase-label">Negotiation Synthesis <span class="model-tag model-opus">Opus + Thinking</span></div>
+        <div class="phase-desc">Full 3-round transcript + constraint table → consensus framework with satisfied/unsatisfied constraints and Pareto frontier.</div>
+        <div class="synthesis-node">◆ Opus Synthesis — Consensus Framework: Phased Hybrid Co-Investment</div>
+      </div>
+    </div>
+
+    <div class="output-bar">
+      Output → <span class="file">negotiate.md</span> · Consensus + constraint satisfaction → Stage 4 for stress testing
+    </div>
+  </div>
+
+  <!-- Connector -->
+  <div class="stage-connector">
+    <div class="pipe" style="--from-color:var(--magenta);--to-color:var(--green)"></div>
+    consensus → adversarial testing
+    <div class="pipe" style="--from-color:var(--magenta);--to-color:var(--green)"></div>
+  </div>
+
+  <!-- ============ STAGE 4: STRESS-TEST ============ -->
+  <div class="stage" style="--stage-color: var(--green);">
+    <div class="stage-header">
+      <span class="stage-num" style="color:var(--green)">04</span>
+      <div class="stage-badge" style="color:var(--green)">Stage 4 — Stress-Test</div>
+    </div>
+    <div class="stage-protocol">Protocol P17 · Red / Blue / White Team · Adversarial Review</div>
+    <div class="stage-time">Runtime: <span>~12 min</span> · Dynamic team assignment based on Stage 3 constraint satisfaction scores</div>
+
+    <div class="phases">
+      <!-- Team Assignment -->
+      <div class="phase">
+        <div class="phase-label">Dynamic Team Assignment <span class="model-tag model-haiku">Haiku</span></div>
+        <div class="phase-desc">Orchestrator analyzes constraint satisfaction to assign teams: most unsatisfied → Red (attack), most aligned → Blue (defend), most neutral → White (adjudicate).</div>
+        <div class="teams-row">
+          <div class="team-box red">
+            <div class="team-label">🔴 Red Team — Attack</div>
+            <div class="team-role">Most unsatisfied constraints / strongest residual objections</div>
+            <div class="agent-flow" style="margin-top:8px;">
+              <div class="agent-node" style="border-color:#f04060;background:rgba(240,64,96,0.12)"><div class="dot" style="background:#f04060"></div>AT&T Rep</div>
+              <div class="agent-node" style="border-color:#e040a0;background:rgba(224,64,160,0.12)"><div class="dot" style="background:#e040a0"></div>Airline VP</div>
+            </div>
+          </div>
+          <div class="team-box blue">
+            <div class="team-label">🔵 Blue Team — Defend</div>
+            <div class="team-role">Maximum constraint satisfaction / strongest consensus alignment</div>
+            <div class="agent-flow" style="margin-top:8px;">
+              <div class="agent-node" style="border-color:#f0a030;background:rgba(240,160,48,0.12)"><div class="dot" style="background:#f0a030"></div>CRO</div>
+              <div class="agent-node" style="border-color:#10d080;background:rgba(16,208,128,0.12)"><div class="dot" style="background:#10d080"></div>Cargo Dir</div>
+            </div>
+          </div>
+          <div class="team-box white">
+            <div class="team-label">⚪ White Team — Adjudicate</div>
+            <div class="team-role">Most neutral / least structural power / balanced perspective</div>
+            <div class="agent-flow" style="margin-top:8px;">
+              <div class="agent-node" style="border-color:#a070e0;background:rgba(160,112,224,0.12)"><div class="dot" style="background:#a070e0"></div>Concessions Lead</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:0.55rem;color:var(--text-dim);text-align:center;margin-top:8px;">CIO not assigned — constraints fully satisfied with no adversarial position needed</div>
+      </div>
+
+      <div class="flow-arrow down">↓</div>
+
+      <!-- Red Attack -->
+      <div class="phase">
+        <div class="phase-label" style="color:var(--red)">Phase 1 — Red Team Attack <span class="parallel-badge">parallel</span> <span class="model-tag model-opus">Opus + Thinking</span></div>
+        <div class="phase-desc">Red agents identify vulnerabilities in the consensus. Each produces structured attacks with severity ratings and failure scenarios.</div>
+        <div class="agent-flow">
+          <div class="agent-node" style="border-color:#f04060;background:rgba(240,64,96,0.12)">
+            <div class="dot" style="background:#f04060"></div>AT&T: 5 vulnerabilities
+            <div class="tooltip">V1: Carrier offload risk (Critical) · V2: Cargo eval Trojan Horse (Critical) · V3: Capital + declining share (High) · V4: DPA/FCC liability (High) · V5: CWP halt weapon (High)</div>
+          </div>
+          <div class="agent-node" style="border-color:#e040a0;background:rgba(224,64,160,0.12)">
+            <div class="dot" style="background:#e040a0"></div>Airline: 5 vulnerabilities
+            <div class="tooltip">V1: DPA+ground-stop dual failure (Critical) · V2: Pricing underspecified (Critical) · V3: Terminal C construction (High) · V4: Per-terminal SLA gap (High) · V5: Split carrier ops (High)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow down">↓ 10 attacks forwarded</div>
+
+      <!-- Blue Defense -->
+      <div class="phase">
+        <div class="phase-label" style="color:var(--blue-def)">Phase 2 — Blue Team Defense <span class="parallel-badge">parallel</span> <span class="model-tag model-opus">Opus + Thinking</span></div>
+        <div class="phase-desc">Blue agents defend the consensus against all 10 attacks. Each defense is typed: Counterargument, Mitigation, or Plan Modification.</div>
+        <div class="agent-flow">
+          <div class="agent-node" style="border-color:#f0a030;background:rgba(240,160,48,0.12)">
+            <div class="dot" style="background:#f0a030"></div>CRO: 10 defenses
+            <div class="tooltip">Responds to all 10 vulnerabilities with quantitative counterarguments, plan modifications, and mitigations</div>
+          </div>
+          <div class="agent-node" style="border-color:#10d080;background:rgba(16,208,128,0.12)">
+            <div class="dot" style="background:#10d080"></div>Cargo: 10 defenses
+            <div class="tooltip">Responds to all 10 vulnerabilities from cargo operations perspective with industry data and precedent</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow down">↓ attacks + defenses forwarded</div>
+
+      <!-- White Adjudication -->
+      <div class="phase">
+        <div class="phase-label" style="color:var(--white-team)">Phase 3 — White Team Adjudication <span class="model-tag model-opus">Opus + Extended Thinking</span></div>
+        <div class="phase-desc">White team reviews all 10 attack/defense pairs and renders verdicts: Resolved, Partially Resolved, or Unresolved. Produces final board recommendation.</div>
+        <div class="agent-flow" style="justify-content:center;">
+          <div class="agent-node" style="border-color:#a070e0;background:rgba(160,112,224,0.12)">
+            <div class="dot" style="background:#a070e0"></div>Concessions Lead adjudicates
+            <div class="tooltip">2 Resolved · 8 Partially Resolved · 0 Unresolved → 7 conditions for board approval</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="output-bar">
+      Output → <span class="file">stress_test.md</span> + <span class="file">board_report.md</span>
+    </div>
+  </div>
+
+  <!-- ============ FINAL OUTPUT ============ -->
+  <div class="stage-connector">
+    <div class="pipe" style="--from-color:var(--green);--to-color:var(--cyan)"></div>
+    final recommendation
+    <div class="pipe" style="--from-color:var(--green);--to-color:var(--cyan)"></div>
+  </div>
+
+  <div class="final-output">
+    <h3>Board-Ready Recommendation</h3>
+    <div class="verdict">CONDITIONAL GO</div>
+    <div class="score">7 / 10</div>
+    <div class="conditions">7 conditions required before contract execution · 2 attacks fully resolved · 8 partially resolved · 0 unresolved</div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -10,10 +10,13 @@ import json
 import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import anthropic
 
+from protocols.scoping import filter_context_for_agent, tag_context
+from protocols.tracing import make_client
 from .prompts import (
     RED_ATTACK_PROMPT,
     BLUE_DEFENSE_PROMPT,
@@ -81,6 +84,8 @@ class RedBlueWhiteOrchestrator:
         *,
         thinking_model: str | None = None,
         orchestration_model: str | None = None,
+        trace: bool = False,
+        trace_path: str | None = None,
     ) -> None:
         self.red_agents = red_agents
         self.blue_agents = blue_agents
@@ -89,7 +94,7 @@ class RedBlueWhiteOrchestrator:
             self.thinking_model = thinking_model
         if orchestration_model:
             self.orchestration_model = orchestration_model
-        self.client = anthropic.AsyncAnthropic()
+        self.client = make_client(protocol_id="p17_red_blue_white", trace=trace, trace_path=Path(trace_path) if trace_path else None)
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -170,16 +175,28 @@ class RedBlueWhiteOrchestrator:
     async def _blue_team_defense(
         self, question: str, plan: str, attacks: list[Attack],
     ) -> list[Defense]:
-        """Each Blue agent receives ALL attacks and produces defenses (parallel, Opus)."""
+        """Each Blue agent receives scoped attacks and produces defenses (parallel, Opus)."""
         attacks_block = self._format_attacks_block(attacks)
+        # Build scoped context blocks from attacks
+        attack_context_blocks = []
+        for attack in attacks:
+            for v in attack.vulnerabilities:
+                scope = "all"  # attacks are generally visible to all defenders
+                attack_context_blocks.append(tag_context(
+                    f"[{v.get('id', '?')}] ({v.get('severity', '?')}) {v.get('title', '')} — from {attack.agent}\n"
+                    f"  Description: {v.get('description', '')}\n"
+                    f"  Failure scenario: {v.get('failure_scenario', '')}",
+                    scope,
+                ))
 
         async def _one(agent: dict) -> Defense:
+            scoped_attacks = filter_context_for_agent(agent, attack_context_blocks) if attack_context_blocks else attacks_block
             prompt = BLUE_DEFENSE_PROMPT.format(
                 question=question,
                 plan=plan,
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
-                attacks_block=attacks_block,
+                attacks_block=scoped_attacks,
             )
             resp = await self.client.messages.create(
                 model=self.thinking_model,

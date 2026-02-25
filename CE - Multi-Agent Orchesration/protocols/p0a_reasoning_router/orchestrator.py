@@ -15,6 +15,7 @@ from typing import Any
 
 import anthropic
 
+from protocols.registry import build_routing_prompt_section
 from .prompts import (
     FEATURE_EXTRACTION_PROMPT,
     PROBLEM_TYPE_PROMPT,
@@ -163,6 +164,7 @@ class ReasoningRouter:
             problem_type=classification.get("problem_type", "General Analysis"),
             confidence=classification.get("confidence", 50),
             type_reasoning=classification.get("reasoning", ""),
+            protocol_mapping=build_routing_prompt_section(),
         )
         resp = await self.client.messages.create(
             model=self.orchestration_model,

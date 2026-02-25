@@ -1,0 +1,12 @@
+protocol_id: P17
+name: Red/Blue/White Team
+category: Intelligence Analysis
+problem_types:
+- Adversarial
+cost_tier: high
+min_agents: 3
+max_agents: null
+supports_rounds: false
+description: Red attacks, Blue defends, White adjudicates plan vulnerabilities.
+when_to_use: Stress-testing strategy against adversarial scenarios.
+when_not_to_use: Brainstorming, estimation, consensus building.

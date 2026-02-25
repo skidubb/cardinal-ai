@@ -1,0 +1,13 @@
+protocol_id: P37
+name: Hegel Sublation
+category: Wave 2 Research
+problem_types:
+- Adversarial
+- Multi-Stakeholder
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: true
+description: Thesis-antithesis-synthesis dialectic to transcend oppositions.
+when_to_use: Apparent contradictions needing a higher-order resolution.
+when_not_to_use: Simple factual questions, estimation tasks.

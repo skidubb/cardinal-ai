@@ -1,0 +1,12 @@
+protocol_id: P44
+name: Kant Pre-Router
+category: Wave 2 Research
+problem_types:
+- General Analysis
+cost_tier: low
+min_agents: 0
+max_agents: 0
+supports_rounds: false
+description: Categorical framework for ethical/practical pre-screening of decisions.
+when_to_use: Decisions with ethical dimensions needing principled screening.
+when_not_to_use: Pure quantitative analysis, technical decisions.

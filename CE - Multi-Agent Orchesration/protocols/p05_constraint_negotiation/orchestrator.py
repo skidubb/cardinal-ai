@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import anthropic
 
+from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
+from protocols.tracing import make_client
 from .constraints import ConstraintExtractor, ConstraintStore
 from .prompts import OPENING_PROMPT, REVISION_PROMPT, SYNTHESIS_PROMPT
 
@@ -20,6 +23,7 @@ class NegotiationArgument:
     name: str
     content: str
     round_number: int
+    scope: str = "all"
 
 
 @dataclass
@@ -47,6 +51,8 @@ class NegotiationOrchestrator:
         thinking_model: str = "claude-opus-4-6",
         orchestration_model: str = "claude-haiku-4-5-20251001",
         thinking_budget: int = 10_000,
+        trace: bool = False,
+        trace_path: str | None = None,
     ):
         """
         Args:
@@ -55,6 +61,8 @@ class NegotiationOrchestrator:
             thinking_model: Model for agent reasoning and synthesis.
             orchestration_model: Model for constraint extraction (Haiku).
             thinking_budget: Token budget for extended thinking on Opus calls.
+            trace: Enable JSONL execution tracing.
+            trace_path: Explicit path for trace file (overrides auto-generated).
         """
         if not agents:
             raise ValueError("At least one agent is required")
@@ -64,7 +72,7 @@ class NegotiationOrchestrator:
         self.num_rounds = rounds
         self.thinking_model = thinking_model
         self.thinking_budget = thinking_budget
-        self.client = anthropic.AsyncAnthropic()
+        self.client = make_client(protocol_id="p05_constraint_negotiation", trace=trace, trace_path=Path(trace_path) if trace_path else None)
         self.constraint_store = ConstraintStore()
         self.extractor = ConstraintExtractor(model=orchestration_model)
 
@@ -123,7 +131,8 @@ class NegotiationOrchestrator:
             if round_type == "opening":
                 prompt = OPENING_PROMPT.format(question=question)
             else:
-                prior_text = _format_prior_arguments(prior_rounds)
+                context_blocks = build_context_blocks(prior_rounds)
+                scoped_args = filter_context_for_agent(agent, context_blocks)
                 peer_constraints = self.constraint_store.format_for_prompt(
                     exclude_role=agent["name"]
                 )
@@ -131,7 +140,7 @@ class NegotiationOrchestrator:
                     question=question,
                     round_number=round_number,
                     peer_constraints=peer_constraints,
-                    prior_arguments=prior_text,
+                    prior_arguments=scoped_args,
                 )
 
             response = await self.client.messages.create(
@@ -145,6 +154,7 @@ class NegotiationOrchestrator:
                 name=agent["name"],
                 content=_extract_text(response),
                 round_number=round_number,
+                scope=get_primary_scope(agent),
             )
 
         return await asyncio.gather(
@@ -193,3 +203,5 @@ def _format_prior_arguments(rounds: list[NegotiationRound]) -> str:
         )
         sections.append(f"{round_label}\n{args}")
     return "\n\n".join(sections)
+
+

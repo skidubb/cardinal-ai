@@ -1,0 +1,13 @@
+protocol_id: P41
+name: Duke Decision Quality
+category: Wave 2 Research
+problem_types:
+- General Analysis
+- Estimation
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Annie Duke framework — separate decision quality from outcome quality.
+when_to_use: Evaluating decision processes, not just outcomes.
+when_not_to_use: Simple factual questions, creative brainstorming.

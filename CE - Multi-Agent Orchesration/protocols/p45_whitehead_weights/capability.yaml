@@ -1,0 +1,14 @@
+protocol_id: P45
+name: Whitehead Process Weights
+category: Wave 2 Research
+problem_types:
+- Prioritization
+- Systems Analysis
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Dynamic weighting based on process philosophy — importance shifts with
+  context.
+when_to_use: Decisions where relative importance of criteria changes dynamically.
+when_not_to_use: Fixed-criteria scoring, simple ranking.

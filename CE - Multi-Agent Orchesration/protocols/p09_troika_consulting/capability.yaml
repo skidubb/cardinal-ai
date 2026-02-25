@@ -1,0 +1,13 @@
+protocol_id: P9
+name: Troika Consulting
+category: Liberating Structures
+problem_types:
+- Multi-Stakeholder
+- Diagnostic
+cost_tier: medium
+min_agents: 3
+max_agents: 3
+supports_rounds: false
+description: 'Three-person consulting: client presents, consultants advise.'
+when_to_use: Getting diverse perspectives on a specific problem.
+when_not_to_use: Large-group consensus building, quantitative estimation.

@@ -1,0 +1,14 @@
+protocol_id: P5
+name: Constraint Negotiation
+category: Baselines
+problem_types:
+- Constraint Definition
+- Multi-Stakeholder
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: true
+description: Agents propose plans with constraints, iteratively negotiate to satisfy
+  hard constraints.
+when_to_use: Decisions with competing requirements across functions.
+when_not_to_use: Open-ended exploration without clear constraints.

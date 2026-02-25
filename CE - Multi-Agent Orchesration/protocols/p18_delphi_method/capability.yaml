@@ -1,0 +1,12 @@
+protocol_id: P18
+name: Delphi Method
+category: Intelligence Analysis
+problem_types:
+- Estimation
+cost_tier: medium
+min_agents: 3
+max_agents: null
+supports_rounds: true
+description: Iterative expert estimation with anonymous feedback and convergence.
+when_to_use: Forecasting, sizing, probability assessment.
+when_not_to_use: Qualitative strategic questions, creative ideation.

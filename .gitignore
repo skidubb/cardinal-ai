@@ -26,3 +26,11 @@ firebase-debug.log
 # Build artifacts
 dist/
 build/
+
+# Ghost directories (macOS/iCloud restores these locally)
+agents/
+orchestrations/
+evals/
+
+# Node artifacts
+node_modules/

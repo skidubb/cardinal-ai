@@ -1,0 +1,12 @@
+protocol_id: P13
+name: Ecocycle Planning
+category: Liberating Structures
+problem_types:
+- Portfolio Management
+cost_tier: high
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Map initiatives across birth-maturity-destruction-renewal lifecycle.
+when_to_use: Portfolio management, deciding what to grow/sunset/renew.
+when_not_to_use: Single initiative analysis, simple prioritization.

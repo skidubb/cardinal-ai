@@ -6,7 +6,6 @@ Uses pydantic-settings for environment variable management with validation.
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -126,7 +125,7 @@ class AgentConfig:
     def __init__(
         self,
         name: str,
-        role: Literal["ceo", "cfo", "cto", "cmo", "coo", "cpo", "cro"],
+        role: str,
         model: str | None = None,
         max_tokens: int = 8192,
         temperature: float = 0.7,
@@ -191,6 +190,49 @@ AGENT_CONFIGS = {
         role="cro",
         model="claude-opus-4-6",
         temperature=0.6,  # Balanced for revenue strategy
+        max_tokens=8192,
+    ),
+    # --- Airport 5G Decision-Maker Simulation Agents ---
+    "airport-cio": AgentConfig(
+        name="Airport CIO",
+        role="airport-cio",
+        model="claude-opus-4-6",
+        temperature=0.6,
+        max_tokens=8192,
+    ),
+    "airport-cro": AgentConfig(
+        name="Airport CRO",
+        role="airport-cro",
+        model="claude-opus-4-6",
+        temperature=0.6,
+        max_tokens=8192,
+    ),
+    "airline-ops-vp": AgentConfig(
+        name="Anchor Airline VP",
+        role="airline-ops-vp",
+        model="claude-opus-4-6",
+        temperature=0.6,
+        max_tokens=8192,
+    ),
+    "cargo-ops-director": AgentConfig(
+        name="Cargo Director",
+        role="cargo-ops-director",
+        model="claude-opus-4-6",
+        temperature=0.6,
+        max_tokens=8192,
+    ),
+    "concessions-tech-lead": AgentConfig(
+        name="Concessions Tech Lead",
+        role="concessions-tech-lead",
+        model="claude-opus-4-6",
+        temperature=0.6,
+        max_tokens=8192,
+    ),
+    "att-carrier-rep": AgentConfig(
+        name="AT&T Carrier Rep",
+        role="att-carrier-rep",
+        model="claude-opus-4-6",
+        temperature=0.6,
         max_tokens=8192,
     ),
 }

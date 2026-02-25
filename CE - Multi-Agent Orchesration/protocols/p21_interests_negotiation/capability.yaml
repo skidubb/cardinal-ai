@@ -1,0 +1,13 @@
+protocol_id: P21
+name: Interests-Based Negotiation
+category: Game Theory
+problem_types:
+- Multi-Stakeholder
+- Constraint Definition
+cost_tier: high
+min_agents: 2
+max_agents: null
+supports_rounds: true
+description: Surface interests, map conflicts, generate mutual-gains options.
+when_to_use: Competing interests needing a win-win resolution.
+when_not_to_use: Simple factual questions, single-perspective analysis.

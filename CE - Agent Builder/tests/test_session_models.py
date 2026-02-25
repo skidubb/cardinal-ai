@@ -3,10 +3,6 @@
 from unittest.mock import patch
 
 from csuite.session import (
-    DebateArgument,
-    DebateRound,
-    DebateSession,
-    DebateSessionManager,
     Session,
     SessionManager,
 )
@@ -117,75 +113,3 @@ class TestSessionManager:
         with patch("csuite.session._get_store", return_value=duckdb_store):
             mgr = SessionManager()
             assert mgr.fork("nope", "title", "ceo") is None
-
-
-class TestDebateSessionModel:
-    def test_add_round(self):
-        ds = DebateSession(question="Q?", agent_roles=["ceo", "cfo"], total_rounds=3)
-        rnd = DebateRound(round_number=1, round_type="opening", arguments=[
-            DebateArgument(role="ceo", agent_name="CEO", content="My take", round_number=1),
-            DebateArgument(role="cfo", agent_name="CFO", content="My take", round_number=1),
-        ])
-        ds.add_round(rnd)
-        assert len(ds.rounds) == 1
-        assert ds.status == "in_progress"
-
-    def test_set_synthesis(self):
-        ds = DebateSession(question="Q?", agent_roles=["ceo"], total_rounds=1)
-        ds.set_synthesis("Final synthesis")
-        assert ds.synthesis == "Final synthesis"
-        assert ds.status == "completed"
-
-    def test_get_all_arguments_through_round(self):
-        ds = DebateSession(question="Q?", agent_roles=["ceo", "cfo"], total_rounds=2)
-        r1 = DebateRound(round_number=1, round_type="opening", arguments=[
-            DebateArgument(role="ceo", agent_name="CEO", content="R1", round_number=1),
-        ])
-        r2 = DebateRound(round_number=2, round_type="final", arguments=[
-            DebateArgument(role="ceo", agent_name="CEO", content="R2", round_number=2),
-        ])
-        ds.add_round(r1)
-        ds.add_round(r2)
-        args_r1 = ds.get_all_arguments_through_round(1)
-        assert len(args_r1) == 1
-        args_r2 = ds.get_all_arguments_through_round(2)
-        assert len(args_r2) == 2
-
-    def test_get_arguments_round_zero(self):
-        ds = DebateSession(question="Q?", agent_roles=["ceo"], total_rounds=1)
-        ds.add_round(DebateRound(round_number=1, round_type="opening", arguments=[
-            DebateArgument(role="ceo", agent_name="CEO", content="X", round_number=1),
-        ]))
-        assert ds.get_all_arguments_through_round(0) == []
-
-
-class TestDebateSessionManager:
-    def test_save_and_load(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = DebateSessionManager()
-            ds = DebateSession(question="Q?", agent_roles=["ceo", "cfo"], total_rounds=2)
-            ds.add_round(DebateRound(round_number=1, round_type="opening", arguments=[
-                DebateArgument(role="ceo", agent_name="CEO", content="Take", round_number=1),
-            ]))
-            mgr.save(ds)
-            loaded = mgr.load(ds.id)
-            assert loaded is not None
-            assert loaded.question == "Q?"
-            assert len(loaded.rounds) == 1
-
-    def test_list_debates(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = DebateSessionManager()
-            for i in range(3):
-                ds = DebateSession(question=f"Q{i}?", agent_roles=["ceo"], total_rounds=1)
-                mgr.save(ds)
-            sessions = mgr.list_sessions(limit=10)
-            assert len(sessions) == 3
-
-    def test_delete(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = DebateSessionManager()
-            ds = DebateSession(question="Q?", agent_roles=["ceo"], total_rounds=1)
-            mgr.save(ds)
-            assert mgr.delete(ds.id) is True
-            assert mgr.load(ds.id) is None

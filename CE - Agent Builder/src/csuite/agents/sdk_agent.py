@@ -24,6 +24,12 @@ from csuite.prompts import (
     CRO_SYSTEM_PROMPT,
     CTO_SYSTEM_PROMPT,
 )
+from csuite.prompts.airline_ops_vp_prompt import AIRLINE_OPS_VP_SYSTEM_PROMPT
+from csuite.prompts.airport_cio_prompt import AIRPORT_CIO_SYSTEM_PROMPT
+from csuite.prompts.airport_cro_prompt import AIRPORT_CRO_SYSTEM_PROMPT
+from csuite.prompts.att_carrier_rep_prompt import ATT_CARRIER_REP_SYSTEM_PROMPT
+from csuite.prompts.cargo_ops_director_prompt import CARGO_OPS_DIRECTOR_SYSTEM_PROMPT
+from csuite.prompts.concessions_tech_lead_prompt import CONCESSIONS_TECH_LEAD_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +41,12 @@ _ROLE_PROMPTS: dict[str, str] = {
     "coo": COO_SYSTEM_PROMPT,
     "cpo": CPO_SYSTEM_PROMPT,
     "cro": CRO_SYSTEM_PROMPT,
+    "airport-cio": AIRPORT_CIO_SYSTEM_PROMPT,
+    "airport-cro": AIRPORT_CRO_SYSTEM_PROMPT,
+    "airline-ops-vp": AIRLINE_OPS_VP_SYSTEM_PROMPT,
+    "cargo-ops-director": CARGO_OPS_DIRECTOR_SYSTEM_PROMPT,
+    "concessions-tech-lead": CONCESSIONS_TECH_LEAD_SYSTEM_PROMPT,
+    "att-carrier-rep": ATT_CARRIER_REP_SYSTEM_PROMPT,
 }
 
 

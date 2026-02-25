@@ -1,0 +1,12 @@
+protocol_id: P24
+name: Causal Loop Mapping
+category: Systems Thinking
+problem_types:
+- Systems Analysis
+cost_tier: high
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Map reinforcing/balancing feedback loops in a system.
+when_to_use: Understanding complex dynamics, finding leverage points.
+when_not_to_use: Simple linear cause-effect, prioritization.

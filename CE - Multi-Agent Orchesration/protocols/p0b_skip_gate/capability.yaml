@@ -1,0 +1,12 @@
+protocol_id: P0b
+name: Skip Gate
+category: Meta-Protocols
+problem_types:
+- General Analysis
+cost_tier: low
+min_agents: 0
+max_agents: 0
+supports_rounds: false
+description: Determine if a question is trivial enough to skip multi-agent orchestration.
+when_to_use: Pre-screening before routing — saves cost on simple questions.
+when_not_to_use: Complex strategic questions that clearly need multi-agent analysis.

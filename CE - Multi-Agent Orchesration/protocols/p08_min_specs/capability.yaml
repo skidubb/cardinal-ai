@@ -1,0 +1,12 @@
+protocol_id: P8
+name: Min Specs
+category: Liberating Structures
+problem_types:
+- Constraint Definition
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Define must-haves vs nice-to-haves through progressive elimination.
+when_to_use: Defining boundaries, minimum viable requirements.
+when_not_to_use: Wide-open brainstorming, forecasting.

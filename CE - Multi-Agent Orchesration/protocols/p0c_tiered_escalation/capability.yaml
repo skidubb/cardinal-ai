@@ -1,0 +1,12 @@
+protocol_id: P0c
+name: Tiered Escalation
+category: Meta-Protocols
+problem_types:
+- General Analysis
+cost_tier: low
+min_agents: 0
+max_agents: 0
+supports_rounds: false
+description: Escalate from cheap single-agent to expensive multi-agent based on complexity.
+when_to_use: When cost optimization matters and question complexity is uncertain.
+when_not_to_use: When running a known-complex protocol directly.

@@ -32,11 +32,9 @@ def create_agent(role: str, cost_tracker: CostTracker | None = None, **kwargs):
     """
     backend = get_settings().agent_backend
 
-    if backend == "sdk":
+    if backend == "sdk" or role not in _LEGACY_CLASSES:
         from csuite.agents.sdk_agent import SdkAgent
         return SdkAgent(role=role, cost_tracker=cost_tracker)
 
-    agent_class = _LEGACY_CLASSES.get(role)
-    if not agent_class:
-        raise ValueError(f"Unknown agent role: {role}")
+    agent_class = _LEGACY_CLASSES[role]
     return agent_class(cost_tracker=cost_tracker, **kwargs)

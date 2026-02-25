@@ -1,0 +1,12 @@
+protocol_id: P3
+name: Parallel Synthesis
+category: Baselines
+problem_types:
+- General Analysis
+cost_tier: low
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: All agents answer independently, synthesizer merges into unified recommendation.
+when_to_use: General-purpose baseline for any strategic question.
+when_not_to_use: When adversarial stress-testing or deep iteration is needed.

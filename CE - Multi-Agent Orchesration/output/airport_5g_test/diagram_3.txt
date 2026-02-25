@@ -1,0 +1,30 @@
+     ┌──────────────────────────────────────────────┐
+     │     THIN COORDINATION LAYER                  │
+     │  ┌──────────┐ ┌──────────┐ ┌──────────────┐ │
+     │  │ Spectrum  │ │  Slice   │ │  Governance  │ │
+     │  │ Coord/SAS│ │  Orchestr│ │  & Telemetry │ │
+     │  └─────┬────┘ └────┬─────┘ └──────┬───────┘ │
+     └────────┼───────────┼──────────────┼─────────┘
+              │           │              │
+    ┌─────────┼───────────┼──────────────┼───────────────┐
+    │         │           │              │               │
+┌───▼────┐┌───▼────┐┌─────▼──────┐┌──────▼────┐┌────────▼───┐
+│EDGE    ││EDGE    ││EDGE        ││EDGE       ││EDGE        │
+│NODE    ││NODE    ││NODE        ││NODE       ││NODE        │
+│Term E  ││Term F  ││Ramp        ││Cargo-W1   ││Cargo-W2    │
+│        ││        ││            ││(FedEx)    ││(UPS)       │
+│┌──────┐││┌──────┐││┌──────┐   ││┌────────┐ ││┌────────┐  │
+││Local ││││Local ││││Local │   ││ │Local   │ │││Local   │  │
+││UPF   ││││UPF   ││││UPF   │   │││ UPF    │ ││ │UPF    │  │
+││+AMF  ││││+AMF  ││││+AMF  │   │││ +AMF   │ ││ │+AMF   │  │
+│└──────┘││└──────┘││└──────┘   ││└────────┘ ││└────────┘  │
+│        ││        ││           ││           ││            │
+│POS     ││Unified ││Ramp coord ││AGV ctrl   ││AGV ctrl    │
+│breakout││design  ││airline NOC││cold chain ││logistics   │
+│analytics││concss ││iPad fleet ││WMS integ  ││WMS integ   │
+│        ││        ││           ││           ││            │
+│Can     ││Can     ││Can        ││Can        ││Can         │
+│operate ││operate ││operate    ││operate    ││operate     │
+│auton-  ││auton-  ││auton-     ││auton-     ││auton-      │
+│omously ││omously ││omously    ││omously    ││omously     │
+└────────┘└────────┘└───────────┘└───────────┘└────────────┘

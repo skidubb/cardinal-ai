@@ -63,23 +63,7 @@ Features:
 Problem type: {problem_type} (confidence: {confidence}%)
 Classification reasoning: {type_reasoning}
 
-Protocol mapping:
-- Diagnostic: P16 ACH, P23 Cynefin Probe-Sense-Respond
-- Exploration: P14 1-2-4-All, P6 TRIZ, P26 Crazy Eights
-- Adversarial: P17 Red/Blue/White Team
-- Prioritization: P20 Borda Count, P19 Vickrey Auction
-- Estimation: P18 Delphi Method
-- Constraint Definition: P8 Min Specs
-- Multi-Stakeholder: P10 HSR, P21 Interests-Based Negotiation, P9 Troika Consulting
-- Portfolio Management: P13 Ecocycle Planning
-- Systems Analysis: P24 Causal Loop Mapping, P25 System Archetype Detection
-- General Analysis: P15 What/So What/Now What, P22 Sequential Pipeline
-- Simple/Low-Risk (complexity < 2 AND risk < 2): P3 Parallel Synthesis or P1 Single Agent
-
-Cost tiers:
-- low: Single-model calls, minimal rounds (P1, P3, P15, P22)
-- medium: Multi-agent with parallel phases (P6, P8, P9, P10, P14, P18, P19, P20, P26)
-- high: Multi-agent with sequential deep reasoning (P16, P17, P21, P23, P24, P25, P13)
+{protocol_mapping}
 
 Select the best protocol. If complexity < 2 and risk < 2, prefer cheaper protocols regardless of problem type.
 

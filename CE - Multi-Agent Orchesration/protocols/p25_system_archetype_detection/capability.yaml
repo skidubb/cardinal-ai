@@ -1,0 +1,14 @@
+protocol_id: P25
+name: System Archetype Detection
+category: Systems Thinking
+problem_types:
+- Systems Analysis
+- Diagnostic
+cost_tier: high
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Identify classic system archetype patterns (fixes that fail, shifting
+  the burden, etc).
+when_to_use: Recurring problems suggesting systemic patterns.
+when_not_to_use: One-time decisions, creative brainstorming.

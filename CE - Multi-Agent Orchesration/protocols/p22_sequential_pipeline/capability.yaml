@@ -1,0 +1,12 @@
+protocol_id: P22
+name: Sequential Pipeline
+category: Org Theory
+problem_types:
+- General Analysis
+cost_tier: low
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Chain agents sequentially — each builds on the previous output.
+when_to_use: 'When order matters: research→analysis→recommendation.'
+when_not_to_use: When parallel perspectives are more valuable.

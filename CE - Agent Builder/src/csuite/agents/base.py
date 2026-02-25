@@ -14,10 +14,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from csuite.tracing.graph import CausalGraph
+from typing import Any
 
 import anthropic
 from rich.console import Console
@@ -205,7 +202,6 @@ class BaseAgent(ABC):
         user_message: str,
         task_type: TaskType | None = None,
         audit_id: str | None = None,
-        causal_graph: CausalGraph | None = None,
     ) -> str:
         """Send a message and get a response.
 
@@ -325,16 +321,6 @@ class BaseAgent(ABC):
 
         # Persist session
         self.session_manager.save(self.session)
-
-        # Log trace node if causal graph provided
-        if causal_graph:
-            from csuite.tracing.graph import ActionType
-            causal_graph.add_node(
-                agent_role=self.ROLE,
-                action_type=ActionType.PROPOSE,
-                content=assistant_message[:500],
-                parent_ids=[],
-            )
 
         # Post-response: store memories and detect corrections
         self._post_response_learning(user_message, assistant_message)

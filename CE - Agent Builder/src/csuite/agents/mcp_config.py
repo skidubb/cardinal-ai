@@ -80,6 +80,13 @@ ROLE_MCP_SERVERS: dict[str, dict[str, McpServerConfig]] = {
         "sec-edgar": SEC_EDGAR,
         "pricing-calculator": PRICING_CALCULATOR,
     },
+    # --- Airport 5G Decision-Maker Simulation Agents ---
+    "airport-cio": {**_COMMON},
+    "airport-cro": {**_COMMON},
+    "airline-ops-vp": {**_COMMON},
+    "cargo-ops-director": {**_COMMON},
+    "concessions-tech-lead": {**_COMMON},
+    "att-carrier-rep": {**_COMMON},
 }
 
 

@@ -12,12 +12,10 @@ from csuite.agents.cfo import CFOAgent
 from csuite.agents.cmo import CMOAgent
 from csuite.agents.coo import COOAgent
 from csuite.agents.cto import CTOAgent
-from csuite.orchestrator import Orchestrator
 
 __all__ = [
     "CFOAgent",
     "CTOAgent",
     "CMOAgent",
     "COOAgent",
-    "Orchestrator",
 ]

@@ -1,0 +1,12 @@
+protocol_id: P32
+name: Tetlock Superforecasting
+category: Wave 2 Research
+problem_types:
+- Estimation
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: true
+description: Calibrated probability estimates using superforecasting methodology.
+when_to_use: Probability assessment, calibrated predictions.
+when_not_to_use: Creative ideation, qualitative strategy.

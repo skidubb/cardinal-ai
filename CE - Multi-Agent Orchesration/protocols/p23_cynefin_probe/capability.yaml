@@ -1,0 +1,13 @@
+protocol_id: P23
+name: Cynefin Probe-Sense-Respond
+category: Org Theory
+problem_types:
+- Diagnostic
+- Systems Analysis
+cost_tier: high
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Classify complexity domain, then probe/sense/respond appropriately.
+when_to_use: Uncertain situations needing complexity-aware approach.
+when_not_to_use: Clear-cut decisions with known best practices.

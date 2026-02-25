@@ -1,0 +1,13 @@
+protocol_id: P16
+name: Analysis of Competing Hypotheses
+category: Intelligence Analysis
+problem_types:
+- Diagnostic
+- Adversarial
+cost_tier: high
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Generate hypotheses, score evidence for/against, eliminate least supported.
+when_to_use: Root cause analysis, competing explanations with evidence.
+when_not_to_use: Creative ideation, consensus building.

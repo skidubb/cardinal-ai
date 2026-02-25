@@ -50,6 +50,8 @@ def main():
     parser.add_argument("--rounds", "-r", type=int, default=3, help="Number of debate rounds (default: 3)")
     parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for agent reasoning")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking (default: 10000)")
+    parser.add_argument("--trace", action="store_true", help="Enable JSONL execution tracing")
+    parser.add_argument("--trace-path", default=None, help="Explicit trace file path")
     args = parser.parse_args()
 
     agents = build_agents(args.agents, args.agent_config)
@@ -58,6 +60,8 @@ def main():
         rounds=args.rounds,
         thinking_model=args.thinking_model,
         thinking_budget=args.thinking_budget,
+        trace=args.trace,
+        trace_path=args.trace_path,
     )
 
     print(f"Running {args.rounds}-round debate with {len(agents)} agents: {', '.join(a['name'] for a in agents)}")

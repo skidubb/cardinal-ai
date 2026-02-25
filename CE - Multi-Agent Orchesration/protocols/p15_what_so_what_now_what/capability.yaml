@@ -1,0 +1,13 @@
+protocol_id: P15
+name: What/So What/Now What
+category: Liberating Structures
+problem_types:
+- General Analysis
+- Diagnostic
+cost_tier: low
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: 'Three-phase sensemaking: observe facts, interpret meaning, decide action.'
+when_to_use: Structured sensemaking from observations to actions.
+when_not_to_use: When diagnosis is already clear and action is needed.

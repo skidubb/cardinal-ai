@@ -1,0 +1,12 @@
+protocol_id: P26
+name: Crazy Eights
+category: Design Thinking
+problem_types:
+- Exploration
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Rapid ideation — 8 ideas in 8 minutes from each agent.
+when_to_use: Divergent thinking, creative solution generation.
+when_not_to_use: Convergent decisions, quantitative estimation.

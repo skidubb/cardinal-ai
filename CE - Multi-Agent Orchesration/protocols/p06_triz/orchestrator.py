@@ -8,9 +8,10 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
-import anthropic
-
+from protocols.llm import agent_complete, extract_text
+from protocols.tracing import make_client
 from .prompts import (
     DEDUPLICATION_PROMPT,
     FAILURE_GENERATION_PROMPT,
@@ -57,6 +58,8 @@ class TRIZOrchestrator:
         thinking_model: str = "claude-opus-4-6",
         orchestration_model: str = "claude-haiku-4-5-20251001",
         thinking_budget: int = 10_000,
+        trace: bool = False,
+        trace_path: str | None = None,
     ):
         """
         Args:
@@ -65,6 +68,7 @@ class TRIZOrchestrator:
             thinking_model: Model for agent reasoning (failure gen, synthesis).
             orchestration_model: Model for mechanical steps (dedup, invert, rank).
             thinking_budget: Token budget for extended thinking on Opus calls.
+            trace: Enable JSONL execution tracing.
         """
         if not agents:
             raise ValueError("At least one agent is required")
@@ -72,7 +76,7 @@ class TRIZOrchestrator:
         self.thinking_model = thinking_model
         self.orchestration_model = orchestration_model
         self.thinking_budget = thinking_budget
-        self.client = anthropic.AsyncAnthropic()
+        self.client = make_client(protocol_id="p06_triz", trace=trace, trace_path=Path(trace_path) if trace_path else None)
 
     async def run(self, question: str) -> TRIZResult:
         """Execute the full TRIZ Inversion protocol."""
@@ -119,15 +123,13 @@ class TRIZOrchestrator:
         prompt = FAILURE_GENERATION_PROMPT.format(question=question)
 
         async def query_agent(agent: dict) -> str:
-            messages = [{"role": "user", "content": prompt}]
-            response = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-                system=agent["system_prompt"],
-                messages=messages,
+            return await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
+                messages=[{"role": "user", "content": prompt}],
+                thinking_budget=self.thinking_budget,
+                anthropic_client=self.client,
             )
-            return _extract_text(response)
 
         return await asyncio.gather(
             *(query_agent(agent) for agent in self.agents)
@@ -251,16 +253,7 @@ class TRIZOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
-
-
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
+        return extract_text(response)
 
 
 def _parse_json_array(text: str) -> list[dict]:

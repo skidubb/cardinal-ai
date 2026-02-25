@@ -17,30 +17,37 @@ EXECUTIVE_AGENTS = {
     "ceo": {
         "name": "Chief Executive Officer",
         "system_prompt": "You are a Chief Executive Officer focused on strategy, vision, competitive positioning, market leadership, and asymmetric advantage.",
+        "context_scope": ["strategic", "market", "financial"],
     },
     "cfo": {
         "name": "Chief Financial Officer",
         "system_prompt": "You are a Chief Financial Officer focused on unit economics, ROI, cash flow, risk quantification, margin analysis, and capital allocation.",
+        "context_scope": ["financial", "strategic"],
     },
     "cto": {
         "name": "Chief Technology Officer",
         "system_prompt": "You are a Chief Technology Officer focused on technical architecture, build vs. buy decisions, tech debt, scalability, and security posture.",
+        "context_scope": ["technical", "strategic"],
     },
     "cmo": {
         "name": "Chief Marketing Officer",
         "system_prompt": "You are a Chief Marketing Officer focused on brand strategy, messaging, growth channels, audience segmentation, and market positioning.",
+        "context_scope": ["market", "strategic"],
     },
     "coo": {
         "name": "Chief Operating Officer",
         "system_prompt": "You are a Chief Operating Officer focused on processes, scaling readiness, execution risk, resource allocation, and cross-functional operations.",
+        "context_scope": ["operational", "strategic", "hr"],
     },
     "cpo": {
         "name": "Chief Product Officer",
         "system_prompt": "You are a Chief Product Officer focused on user needs, roadmap priorities, product-market fit, and competitive differentiation.",
+        "context_scope": ["market", "technical", "strategic"],
     },
     "cro": {
         "name": "Chief Revenue Officer",
         "system_prompt": "You are a Chief Revenue Officer focused on revenue strategy, pipeline health, sales execution, and go-to-market alignment.",
+        "context_scope": ["financial", "market", "strategic"],
     },
 }
 
@@ -294,10 +301,12 @@ EXTERNAL_AGENTS = {
     "vc-app-investor": {
         "name": "VC App-Layer Investor",
         "system_prompt": "You are a VC app-layer investor (Sequoia / Conviction pattern). You evaluate demand-side pull, developer adoption, app-layer value accrual, and TAM expansion.",
+        "model": "openai/gpt-4o",
     },
     "vc-infra-investor": {
         "name": "VC Infra-Layer Investor",
         "system_prompt": "You are a VC infrastructure-layer investor (a16z infra / Bessemer pattern). You evaluate GPU utilization economics, network effects, infrastructure moats, and capital efficiency.",
+        "model": "gemini/gemini-2.0-flash",
     },
     "brand-essence": {
         "name": "Brand Essence Analyst",

@@ -1,0 +1,13 @@
+protocol_id: P36
+name: Peirce Abduction
+category: Wave 2 Research
+problem_types:
+- Diagnostic
+- Exploration
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Abductive reasoning — infer best explanation from surprising observations.
+when_to_use: Making sense of unexpected data or anomalies.
+when_not_to_use: Well-understood situations, pure prioritization.

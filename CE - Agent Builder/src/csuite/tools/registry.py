@@ -109,6 +109,13 @@ ROLE_TOOL_MAP: dict[str, list[str]] = {
         "pinecone_search_knowledge",
         *_COMMON_TOOLS,
     ],
+    # --- Airport 5G Decision-Maker Simulation Agents ---
+    "airport-cio": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "airport-cro": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "airline-ops-vp": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "cargo-ops-director": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "concessions-tech-lead": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "att-carrier-rep": ["pinecone_search_knowledge", *_COMMON_TOOLS],
 }
 
 

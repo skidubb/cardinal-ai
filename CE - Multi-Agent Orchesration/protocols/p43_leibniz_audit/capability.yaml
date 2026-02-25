@@ -1,0 +1,13 @@
+protocol_id: P43
+name: Leibniz Audit
+category: Wave 2 Research
+problem_types:
+- Diagnostic
+- General Analysis
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Systematic decomposition and audit of reasoning chains.
+when_to_use: Auditing complex arguments for logical gaps.
+when_not_to_use: Brainstorming, estimation tasks.

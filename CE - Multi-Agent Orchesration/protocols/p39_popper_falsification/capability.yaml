@@ -1,0 +1,14 @@
+protocol_id: P39
+name: Popper Falsification
+category: Wave 2 Research
+problem_types:
+- Diagnostic
+- Adversarial
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Design tests that could falsify the hypothesis — strongest evidence is
+  attempted refutation.
+when_to_use: Testing assumptions, validating hypotheses rigorously.
+when_not_to_use: Creative ideation, consensus building.

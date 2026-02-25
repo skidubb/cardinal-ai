@@ -1,0 +1,13 @@
+protocol_id: P4
+name: Multi-Round Debate
+category: Baselines
+problem_types:
+- Adversarial
+- Multi-Stakeholder
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: true
+description: N rounds of structured debate with opening, rebuttals, and synthesis.
+when_to_use: Contested decisions where positions need to evolve through argument.
+when_not_to_use: Simple factual questions, estimation tasks.

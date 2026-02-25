@@ -7,9 +7,12 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import anthropic
 
+from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
+from protocols.tracing import make_client
 from .prompts import (
     FINAL_PROMPT,
     OPENING_PROMPT,
@@ -24,6 +27,7 @@ class DebateArgument:
     name: str
     content: str
     round_number: int
+    scope: str = "all"
 
 
 @dataclass
@@ -49,6 +53,8 @@ class DebateOrchestrator:
         rounds: int = 3,
         thinking_model: str = "claude-opus-4-6",
         thinking_budget: int = 10_000,
+        trace: bool = False,
+        trace_path: str | None = None,
     ):
         """
         Args:
@@ -56,6 +62,8 @@ class DebateOrchestrator:
             rounds: Number of debate rounds (minimum 2: opening + final).
             thinking_model: Model for all debate rounds and synthesis.
             thinking_budget: Token budget for extended thinking on Opus calls.
+            trace: Enable JSONL execution tracing.
+            trace_path: Explicit path for trace file (overrides auto-generated).
         """
         if not agents:
             raise ValueError("At least one agent is required")
@@ -65,7 +73,7 @@ class DebateOrchestrator:
         self.num_rounds = rounds
         self.thinking_model = thinking_model
         self.thinking_budget = thinking_budget
-        self.client = anthropic.AsyncAnthropic()
+        self.client = make_client(protocol_id="p04_multi_round_debate", trace=trace, trace_path=Path(trace_path) if trace_path else None)
 
     async def run(self, question: str) -> DebateResult:
         """Execute the full multi-round debate protocol."""
@@ -112,15 +120,19 @@ class DebateOrchestrator:
             if round_type == "opening":
                 prompt = OPENING_PROMPT.format(question=question)
             elif round_type == "final":
+                context_blocks = build_context_blocks(prior_rounds)
+                scoped_args = filter_context_for_agent(agent, context_blocks)
                 prompt = FINAL_PROMPT.format(
                     question=question,
-                    prior_arguments=format_prior_arguments(prior_rounds),
+                    prior_arguments=scoped_args,
                 )
             else:
+                context_blocks = build_context_blocks(prior_rounds)
+                scoped_args = filter_context_for_agent(agent, context_blocks)
                 prompt = REBUTTAL_PROMPT.format(
                     question=question,
                     round_number=round_number,
-                    prior_arguments=format_prior_arguments(prior_rounds),
+                    prior_arguments=scoped_args,
                 )
 
             response = await self.client.messages.create(
@@ -134,6 +146,7 @@ class DebateOrchestrator:
                 name=agent["name"],
                 content=_extract_text(response),
                 round_number=round_number,
+                scope=get_primary_scope(agent),
             )
 
         return await asyncio.gather(
@@ -167,3 +180,5 @@ def _extract_text(response: anthropic.types.Message) -> str:
         if hasattr(block, "text"):
             parts.append(block.text)
     return "\n".join(parts)
+
+

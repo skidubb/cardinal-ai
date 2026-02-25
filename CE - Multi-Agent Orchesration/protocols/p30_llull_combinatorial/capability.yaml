@@ -1,0 +1,12 @@
+protocol_id: P30
+name: Llull Combinatorial
+category: Wave 2 Research
+problem_types:
+- Exploration
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Systematic combinatorial exploration of option pairs.
+when_to_use: Discovering novel combinations from existing elements.
+when_not_to_use: Simple binary choices, estimation tasks.

@@ -1,0 +1,12 @@
+protocol_id: P20
+name: Borda Count
+category: Game Theory
+problem_types:
+- Prioritization
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Ranked-choice voting to aggregate preferences into consensus.
+when_to_use: Ranking options with multiple stakeholder preferences.
+when_not_to_use: Binary decisions, quantitative estimation.

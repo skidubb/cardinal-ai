@@ -1,0 +1,14 @@
+protocol_id: P47
+name: Polya Lookback
+category: Wave 2 Research
+problem_types:
+- Diagnostic
+- General Analysis
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Structured reflection — look back at the solution to extract learnings
+  and verify.
+when_to_use: Post-analysis reflection, extracting reusable patterns.
+when_not_to_use: Real-time decisions, creative ideation.

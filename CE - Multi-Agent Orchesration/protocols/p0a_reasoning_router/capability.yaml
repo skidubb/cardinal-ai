@@ -1,0 +1,12 @@
+protocol_id: P0a
+name: Reasoning Router
+category: Meta-Protocols
+problem_types:
+- General Analysis
+cost_tier: low
+min_agents: 0
+max_agents: 0
+supports_rounds: false
+description: Classify question problem type and recommend optimal protocol.
+when_to_use: First step before any protocol run — selects the right protocol.
+when_not_to_use: When the user already knows which protocol to use.

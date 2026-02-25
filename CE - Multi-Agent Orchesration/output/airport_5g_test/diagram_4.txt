@@ -1,0 +1,41 @@
+PHASE 1 (Months 0-18): MINIMAL VIABLE ARCHITECTURE
+┌─────────────────────────────────────────────┐
+│  Single Core │ Single Vendor │ 2 Slices     │
+│  Terminal E  │ AT&T Operated │ (Ops + Best  │
+│  Brownfield  │ Basic APIs    │  Effort)     │
+│  90-day      │               │              │
+│  burn-in     │               │              │
+└─────────────────────────────────────────────┘
+         │
+         │ Phase 1 data informs Phase 2 design
+         ▼
+PHASE 2 (Months 12-30): ZONE-DIFFERENTIATED
+┌─────────────────────────────────────────────┐
+│  Core + 1-2 Edge Nodes (where proven needed)│
+│  Terminal F + Cargo Warehouse 1             │
+│  3-4 Slices (Ops Ctrl / POS / Bulk / Fail) │
+│  Enhanced APIs │ Slice-specific governance   │
+│  CRO pilot monetization begins              │
+└─────────────────────────────────────────────┘
+         │
+         │ Phase 2 data informs Phase 3 design
+         ▼
+PHASE 3 (Months 24-48): FULL CAMPUS
+┌─────────────────────────────────────────────┐
+│  Core + Zone-Specific Edge (cargo, ramp)    │
+│  All terminals + Cargo campus               │
+│  Full slicing │ Full governance model       │
+│  Multi-vendor where >60% concentration      │
+│  Full revenue model operational             │
+│  Terminal C migration begins                │
+└─────────────────────────────────────────────┘
+         │
+         ▼
+PHASE 4 (Months 48-72): OPTIMIZED STEADY-STATE
+┌─────────────────────────────────────────────┐
+│  Architecture reflects 4 years of DFW data  │
+│  Edge compute only where latency requires   │
+│  Vendor diversity where scale justifies     │
+│  CBRS 2.0 spectrum integrated               │
+│  $80M+ cumulative value achieved            │
+└─────────────────────────────────────────────┘

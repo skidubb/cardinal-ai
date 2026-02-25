@@ -1,0 +1,13 @@
+protocol_id: P12
+name: 25/10 Crowd Sourcing
+category: Liberating Structures
+problem_types:
+- Exploration
+- Prioritization
+cost_tier: medium
+min_agents: 3
+max_agents: null
+supports_rounds: false
+description: Generate bold ideas, then crowd-score to surface top picks.
+when_to_use: Generating and ranking innovative ideas from many perspectives.
+when_not_to_use: Binary decisions, constraint definition.

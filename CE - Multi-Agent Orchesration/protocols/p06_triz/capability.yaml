@@ -1,0 +1,13 @@
+protocol_id: P6
+name: TRIZ Inversion
+category: Liberating Structures
+problem_types:
+- Exploration
+- Adversarial
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Invert "what would guarantee failure?" into solutions.
+when_to_use: Stress-testing plans, finding hidden risks.
+when_not_to_use: Simple factual questions, pure prioritization.

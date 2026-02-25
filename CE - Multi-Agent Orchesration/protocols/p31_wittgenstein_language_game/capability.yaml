@@ -1,0 +1,14 @@
+protocol_id: P31
+name: Wittgenstein Language Game
+category: Wave 2 Research
+problem_types:
+- Diagnostic
+- Multi-Stakeholder
+cost_tier: medium
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Surface hidden assumptions by examining how stakeholders use key terms
+  differently.
+when_to_use: When stakeholders talk past each other or definitions are contested.
+when_not_to_use: Clear terminology, quantitative analysis.

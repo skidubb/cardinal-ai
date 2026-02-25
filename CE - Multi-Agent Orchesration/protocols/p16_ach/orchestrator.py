@@ -11,10 +11,12 @@ import re
 import time
 from collections import Counter
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import anthropic
 
+from protocols.tracing import make_client
 from .prompts import (
     HYPOTHESIS_GENERATION_PROMPT,
     EVIDENCE_LISTING_PROMPT,
@@ -80,6 +82,8 @@ class ACHOrchestrator:
         thinking_model: str | None = None,
         orchestration_model: str | None = None,
         thinking_budget: int = 10_000,
+        trace: bool = False,
+        trace_path: str | None = None,
     ) -> None:
         self.agents = agents  # [{"name": ..., "system_prompt": ...}, ...]
         if thinking_model:
@@ -87,7 +91,7 @@ class ACHOrchestrator:
         if orchestration_model:
             self.orchestration_model = orchestration_model
         self.thinking_budget = thinking_budget
-        self.client = anthropic.AsyncAnthropic()
+        self.client = make_client(protocol_id="p16_ach", trace=trace, trace_path=Path(trace_path) if trace_path else None)
 
     # ------------------------------------------------------------------
     # Public entry point

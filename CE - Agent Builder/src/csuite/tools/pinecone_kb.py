@@ -26,12 +26,19 @@ ROLE_NAMESPACE_MAP: dict[str, list[str]] = {
         "cro-school", "meddic", "topline-podcast",
         "ai-gtm", "revenue-architecture", "demand-gen",
     ],
+    # --- Airport 5G Decision-Maker Simulation Agents ---
+    "airport-cio": ["airport-5g", "ai-gtm", "general-gtm"],
+    "airport-cro": ["airport-5g", "revenue-architecture", "general-gtm"],
+    "airline-ops-vp": ["airport-5g", "general-gtm"],
+    "cargo-ops-director": ["airport-5g", "general-gtm"],
+    "concessions-tech-lead": ["airport-5g", "general-gtm"],
+    "att-carrier-rep": ["airport-5g", "ai-gtm", "general-gtm"],
 }
 
 ALL_NAMESPACES = [
     "lennys-podcast", "topline-podcast", "ai-gtm", "demand-gen",
     "cro-school", "meddic", "consulting", "revenue-architecture",
-    "general-gtm", "market-analysis",
+    "general-gtm", "market-analysis", "airport-5g",
 ]
 
 
