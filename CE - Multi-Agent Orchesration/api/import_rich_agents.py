@@ -31,6 +31,34 @@ _ROLE_TEMPERATURES = {
 }
 
 
+def _load_kb_instructions() -> str:
+    """Load KB_INSTRUCTIONS from the Agent Builder."""
+    kb_file = _PROMPTS_DIR / "kb_instructions.py"
+    if not kb_file.exists():
+        return ""
+    text = kb_file.read_text()
+    ns: dict = {}
+    try:
+        exec(compile(text, str(kb_file), "exec"), ns)  # noqa: S307
+    except Exception:
+        return ""
+    return ns.get("KB_INSTRUCTIONS", "")
+
+
+def _ensure_csuite_prompts_module():
+    """Register a fake csuite.prompts.kb_instructions module so exec() can resolve the import."""
+    import sys
+    import types
+
+    kb_text = _load_kb_instructions()
+
+    for mod_name in ("csuite", "csuite.prompts", "csuite.prompts.kb_instructions"):
+        if mod_name not in sys.modules:
+            sys.modules[mod_name] = types.ModuleType(mod_name)
+
+    sys.modules["csuite.prompts.kb_instructions"].KB_INSTRUCTIONS = kb_text  # type: ignore[attr-defined]
+
+
 def _load_prompt(role: str) -> str:
     """Load the full system prompt for an executive role."""
     module_name = _EXECUTIVE_PROMPTS.get(role)
@@ -40,17 +68,16 @@ def _load_prompt(role: str) -> str:
     if not prompt_file.exists():
         return ""
 
-    # Read the file and extract the prompt string
+    _ensure_csuite_prompts_module()
+
     text = prompt_file.read_text()
     namespace: dict = {}
     try:
-        # Trusted local prompt files only
         compiled = compile(text, str(prompt_file), "exec")
-        eval(compiled, namespace)  # noqa: S307
+        exec(compiled, namespace)  # noqa: S307
     except Exception:
         return ""
 
-    # Find the prompt variable (ends with _SYSTEM_PROMPT)
     for key, val in namespace.items():
         if key.endswith("_SYSTEM_PROMPT") and isinstance(val, str):
             return val
