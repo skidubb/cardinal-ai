@@ -90,13 +90,13 @@ class EmergenceDetector:
 
         response = await self.client.messages.create(
             model=self.model,
-            max_tokens=4096,
+            max_tokens=16384,
             temperature=0.0,
             system=EMERGENCE_JUDGE_SYSTEM,
             messages=[{"role": "user", "content": user_prompt}],
         )
 
-        raw = response.content[0].text
+        raw = "\n".join(b.text for b in response.content if hasattr(b, "text"))
         return self._parse(raw, question, complex_protocol, baseline_protocol, question_id)
 
     def _parse(
