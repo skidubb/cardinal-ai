@@ -8,7 +8,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
+from protocols.llm import extract_text
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     GENERALIZATION_PROMPT,
     META_SYNTHESIS_PROMPT,
@@ -32,8 +34,8 @@ class LookBackOrchestrator:
 
     def __init__(
         self,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         self.thinking_model = thinking_model
@@ -98,7 +100,7 @@ class LookBackOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _generalization(
         self, question: str, protocol_used: str, method_analysis: str
@@ -117,7 +119,7 @@ class LookBackOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _meta_synthesis(
         self, protocol_used: str, reflection: str
@@ -137,10 +139,3 @@ class LookBackOrchestrator:
         return response.content[0].text.strip()
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)

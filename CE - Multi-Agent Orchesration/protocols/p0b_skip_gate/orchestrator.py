@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     FEATURE_EXTRACTION_PROMPT,
     GATE_DECISION_PROMPT,
@@ -47,8 +49,8 @@ class SkipGateResult:
 class SkipGate:
     """Runs the cost-aware skip gate meta-protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -116,7 +118,7 @@ class SkipGate:
             max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     # ------------------------------------------------------------------
     # Phase 2: Gate Decision
@@ -134,7 +136,7 @@ class SkipGate:
             max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     # ------------------------------------------------------------------
     # Phase 3: Single Agent Response (only if skipped)
@@ -147,37 +149,10 @@ class SkipGate:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._extract_text(resp)
+        return extract_text(resp)
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}

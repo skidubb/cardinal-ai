@@ -301,12 +301,12 @@ EXTERNAL_AGENTS = {
     "vc-app-investor": {
         "name": "VC App-Layer Investor",
         "system_prompt": "You are a VC app-layer investor (Sequoia / Conviction pattern). You evaluate demand-side pull, developer adoption, app-layer value accrual, and TAM expansion.",
-        "model": "openai/gpt-4o",
+        "model": "gpt-5.2-pro",
     },
     "vc-infra-investor": {
         "name": "VC Infra-Layer Investor",
         "system_prompt": "You are a VC infrastructure-layer investor (a16z infra / Bessemer pattern). You evaluate GPU utilization economics, network effects, infrastructure moats, and capital efficiency.",
-        "model": "gemini/gemini-2.0-flash",
+        "model": "gemini/gemini-3-pro-preview",
     },
     "brand-essence": {
         "name": "Brand Essence Analyst",
@@ -354,6 +354,7 @@ AGENT_CATEGORIES = {
 def build_agents(
     agent_names: list[str] | None = None,
     agent_config_path: str | None = None,
+    mode: str = "research",
 ) -> list[dict]:
     """Build agent list from CLI args.
 
@@ -361,6 +362,7 @@ def build_agents(
     - Individual agent keys: ceo cfo gtm-cro vc-app-investor
     - Category keys: @executive @gtm-sales @external (prefixed with @)
     - JSON config file: --agent-config agents.json
+    - mode: "research" (lightweight dicts) or "production" (real SDK agents with tools)
     """
     if agent_config_path:
         with open(agent_config_path) as f:
@@ -381,8 +383,9 @@ def build_agents(
         else:
             expanded.append(name)
 
-    agents = []
-    seen = set()
+    # Deduplicate while preserving order
+    seen: set[str] = set()
+    unique_keys: list[str] = []
     for name in expanded:
         key = name.lower()
         if key in seen:
@@ -391,5 +394,12 @@ def build_agents(
         if key not in BUILTIN_AGENTS:
             print(f"Unknown agent: {name}. Available: {', '.join(sorted(BUILTIN_AGENTS))}")
             sys.exit(1)
-        agents.append(BUILTIN_AGENTS[key])
-    return agents
+        unique_keys.append(key)
+
+    # Production mode: build real SDK agents with tools, memory, learning
+    if mode == "production":
+        from protocols.agent_provider import build_production_agents
+        return build_production_agents(unique_keys)
+
+    # Research mode: lightweight dicts (current behavior)
+    return [BUILTIN_AGENTS[key] for key in unique_keys]

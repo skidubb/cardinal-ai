@@ -12,7 +12,9 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     FAILURE_EXTRACTION_PROMPT,
     FAILURE_NARRATIVE_PROMPT,
@@ -36,8 +38,8 @@ class PreMortemOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         if not agents:
@@ -98,11 +100,14 @@ class PreMortemOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            return _extract_text(response)
+            return extract_text(response)
 
-        return await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+        _results = await asyncio.gather(
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        _results = filter_exceptions(_results, label="p38_klein_premortem")
+        return _results
 
     async def _extract_failure_modes(self, all_narratives: str) -> dict:
         """Phase 3: Extract and classify failure modes using Haiku."""
@@ -114,7 +119,7 @@ class PreMortemOrchestrator:
                 "content": FAILURE_EXTRACTION_PROMPT.format(all_narratives=all_narratives),
             }],
         )
-        return _parse_json_object(response.content[0].text)
+        return parse_json_object(response.content[0].text)
 
     async def _synthesize_mitigations(
         self,
@@ -138,28 +143,8 @@ class PreMortemOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

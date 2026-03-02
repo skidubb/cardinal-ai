@@ -13,7 +13,9 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_array, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     ASSUMPTION_PROMPT,
     CONFLICT_ASSUMPTION_PROMPT,
@@ -38,8 +40,8 @@ class EvaporationCloudOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         """
@@ -90,8 +92,8 @@ class EvaporationCloudOrchestrator:
                 "content": MAP_CLOUD_PROMPT.format(question=question),
             }],
         )
-        text = _extract_text(response)
-        return _parse_json_object(text)
+        text = extract_text(response)
+        return parse_json_object(text)
 
     async def _attack_assumptions(self, cloud: dict) -> dict[str, list[str]]:
         """Phase 2: Generate hidden assumptions for all 5 arrows in parallel."""
@@ -119,8 +121,8 @@ class EvaporationCloudOrchestrator:
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
             )
-            text = _extract_text(response)
-            return arrow_label, _parse_json_array(text)
+            text = extract_text(response)
+            return arrow_label, parse_json_array(text)
 
         async def query_conflict() -> tuple[str, list[str]]:
             prompt = CONFLICT_ASSUMPTION_PROMPT.format(
@@ -136,11 +138,12 @@ class EvaporationCloudOrchestrator:
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
             )
-            text = _extract_text(response)
-            return "Prerequisite A ↔ Prerequisite B (conflict)", _parse_json_array(text)
+            text = extract_text(response)
+            return "Prerequisite A ↔ Prerequisite B (conflict)", parse_json_array(text)
 
         tasks = [query_arrow(*a) for a in arrows] + [query_conflict()]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = filter_exceptions(results, label="p33_evaporation_cloud")
         return {label: assumptions for label, assumptions in results}
 
     async def _find_injection(
@@ -169,44 +172,9 @@ class EvaporationCloudOrchestrator:
                 ),
             }],
         )
-        text = _extract_text(response)
-        return _parse_json_object(text)
+        text = extract_text(response)
+        return parse_json_object(text)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)
-
-
-def _parse_json_array(text: str) -> list:
-    """Extract a JSON array from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("["):
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

@@ -13,7 +13,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     RANKING_PROMPT,
     TIEBREAK_PROMPT,
@@ -54,8 +56,8 @@ class BordaResult:
 class BordaCountOrchestrator:
     """Runs the four-phase Borda Count voting protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -153,11 +155,12 @@ class BordaCountOrchestrator:
                 max_tokens=4096,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             rankings = parsed.get("rankings", [])
             return Ballot(agent=agent["name"], rankings=rankings)
 
-        ballots = await asyncio.gather(*[_one(a) for a in self.agents])
+        ballots = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        ballots = filter_exceptions(ballots, label="p20_borda_count")
         return list(ballots)
 
     # ------------------------------------------------------------------
@@ -304,7 +307,7 @@ class BordaCountOrchestrator:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     @staticmethod
     def _format_ballots_block(ballots: list[Ballot]) -> str:
@@ -323,59 +326,4 @@ class BordaCountOrchestrator:
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}
-
-
-# ---------------------------------------------------------------------------
-# Module-level helpers
-# ---------------------------------------------------------------------------
-
-def _get_rank(ballot: Ballot, option: str) -> int:
-    """Get the rank an agent assigned to an option, with fuzzy matching."""
-    for entry in ballot.rankings:
-        if entry.get("option", "") == option:
-            return entry.get("rank", 999)
-    # Fuzzy fallback
-    for entry in ballot.rankings:
-        if option.lower() in entry.get("option", "").lower() or entry.get("option", "").lower() in option.lower():
-            return entry.get("rank", 999)
-    return 999
-
-
-def _fuzzy_match(candidate: str, options: list[str]) -> str | None:
-    """Find the closest matching option for a candidate string."""
-    candidate_lower = candidate.strip().lower()
-    for opt in options:
-        if opt.lower() == candidate_lower:
-            return opt
-    for opt in options:
-        if candidate_lower in opt.lower() or opt.lower() in candidate_lower:
-            return opt
-    return None

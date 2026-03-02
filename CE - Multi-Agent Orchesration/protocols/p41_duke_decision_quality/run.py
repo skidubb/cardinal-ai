@@ -13,6 +13,7 @@ import asyncio
 import json
 
 from .orchestrator import DecisionQualityOrchestrator
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 DIMENSION_LABELS = {
@@ -57,10 +58,11 @@ def main():
     parser.add_argument("--recommendation", "-r", required=True, help="The recommendation to evaluate")
     parser.add_argument("--reasoning", required=True, help="The reasoning behind the recommendation")
     parser.add_argument("--question", "-q", help="Original question for context")
-    parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for evaluation")
-    parser.add_argument("--orchestration-model", default="claude-haiku-4-5-20251001", help="Model for assessment")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL, help="Model for evaluation")
+    parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for assessment")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output raw JSON")
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     orchestrator = DecisionQualityOrchestrator(

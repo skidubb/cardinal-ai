@@ -16,7 +16,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     ASSESS_INITIATIVES_PROMPT,
     RESOLVE_CONTESTED_PROMPT,
@@ -60,8 +62,8 @@ class EcocycleResult:
 class EcocyclePlanningOrchestrator:
     """Runs the three-phase Ecocycle Planning protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -139,7 +141,7 @@ class EcocyclePlanningOrchestrator:
                 max_tokens=4096,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             results = []
             for a in parsed.get("assessments", []):
                 stage = a.get("stage", "").lower().strip()
@@ -153,7 +155,8 @@ class EcocyclePlanningOrchestrator:
                 ))
             return results
 
-        batches = await asyncio.gather(*[_one(a) for a in self.agents])
+        batches = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        batches = filter_exceptions(batches, label="p13_ecocycle_planning")
         return [item for batch in batches for item in batch]
 
     # ------------------------------------------------------------------
@@ -214,13 +217,14 @@ class EcocyclePlanningOrchestrator:
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             stage = parsed.get("stage", "renewal").lower().strip()
             if stage not in VALID_STAGES:
                 stage = "renewal"
             return initiative, stage
 
-        results = await asyncio.gather(*[_resolve_one(i) for i in contested])
+        results = await asyncio.gather(*[_resolve_one(i, return_exceptions=True) for i in contested])
+        results = filter_exceptions(results, label="p13_ecocycle_planning")
         return dict(results)
 
     # ------------------------------------------------------------------
@@ -247,7 +251,7 @@ class EcocyclePlanningOrchestrator:
             max_tokens=8192,
             messages=[{"role": "user", "content": prompt}],
         )
-        parsed = self._parse_json_object(self._extract_text(resp))
+        parsed = parse_json_object(extract_text(resp))
         action_plans = parsed.get("action_plans", {})
         portfolio_summary = parsed.get("portfolio_summary", "")
         return action_plans, portfolio_summary
@@ -256,31 +260,4 @@ class EcocyclePlanningOrchestrator:
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}

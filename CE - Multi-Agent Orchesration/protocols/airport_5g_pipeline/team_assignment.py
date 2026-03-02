@@ -12,13 +12,14 @@ load_dotenv()
 import anthropic
 
 from .prompts import TEAM_ASSIGNMENT_PROMPT
+from protocols.config import ORCHESTRATION_MODEL
 
 
 async def assign_teams(
     agents: list[dict[str, str]],
     constraint_table: str,
     negotiation_synthesis: str,
-    model: str = "claude-haiku-4-5-20251001",
+    model: str = ORCHESTRATION_MODEL,
 ) -> dict[str, Any]:
     """Dynamically assign Red/Blue/White teams based on negotiation outcomes.
 

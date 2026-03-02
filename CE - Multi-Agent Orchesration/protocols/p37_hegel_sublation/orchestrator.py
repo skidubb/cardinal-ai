@@ -9,7 +9,9 @@ import asyncio
 from dataclasses import dataclass
 
 import anthropic
+from protocols.llm import extract_text
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     ANTITHESIS_PROMPT,
     SUBLATION_PROMPT,
@@ -35,8 +37,8 @@ class SublationOrchestrator:
     def __init__(
         self,
         agents: list[dict] | None = None,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         """
@@ -106,7 +108,7 @@ class SublationOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _generate_antithesis(
         self, question: str, position_b: str, thesis: str
@@ -124,7 +126,7 @@ class SublationOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _generate_sublation(
         self, question: str, thesis: str, antithesis: str
@@ -142,16 +144,9 @@ class SublationOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
 def _extract_section(text: str, start_heading: str, *end_headings: str) -> str:

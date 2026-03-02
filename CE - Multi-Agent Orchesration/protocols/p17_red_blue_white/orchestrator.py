@@ -14,9 +14,11 @@ from pathlib import Path
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from protocols.scoping import filter_context_for_agent, tag_context
 from protocols.tracing import make_client
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     RED_ATTACK_PROMPT,
     BLUE_DEFENSE_PROMPT,
@@ -73,8 +75,8 @@ class RedBlueWhiteResult:
 class RedBlueWhiteOrchestrator:
     """Runs the four-phase Red/Blue/White team protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -159,13 +161,14 @@ class RedBlueWhiteOrchestrator:
                 },
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return Attack(
                 agent=parsed.get("agent", agent["name"]),
                 vulnerabilities=parsed.get("vulnerabilities", []),
             )
 
-        results = await asyncio.gather(*[_one(a) for a in self.red_agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.red_agents])
+        results = filter_exceptions(results, label="p17_red_blue_white")
         return list(results)
 
     # ------------------------------------------------------------------
@@ -207,13 +210,14 @@ class RedBlueWhiteOrchestrator:
                 },
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return Defense(
                 agent=parsed.get("agent", agent["name"]),
                 mitigations=parsed.get("mitigations", []),
             )
 
-        results = await asyncio.gather(*[_one(a) for a in self.blue_agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.blue_agents])
+        results = filter_exceptions(results, label="p17_red_blue_white")
         return list(results)
 
     # ------------------------------------------------------------------
@@ -246,7 +250,7 @@ class RedBlueWhiteOrchestrator:
             },
             messages=[{"role": "user", "content": prompt}],
         )
-        parsed = self._parse_json_object(self._extract_text(resp))
+        parsed = parse_json_object(extract_text(resp))
 
         adjudications = []
         for item in parsed.get("adjudications", []):
@@ -284,7 +288,7 @@ class RedBlueWhiteOrchestrator:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     # ------------------------------------------------------------------
     # Formatting helpers
@@ -343,31 +347,4 @@ class RedBlueWhiteOrchestrator:
     # Parsing helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}

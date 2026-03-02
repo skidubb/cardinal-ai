@@ -11,6 +11,8 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL, BALANCED_MODEL
+from protocols.llm import extract_text, parse_json_array, filter_exceptions
 
 from .prompts import (
     RANKING_PROMPT,
@@ -50,8 +52,8 @@ class WickedQuestionsOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
     ):
         if not agents:
             raise ValueError("At least one agent is required")
@@ -129,9 +131,12 @@ class WickedQuestionsOrchestrator:
             )
             return response.content[0].text
 
-        return await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+        _results = await asyncio.gather(
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        _results = filter_exceptions(_results, label="p07_wicked_questions")
+        return _results
 
     async def _wickedness_test(self, all_tensions: str) -> list[dict]:
         """Stage 2: Apply 3-part wickedness test.
@@ -139,15 +144,15 @@ class WickedQuestionsOrchestrator:
         Uses Sonnet for this stage — needs structured evaluation with large output.
         """
         response = await self.client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model=BALANCED_MODEL,
             max_tokens=16000,
             messages=[{
                 "role": "user",
                 "content": WICKEDNESS_TEST_PROMPT.format(all_tensions=all_tensions),
             }],
         )
-        text = _extract_text(response)
-        return _parse_json_array(text)
+        text = extract_text(response)
+        return parse_json_array(text)
 
     async def _rank(self, wicked_questions: str) -> list[dict]:
         """Stage 3: Rank by strategic relevance."""
@@ -159,7 +164,7 @@ class WickedQuestionsOrchestrator:
                 "content": RANKING_PROMPT.format(wicked_questions=wicked_questions),
             }],
         )
-        return _parse_json_array(_extract_text(response))
+        return parse_json_array(extract_text(response))
 
     async def _synthesize(self, topic: str, ranked: list[dict]) -> str:
         """Stage 4: Produce final strategic briefing."""
@@ -174,53 +179,8 @@ class WickedQuestionsOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response) -> str:
-    """Get text from an Anthropic response, handling multiple content blocks."""
-    for block in response.content:
-        if hasattr(block, "text") and block.text:
-            return block.text
-    # Debug: show what we got
-    block_info = []
-    for b in response.content:
-        info = type(b).__name__
-        if hasattr(b, "text"):
-            info += f"(text={repr(b.text)[:100]})"
-        block_info.append(info)
-    raise RuntimeError(
-        f"No text in response. Stop: {response.stop_reason}, "
-        f"usage: in={response.usage.input_tokens} out={response.usage.output_tokens}, "
-        f"blocks: {block_info}"
-    )
 
 
-def _parse_json_array(text: str) -> list[dict]:
-    """Extract a JSON array from LLM output that may contain markdown fences."""
-    original = text
-    text = text.strip()
-    # Try to extract from markdown fences (handles truncated output too)
-    match = re.search(r"```(?:json)?\s*\n(.*?)(?:```|$)", text, re.DOTALL)
-    if match:
-        text = match.group(1).strip()
-    # Find the JSON array brackets
-    if not text.startswith("["):
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-        elif start != -1:
-            # Truncated — try to repair by closing the array
-            text = text[start:]
-            # Find last complete object (ends with })
-            last_brace = text.rfind("}")
-            if last_brace != -1:
-                text = text[:last_brace + 1]
-                # Remove trailing comma if present
-                text = text.rstrip().rstrip(",") + "]"
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        print(f"JSON parse failed. First 500 chars of raw response:\n{original[:500]}")
-        raise

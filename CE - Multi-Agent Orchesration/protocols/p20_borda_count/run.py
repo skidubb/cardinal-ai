@@ -126,13 +126,14 @@ def main() -> None:
         help="Output raw JSON instead of formatted text.",
     )
 
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     if len(args.options) < 2:
         print("Error: at least 2 options are required for Borda Count voting.")
         sys.exit(1)
 
-    agents = build_agents(args.agents)
+    agents = build_agents(args.agents, mode=args.mode)
 
     orchestrator = BordaCountOrchestrator(
         agents=agents,

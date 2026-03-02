@@ -105,8 +105,9 @@ def main() -> None:
         help="Output raw JSON instead of formatted text.",
     )
 
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
-    agents = build_agents(args.agents)
+    agents = build_agents(args.agents, mode=args.mode)
 
     orchestrator = CrazyEightsOrchestrator(
         agents=agents,

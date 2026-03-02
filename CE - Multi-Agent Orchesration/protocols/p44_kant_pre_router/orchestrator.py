@@ -11,8 +11,10 @@ import re
 from dataclasses import dataclass
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object
 
 from .prompts import CLASSIFICATION_PROMPT
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 @dataclass
@@ -30,8 +32,8 @@ class KantRouterOrchestrator:
 
     def __init__(
         self,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         self.thinking_model = thinking_model
@@ -53,7 +55,7 @@ class KantRouterOrchestrator:
             }],
         )
 
-        data = _parse_json_object(response.content[0].text)
+        data = parse_json_object(response.content[0].text)
         result.problem_type = data.get("problem_type", "")
         result.modality = data.get("modality", "")
         result.modality_reasoning = data.get("modality_reasoning", "")
@@ -63,25 +65,5 @@ class KantRouterOrchestrator:
         return result
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

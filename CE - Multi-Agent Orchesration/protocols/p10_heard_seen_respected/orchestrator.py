@@ -8,7 +8,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     BRIDGE_SYNTHESIS_PROMPT,
     REFLECT_BACK_PROMPT,
@@ -44,12 +46,6 @@ class HSRResult:
     model_calls: dict[str, int] = field(default_factory=dict)
 
 
-def _extract_text(response) -> str:
-    """Pull plain text from an Anthropic API response."""
-    for block in response.content:
-        if block.type == "text":
-            return block.text
-    return ""
 
 
 class HSROrchestrator:
@@ -58,8 +54,8 @@ class HSROrchestrator:
     def __init__(
         self,
         agents: list[AgentSpec],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         self.agents = agents
@@ -86,7 +82,7 @@ class HSROrchestrator:
                 {"role": "user", "content": STAKEHOLDER_NARRATIVE_PROMPT.format(question=question)},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _reflect_back(
         self, reflector: AgentSpec, narrator_name: str, narrative: str, question: str
@@ -105,7 +101,7 @@ class HSROrchestrator:
                 {"role": "user", "content": prompt},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _bridge_synthesis(self, question: str, narratives_and_reflections: str) -> str:
         """Phase 3: Produce common ground, key differences, and translation guide."""
@@ -124,7 +120,7 @@ class HSROrchestrator:
                 {"role": "user", "content": prompt},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     @staticmethod
     def _build_reflection_pairs(agents: list[AgentSpec]) -> list[tuple[AgentSpec, AgentSpec]]:
@@ -157,7 +153,8 @@ class HSROrchestrator:
         # --- Phase 1: Share — narrative generation (parallel, Opus) ---
         t_phase1 = time.time()
         narrative_tasks = [self._generate_narrative(a, question) for a in self.agents]
-        narrative_texts = await asyncio.gather(*narrative_tasks)
+        narrative_texts = await asyncio.gather(*narrative_tasks, return_exceptions=True)
+        narrative_texts = filter_exceptions(narrative_texts, label="p10_heard_seen_respected")
         _count(self.thinking_model, len(self.agents))
         timings["phase1_share"] = round(time.time() - t_phase1, 2)
 
@@ -177,7 +174,8 @@ class HSROrchestrator:
             )
             reflect_meta.append({"reflector": reflector.name, "reflected_on": narrator.name})
 
-        reflect_texts = await asyncio.gather(*reflect_tasks)
+        reflect_texts = await asyncio.gather(*reflect_tasks, return_exceptions=True)
+        reflect_texts = filter_exceptions(reflect_texts, label="p10_heard_seen_respected")
         _count(self.orchestration_model, len(reflection_pairs))
         timings["phase2_reflect"] = round(time.time() - t_phase2, 2)
 

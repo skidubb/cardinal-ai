@@ -13,6 +13,7 @@ import asyncio
 import json
 
 from .orchestrator import AuditChainOrchestrator
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 def print_result(result):
@@ -54,10 +55,11 @@ def main():
     parser = argparse.ArgumentParser(description="P43: Leibniz Auditable Chain")
     parser.add_argument("--recommendation", "-r", required=True, help="The recommendation to audit")
     parser.add_argument("--reasoning", required=True, help="The reasoning chain to decompose")
-    parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for reasoning phases")
-    parser.add_argument("--orchestration-model", default="claude-haiku-4-5-20251001", help="Model for verdict phase")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL, help="Model for reasoning phases")
+    parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for verdict phase")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output raw JSON")
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     orchestrator = AuditChainOrchestrator(

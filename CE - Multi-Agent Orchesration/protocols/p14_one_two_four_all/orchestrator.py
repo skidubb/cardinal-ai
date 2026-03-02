@@ -8,7 +8,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     FINAL_SYNTHESIS_PROMPT,
     PAIR_MERGE_PROMPT,
@@ -46,12 +48,6 @@ class OneTwoFourAllResult:
     model_calls: dict[str, int] = field(default_factory=dict)
 
 
-def _extract_text(response) -> str:
-    """Pull plain text from an Anthropic API response."""
-    for block in response.content:
-        if block.type == "text":
-            return block.text
-    return ""
 
 
 class OneTwoFourAllOrchestrator:
@@ -60,8 +56,8 @@ class OneTwoFourAllOrchestrator:
     def __init__(
         self,
         agents: list[AgentSpec],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         self.agents = agents
@@ -88,7 +84,7 @@ class OneTwoFourAllOrchestrator:
                 {"role": "user", "content": SOLO_IDEATION_PROMPT.format(question=question)},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _merge(self, question: str, ideas_a: str, ideas_b: str, prompt_template: str) -> str:
         """Generic merge using orchestration model (Haiku)."""
@@ -104,7 +100,7 @@ class OneTwoFourAllOrchestrator:
                 {"role": "user", "content": prompt},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     @staticmethod
     def _make_pairs(items: list) -> list[tuple]:
@@ -129,7 +125,8 @@ class OneTwoFourAllOrchestrator:
 
         # --- Stage 1: Solo ideation (parallel, Opus) ---
         solo_tasks = [self._solo_ideate(a, question) for a in self.agents]
-        solo_texts = await asyncio.gather(*solo_tasks)
+        solo_texts = await asyncio.gather(*solo_tasks, return_exceptions=True)
+        solo_texts = filter_exceptions(solo_texts, label="p14_one_two_four_all")
         _count(self.thinking_model, len(self.agents))
 
         solo_outputs: dict[str, str] = {}
@@ -150,7 +147,8 @@ class OneTwoFourAllOrchestrator:
             merge_tasks.append(self._merge(question, a["text"], b["text"], PAIR_MERGE_PROMPT))
             pair_meta.append({"names": a["names"] + b["names"]})
 
-        pair_texts = await asyncio.gather(*merge_tasks)
+        pair_texts = await asyncio.gather(*merge_tasks, return_exceptions=True)
+        pair_texts = filter_exceptions(pair_texts, label="p14_one_two_four_all")
         _count(self.orchestration_model, len(pairs))
 
         next_stage = []
@@ -175,7 +173,8 @@ class OneTwoFourAllOrchestrator:
             merge_tasks.append(self._merge(question, a["text"], b["text"], QUAD_MERGE_PROMPT))
             quad_meta.append({"names": a["names"] + b["names"]})
 
-        quad_texts = await asyncio.gather(*merge_tasks)
+        quad_texts = await asyncio.gather(*merge_tasks, return_exceptions=True)
+        quad_texts = filter_exceptions(quad_texts, label="p14_one_two_four_all")
         _count(self.orchestration_model, len(pairs))
 
         final_inputs = []
@@ -204,7 +203,7 @@ class OneTwoFourAllOrchestrator:
                 {"role": "user", "content": prompt},
             ],
         )
-        final_text = _extract_text(response)
+        final_text = extract_text(response)
         _count(self.thinking_model)
 
         return OneTwoFourAllResult(

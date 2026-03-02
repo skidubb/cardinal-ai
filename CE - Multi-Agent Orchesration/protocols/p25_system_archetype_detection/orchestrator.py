@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     DYNAMICS_OBSERVATION_PROMPT,
     DYNAMICS_MERGE_PROMPT,
@@ -59,8 +61,8 @@ class ArchetypeResult:
 class ArchetypeDetector:
     """Runs the four-phase System Archetype Detection protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -141,10 +143,11 @@ class ArchetypeDetector:
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return parsed.get("dynamics", [])
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p25_system_archetype_detection")
         return [d for batch in results for d in batch]
 
     # ------------------------------------------------------------------
@@ -167,7 +170,7 @@ class ArchetypeDetector:
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
         )
-        parsed = self._parse_json_object(self._extract_text(resp))
+        parsed = parse_json_object(extract_text(resp))
         return [
             ObservedDynamic(
                 id=d.get("id", ""),
@@ -200,10 +203,11 @@ class ArchetypeDetector:
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return parsed.get("scores", [])
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p25_system_archetype_detection")
         return list(results)
 
     # ------------------------------------------------------------------
@@ -253,37 +257,10 @@ class ArchetypeDetector:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}

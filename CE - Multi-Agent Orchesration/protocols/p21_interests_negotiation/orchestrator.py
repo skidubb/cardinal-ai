@@ -14,8 +14,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     SURFACE_INTERESTS_PROMPT,
     INTEREST_MAP_PROMPT,
@@ -56,8 +58,8 @@ class NegotiationResult:
 class InterestsNegotiationOrchestrator:
     """Runs the four-phase Interests-Based Negotiation protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -161,10 +163,11 @@ class InterestsNegotiationOrchestrator:
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return agent["name"], parsed.get("interests", [])
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p21_interests_negotiation")
         return {name: interests for name, interests in results}
 
     # ------------------------------------------------------------------
@@ -187,7 +190,7 @@ class InterestsNegotiationOrchestrator:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     # ------------------------------------------------------------------
     # Phase 3: Generate Options
@@ -217,13 +220,14 @@ class InterestsNegotiationOrchestrator:
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             opts = parsed.get("options", [])
             for opt in opts:
                 opt["proposed_by"] = agent["name"]
             return opts
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p21_interests_negotiation")
         return [opt for batch in results for opt in batch]
 
     # ------------------------------------------------------------------
@@ -253,7 +257,7 @@ class InterestsNegotiationOrchestrator:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        parsed = self._parse_json_object(self._extract_text(resp))
+        parsed = parse_json_object(extract_text(resp))
         return parsed.get("scores", [])
 
     # ------------------------------------------------------------------
@@ -297,40 +301,13 @@ class InterestsNegotiationOrchestrator:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}
 
     @staticmethod
     def _format_interests_block(interest_maps: dict[str, list[dict]]) -> str:

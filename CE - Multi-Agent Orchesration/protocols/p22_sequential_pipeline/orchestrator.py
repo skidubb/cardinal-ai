@@ -8,8 +8,10 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text
 
 from .prompts import FINAL_SYNTHESIS_PROMPT, QUALITY_GATE_PROMPT, STAGE_PROMPT
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 @dataclass
@@ -31,12 +33,6 @@ class SequentialPipelineResult:
     final_output: str = ""
 
 
-def _extract_text(response) -> str:
-    """Extract text content from an Anthropic API response."""
-    for block in response.content:
-        if block.type == "text":
-            return block.text.strip()
-    return ""
 
 
 def _format_prior_outputs(stages: list[StageOutput]) -> str:
@@ -62,8 +58,8 @@ class SequentialPipelineOrchestrator:
 
     def __init__(
         self,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         max_thinking_tokens: int = 10000,
     ):
         self.client = anthropic.AsyncAnthropic()
@@ -102,7 +98,7 @@ class SequentialPipelineOrchestrator:
 
         return StageOutput(
             agent_name=agent["name"],
-            content=_extract_text(response),
+            content=extract_text(response),
             stage_number=stage_number,
         )
 
@@ -122,7 +118,7 @@ class SequentialPipelineOrchestrator:
             messages=[{"role": "user", "content": prompt}],
         )
 
-        text = _extract_text(response)
+        text = extract_text(response)
         try:
             return json.loads(text)
         except json.JSONDecodeError:
@@ -156,7 +152,7 @@ class SequentialPipelineOrchestrator:
             messages=[{"role": "user", "content": prompt}],
         )
 
-        return _extract_text(response)
+        return extract_text(response)
 
     async def run(
         self, question: str, agents: list[dict]

@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     GENERATE_SPECS_PROMPT,
     DEDUP_SPECS_PROMPT,
@@ -68,8 +70,8 @@ class MinSpecsResult:
 class MinSpecsOrchestrator:
     """Runs the five-phase Min Specs protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -177,10 +179,11 @@ class MinSpecsOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(_extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return parsed.get("specs", [])
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p08_min_specs")
         return [s for batch in results for s in batch]
 
     # ------------------------------------------------------------------
@@ -201,7 +204,7 @@ class MinSpecsOrchestrator:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        parsed = self._parse_json_object(_extract_text(resp))
+        parsed = parse_json_object(extract_text(resp))
         return [
             Spec(id=s.get("id", f"S{i+1}"), description=s.get("description", ""))
             for i, s in enumerate(parsed.get("specs", []))
@@ -227,7 +230,7 @@ class MinSpecsOrchestrator:
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(_extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return EliminationVerdict(
                 spec_id=spec.id,
                 verdict=parsed.get("verdict", "BORDERLINE").upper(),
@@ -240,7 +243,9 @@ class MinSpecsOrchestrator:
             async with sem:
                 return await _test_one(spec)
 
-        return await asyncio.gather(*[_throttled(s) for s in specs])
+        _results = await asyncio.gather(*[_throttled(s, return_exceptions=True) for s in specs])
+        _results = filter_exceptions(_results, label="p08_min_specs")
+        return _results
 
     # ------------------------------------------------------------------
     # Phase 4: Borderline Vote
@@ -271,7 +276,7 @@ class MinSpecsOrchestrator:
                 max_tokens=512,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(_extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return BorderlineVote(
                 spec_id=spec.id,
                 agent_name=agent["name"],
@@ -286,7 +291,9 @@ class MinSpecsOrchestrator:
                 return await _vote_one(agent, spec)
 
         tasks = [_throttled(a, s) for s in borderlines for a in self.agents]
-        return await asyncio.gather(*tasks)
+        _results = await asyncio.gather(*tasks, return_exceptions=True)
+        _results = filter_exceptions(_results, label="p08_min_specs")
+        return _results
 
     # ------------------------------------------------------------------
     # Phase 5: Final Synthesis
@@ -342,37 +349,9 @@ class MinSpecsOrchestrator:
             },
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}
-
-
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Pull plain text from an Anthropic API response."""
-    for block in response.content:
-        if hasattr(block, "text"):
-            return block.text
-    return ""

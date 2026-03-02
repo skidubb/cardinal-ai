@@ -20,6 +20,7 @@ import asyncio
 import json
 
 from .orchestrator import LookBackOrchestrator
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 def print_result(result):
@@ -60,10 +61,11 @@ def main():
     parser.add_argument("--question", "-q", required=True, help="The original question that was analyzed")
     parser.add_argument("--analysis", "-a", required=True, help="The protocol output to reflect on (text or @filepath)")
     parser.add_argument("--protocol-used", "-p", required=True, help="Name of the protocol that produced the analysis")
-    parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for reflection phases")
-    parser.add_argument("--orchestration-model", default="claude-haiku-4-5-20251001", help="Model for meta-synthesis")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL, help="Model for reflection phases")
+    parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for meta-synthesis")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking (default: 10000)")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output result as JSON")
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     analysis = _load_analysis(args.analysis)

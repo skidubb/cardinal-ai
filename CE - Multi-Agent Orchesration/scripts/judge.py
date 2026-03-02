@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
+from protocols.config import THINKING_MODEL
 
 ROOT = Path(__file__).resolve().parent.parent
 EVALUATIONS_DIR = ROOT / "evaluations"
@@ -107,7 +108,7 @@ class JudgeResult:
 class BlindJudge:
     """Scores anonymized outputs on 7 dimensions using Opus."""
 
-    def __init__(self, model: str = "claude-opus-4-6") -> None:
+    def __init__(self, model: str = THINKING_MODEL) -> None:
         self.client = anthropic.AsyncAnthropic()
         self.model = model
 
@@ -259,7 +260,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Blind evaluation judge")
     parser.add_argument("files", nargs="*", help="Evaluation JSON files to judge")
     parser.add_argument("--question", "-q", help="Judge all evals for this question ID")
-    parser.add_argument("--model", default="claude-opus-4-6", help="Judge model")
+    parser.add_argument("--model", default=THINKING_MODEL, help="Judge model")
     args = parser.parse_args()
 
     files = collect_eval_files(args.files, args.question)

@@ -13,6 +13,7 @@ import asyncio
 import json
 
 from .orchestrator import SquareOrchestrator
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 def print_result(result):
@@ -35,10 +36,11 @@ def main():
     parser = argparse.ArgumentParser(description="P42: Aristotle Square of Opposition")
     parser.add_argument("--position-a", "-a", required=True, help="First position")
     parser.add_argument("--position-b", "-b", required=True, help="Second position")
-    parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for agent reasoning")
-    parser.add_argument("--orchestration-model", default="claude-haiku-4-5-20251001", help="Model for mechanical steps")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL, help="Model for agent reasoning")
+    parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for mechanical steps")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output raw JSON")
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     orchestrator = SquareOrchestrator(

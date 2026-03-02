@@ -8,7 +8,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     CONSOLIDATE_IMPLICATIONS_PROMPT,
     CONSOLIDATE_OBSERVATIONS_PROMPT,
@@ -34,12 +36,6 @@ class WhatSoWhatNowWhatResult:
     model_calls: dict[str, int] = field(default_factory=dict)
 
 
-def _extract_text(response) -> str:
-    """Pull plain text from an Anthropic API response."""
-    for block in response.content:
-        if block.type == "text":
-            return block.text
-    return ""
 
 
 class WhatSoWhatNowWhatOrchestrator:
@@ -53,8 +49,8 @@ class WhatSoWhatNowWhatOrchestrator:
         thinking_budget: int = 10_000,
     ):
         self.agents = agents
-        self.thinking_model = thinking_model or "claude-opus-4-6"
-        self.orchestration_model = orchestration_model or "claude-haiku-4-5-20251001"
+        self.thinking_model = thinking_model or THINKING_MODEL
+        self.orchestration_model = orchestration_model or ORCHESTRATION_MODEL
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
@@ -74,7 +70,7 @@ class WhatSoWhatNowWhatOrchestrator:
             system=agent["system_prompt"],
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _orchestrate(self, prompt: str) -> str:
         """Call orchestration model (Haiku) for consolidation."""
@@ -83,7 +79,7 @@ class WhatSoWhatNowWhatOrchestrator:
             max_tokens=8_000,
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     def _count(self, calls: dict[str, int], model: str, n: int = 1) -> None:
         calls[model] = calls.get(model, 0) + n
@@ -102,7 +98,8 @@ class WhatSoWhatNowWhatOrchestrator:
             self._think(agent, WHAT_PROMPT.format(question=question))
             for agent in self.agents
         ]
-        what_texts = await asyncio.gather(*what_tasks)
+        what_texts = await asyncio.gather(*what_tasks, return_exceptions=True)
+        what_texts = filter_exceptions(what_texts, label="p15_what_so_what_now_what")
         self._count(model_calls, self.thinking_model, len(self.agents))
         timings["phase1_what"] = round(time.time() - t0, 2)
 
@@ -135,7 +132,8 @@ class WhatSoWhatNowWhatOrchestrator:
             )
             for agent in self.agents
         ]
-        so_what_texts = await asyncio.gather(*so_what_tasks)
+        so_what_texts = await asyncio.gather(*so_what_tasks, return_exceptions=True)
+        so_what_texts = filter_exceptions(so_what_texts, label="p15_what_so_what_now_what")
         self._count(model_calls, self.thinking_model, len(self.agents))
         timings["phase3_so_what"] = round(time.time() - t0, 2)
 
@@ -171,7 +169,8 @@ class WhatSoWhatNowWhatOrchestrator:
             )
             for agent in self.agents
         ]
-        now_what_texts = await asyncio.gather(*now_what_tasks)
+        now_what_texts = await asyncio.gather(*now_what_tasks, return_exceptions=True)
+        now_what_texts = filter_exceptions(now_what_texts, label="p15_what_so_what_now_what")
         self._count(model_calls, self.thinking_model, len(self.agents))
         timings["phase5_now_what"] = round(time.time() - t0, 2)
 
@@ -203,7 +202,7 @@ class WhatSoWhatNowWhatOrchestrator:
                 }
             ],
         )
-        final_synthesis = _extract_text(response)
+        final_synthesis = extract_text(response)
         self._count(model_calls, self.thinking_model)
         timings["phase6_final_synthesis"] = round(time.time() - t0, 2)
 

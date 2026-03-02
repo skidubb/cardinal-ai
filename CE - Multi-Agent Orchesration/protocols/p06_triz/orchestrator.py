@@ -10,8 +10,9 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protocols.llm import agent_complete, extract_text
+from protocols.llm import agent_complete, extract_text, parse_json_array, filter_exceptions
 from protocols.tracing import make_client
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     DEDUPLICATION_PROMPT,
     FAILURE_GENERATION_PROMPT,
@@ -55,8 +56,8 @@ class TRIZOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
         trace: bool = False,
         trace_path: str | None = None,
@@ -131,9 +132,12 @@ class TRIZOrchestrator:
                 anthropic_client=self.client,
             )
 
-        return await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+        _results = await asyncio.gather(
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        _results = filter_exceptions(_results, label="p06_triz")
+        return _results
 
     async def _deduplicate(self, all_failures: str) -> list[FailureMode]:
         """Stage 3: Deduplicate and categorize failure modes."""
@@ -145,7 +149,7 @@ class TRIZOrchestrator:
                 "content": DEDUPLICATION_PROMPT.format(all_failures=all_failures),
             }],
         )
-        data = _parse_json_array(extract_text(response))
+        data = parse_json_array(extract_text(response))
         return [
             FailureMode(
                 id=item["id"],
@@ -171,7 +175,7 @@ class TRIZOrchestrator:
                 "content": INVERSION_PROMPT.format(failures_json=failures_json),
             }],
         )
-        data = _parse_json_array(extract_text(response))
+        data = parse_json_array(extract_text(response))
         return [
             Solution(
                 failure_id=item["failure_id"],
@@ -207,7 +211,7 @@ class TRIZOrchestrator:
                 "content": RANKING_PROMPT.format(failures_and_solutions=combined),
             }],
         )
-        data = _parse_json_array(extract_text(response))
+        data = parse_json_array(extract_text(response))
         score_map = {item["failure_id"]: item for item in data}
         for f in failures:
             if f.id in score_map:
@@ -256,46 +260,3 @@ class TRIZOrchestrator:
         return extract_text(response)
 
 
-def _parse_json_array(text: str) -> list[dict]:
-    """Extract a JSON array from LLM output that may contain markdown fences.
-
-    Handles truncated JSON by attempting repair (closing brackets/braces).
-    """
-    import re
-
-    text = text.strip()
-    # Try to find JSON array between markdown fences
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    # Fallback: find the first [ ... ] in the text
-    if not text.startswith("["):
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        # Attempt truncation repair: close open strings/objects/arrays
-        repaired = text.rstrip()
-        if repaired.endswith(","):
-            repaired = repaired[:-1]
-        # Close any unclosed structures
-        open_braces = repaired.count("{") - repaired.count("}")
-        open_brackets = repaired.count("[") - repaired.count("]")
-        repaired += "}" * max(0, open_braces)
-        repaired += "]" * max(0, open_brackets)
-        # If inside an unterminated string, close it first
-        if repaired.count('"') % 2 == 1:
-            repaired = repaired + '"}'  * 0 + '"'
-            # Recount after string fix
-            open_braces = repaired.count("{") - repaired.count("}")
-            open_brackets = repaired.count("[") - repaired.count("]")
-            repaired += "}" * max(0, open_braces)
-            repaired += "]" * max(0, open_brackets)
-        try:
-            return json.loads(repaired)
-        except json.JSONDecodeError:
-            raise ValueError(f"Cannot parse JSON array (len={len(text)}): {text[:200]}...")

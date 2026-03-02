@@ -16,6 +16,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from protocols.config import THINKING_MODEL
 
 ROOT = Path(__file__).resolve().parent.parent
 BENCHMARK_FILE = ROOT / "benchmark-questions.json"
@@ -57,7 +58,7 @@ def main() -> None:
     parser.add_argument("--thinking-model", default=None, help="Override the thinking model")
     parser.add_argument("--dry-run", action="store_true", help="Show the command without executing")
     parser.add_argument("--judge", action="store_true", help="Auto-run blind judge after protocol execution")
-    parser.add_argument("--judge-model", default="claude-opus-4-6", help="Model for judge (default: claude-opus-4-6)")
+    parser.add_argument("--judge-model", default=THINKING_MODEL, help="Model for judge (default: claude-opus-4-6)")
     args = parser.parse_args()
 
     # Load question

@@ -12,8 +12,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 import anthropic
+from protocols.llm import extract_text
 
 from .prompts import RECOMMEND_SYNTHESIS_PROMPT
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 WEIGHTS_PATH = os.path.join(os.path.expanduser("~"), ".coordination-lab", "weights.json")
@@ -45,23 +47,14 @@ def _save_weights(data: dict) -> None:
         json.dump(data, f, indent=2)
 
 
-def _extract_text(message) -> str:
-    """Pull plain text from an Anthropic message response."""
-    parts = []
-    for block in message.content:
-        if block.type == "text":
-            parts.append(block.text)
-    return "\n".join(parts)
-
-
 class WhiteheadOrchestrator:
     """Manages agent performance weights across protocols and problem types."""
 
     def __init__(
         self,
         agents: list[dict] | None = None,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         self.agents = agents or []
@@ -131,7 +124,7 @@ class WhiteheadOrchestrator:
                 max_tokens=500,
                 messages=[{"role": "user", "content": prompt}],
             )
-            synthesis = _extract_text(msg)
+            synthesis = extract_text(msg)
 
         return WeightResult(
             mode="recommend",

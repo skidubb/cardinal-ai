@@ -17,6 +17,7 @@ from pathlib import Path
 import anthropic
 
 from scripts.emergence_prompts import EMERGENCE_JUDGE_SYSTEM, EMERGENCE_USER_TEMPLATE
+from protocols.config import THINKING_MODEL
 
 ROOT = Path(__file__).resolve().parent.parent
 EMERGENCE_DIR = ROOT / "evaluations" / "emergence"
@@ -68,7 +69,7 @@ def classify_zone(concrete: float, perceptual: float) -> str:
 class EmergenceDetector:
     """Scores two protocol outputs on the emergence rubric using Opus."""
 
-    def __init__(self, model: str = "claude-opus-4-6") -> None:
+    def __init__(self, model: str = THINKING_MODEL) -> None:
         self.client = anthropic.AsyncAnthropic()
         self.model = model
 

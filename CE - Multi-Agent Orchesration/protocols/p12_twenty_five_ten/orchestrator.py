@@ -16,8 +16,10 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from .prompts import IDEA_GENERATION_PROMPT, SCORING_PROMPT, SYNTHESIS_PROMPT
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 @dataclass
@@ -51,8 +53,8 @@ class TwentyFiveTenOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         scoring_rounds: int = 5,
     ):
         if not agents or len(agents) < 2:
@@ -107,12 +109,14 @@ class TwentyFiveTenOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            text = _extract_text(response)
+            text = extract_text(response)
             return _parse_idea_card(idx, agent["name"], text)
 
         cards = await asyncio.gather(
-            *(gen_idea(i, agent) for i, agent in enumerate(self.agents))
+            *(gen_idea(i, agent, return_exceptions=True) for i, agent in enumerate(self.agents)),
+            return_exceptions=True,
         )
+        cards = filter_exceptions(cards, label="p12_twenty_five_ten")
         return list(cards)
 
     async def _score_ideas(
@@ -148,7 +152,7 @@ class TwentyFiveTenOrchestrator:
                 )
 
             if round_tasks:
-                await asyncio.gather(*round_tasks)
+                await asyncio.gather(*round_tasks, return_exceptions=True)
 
     async def _score_single(
         self, challenge: str, agent: dict, idea: IdeaCard
@@ -167,9 +171,9 @@ class TwentyFiveTenOrchestrator:
                 ),
             }],
         )
-        text = _extract_text(response)
+        text = extract_text(response)
         try:
-            score_data = _parse_json_object(text)
+            score_data = parse_json_object(text)
             idea.scores.append({
                 "scorer": agent["name"],
                 "boldness": score_data.get("boldness", 3),
@@ -234,20 +238,9 @@ class TwentyFiveTenOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response) -> str:
-    """Get text from an Anthropic response."""
-    for block in response.content:
-        if hasattr(block, "text") and block.text:
-            return block.text
-    block_info = [type(b).__name__ for b in response.content]
-    raise RuntimeError(
-        f"No text in response. Stop: {response.stop_reason}, "
-        f"usage: in={response.usage.input_tokens} out={response.usage.output_tokens}, "
-        f"blocks: {block_info}"
-    )
 
 
 def _parse_idea_card(idx: int, author: str, text: str) -> IdeaCard:
@@ -271,15 +264,3 @@ def _parse_idea_card(idx: int, author: str, text: str) -> IdeaCard:
     return IdeaCard(id=idx, author=author, title=title, idea=idea, bold_because=bold)
 
 
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output."""
-    text = text.strip()
-    match = re.search(r"```(?:json)?\s*\n(.*?)(?:```|$)", text, re.DOTALL)
-    if match:
-        text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

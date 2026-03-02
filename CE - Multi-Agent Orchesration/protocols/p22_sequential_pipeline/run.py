@@ -53,9 +53,10 @@ def main():
         "--thinking-tokens", "-t", type=int, default=10000,
         help="Max thinking tokens per stage (default: 10000).",
     )
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
-    agents = build_agents(args.agents)
+    agents = build_agents(args.agents, mode=args.mode)
 
     print(f"P22: Sequential Pipeline")
     print(f"Question: {args.question}")

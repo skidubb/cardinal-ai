@@ -20,6 +20,8 @@ from sqlmodel import Session
 
 from api.database import engine
 from api.models import AgentOutput, Run, RunStep
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
+from protocols.llm import set_event_queue, set_no_tools
 
 
 # ── Protocol → orchestrator class mapping ────────────────────────────────────
@@ -133,9 +135,10 @@ async def run_protocol_stream(
     protocol_key: str,
     question: str,
     agent_keys: list[str],
-    thinking_model: str = "claude-opus-4-6",
-    orchestration_model: str = "claude-haiku-4-5-20251001",
+    thinking_model: str = THINKING_MODEL,
+    orchestration_model: str = ORCHESTRATION_MODEL,
     rounds: int | None = None,
+    no_tools: bool = False,
 ) -> AsyncGenerator[str, None]:
     """Execute a protocol and yield SSE events."""
 
@@ -170,9 +173,36 @@ async def run_protocol_stream(
 
         yield _sse_event("stage", {"message": "Running protocol..."})
 
+        # Set up event queue for live tool visibility
+        queue: asyncio.Queue = asyncio.Queue()
+        set_event_queue(queue)
+        set_no_tools(no_tools)
+        tool_events: list[dict] = []
+
         t0 = time.time()
-        result = await orchestrator.run(question)
+        orch_task = asyncio.create_task(orchestrator.run(question))
+
+        # Drain queue live, yielding SSE events as tools fire
+        while not orch_task.done():
+            try:
+                evt = await asyncio.wait_for(queue.get(), timeout=0.1)
+                if evt is None:
+                    break
+                tool_events.append(evt)
+                yield _sse_event(evt["event"], evt)
+            except asyncio.TimeoutError:
+                continue
+
+        result = await orch_task
         elapsed = time.time() - t0
+
+        # Drain any remaining queued events
+        while not queue.empty():
+            evt = queue.get_nowait()
+            if evt is None:
+                break
+            tool_events.append(evt)
+            yield _sse_event(evt["event"], evt)
 
         # Extract outputs from result dataclass
         outputs = _extract_outputs(result, agent_keys)
@@ -193,12 +223,29 @@ async def run_protocol_stream(
                 run.completed_at = datetime.now(timezone.utc)
                 session.add(run)
 
+                # Group tool events by agent key
+                tool_events_by_agent: dict[str, list] = {}
+                for te in tool_events:
+                    aname = te.get("agent_name", "")
+                    tool_events_by_agent.setdefault(aname, []).append({
+                        "name": te.get("tool_name", ""),
+                        "input_summary": te.get("tool_input", "")[:200] if te.get("event") == "tool_call" else None,
+                        "result_preview": te.get("result_preview", "")[:200] if te.get("event") == "tool_result" else None,
+                        "elapsed_ms": te.get("elapsed_ms"),
+                        "event": te.get("event"),
+                    })
+
                 for out in outputs:
+                    agent_key = out.get("agent_key", "")
+                    agent_name = out.get("agent_name", "")
+                    # Match tool events to agent by name
+                    matched_tools = tool_events_by_agent.get(agent_name, [])
                     agent_out = AgentOutput(
                         run_id=run_id,
-                        agent_key=out.get("agent_key", ""),
+                        agent_key=agent_key,
                         model=thinking_model,
                         output_text=out.get("text", ""),
+                        tool_calls_json=json.dumps(matched_tools) if matched_tools else "[]",
                     )
                     session.add(agent_out)
 
@@ -278,14 +325,38 @@ async def run_pipeline_stream(
 
             kwargs: dict[str, Any] = {
                 "agents": agents,
-                "thinking_model": step.get("thinking_model", "claude-opus-4-6"),
-                "orchestration_model": step.get("orchestration_model", "claude-haiku-4-5-20251001"),
+                "thinking_model": step.get("thinking_model", THINKING_MODEL),
+                "orchestration_model": step.get("orchestration_model", ORCHESTRATION_MODEL),
             }
             if step.get("rounds"):
                 kwargs["rounds"] = step["rounds"]
 
             orchestrator = OrchestratorClass(**kwargs)
-            result = await orchestrator.run(step_question)
+
+            # Set up event queue and tool controls for this step
+            pip_queue: asyncio.Queue = asyncio.Queue()
+            set_event_queue(pip_queue)
+            set_no_tools(step.get("no_tools", False))
+
+            pip_task = asyncio.create_task(orchestrator.run(step_question))
+
+            while not pip_task.done():
+                try:
+                    evt = await asyncio.wait_for(pip_queue.get(), timeout=0.1)
+                    if evt is None:
+                        break
+                    yield _sse_event(evt["event"], {**evt, "step": i})
+                except asyncio.TimeoutError:
+                    continue
+
+            result = await pip_task
+
+            # Drain remaining
+            while not pip_queue.empty():
+                evt = pip_queue.get_nowait()
+                if evt is None:
+                    break
+                yield _sse_event(evt["event"], {**evt, "step": i})
 
             outputs = _extract_outputs(result, agent_keys)
             synthesis = _extract_synthesis(result)

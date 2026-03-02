@@ -13,6 +13,7 @@ import requests
 import fitz  # PyMuPDF
 import anthropic
 from pinecone import Pinecone
+from protocols.config import ORCHESTRATION_MODEL
 
 # --- Config ---
 PINECONE_INDEX = "multi-agent-kb"
@@ -20,7 +21,7 @@ NAMESPACE = "academic-papers"
 CHUNK_SIZE = 1500  # chars per chunk
 CHUNK_OVERLAP = 200
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "context", "papers_pdf")
-HAIKU_MODEL = "claude-haiku-4-5-20251001"
+HAIKU_MODEL = ORCHESTRATION_MODEL
 
 # --- Papers to process ---
 PAPERS = [

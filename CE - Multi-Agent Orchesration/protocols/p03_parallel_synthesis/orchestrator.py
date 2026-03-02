@@ -9,9 +9,10 @@ import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protocols.llm import agent_complete, extract_text
+from protocols.llm import agent_complete, extract_text, filter_exceptions
 from protocols.tracing import make_client
 from .prompts import SYNTHESIS_SYSTEM_PROMPT
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 @dataclass
@@ -33,8 +34,8 @@ class SynthesisOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
         trace: bool = False,
         trace_path: str | None = None,
@@ -85,9 +86,12 @@ class SynthesisOrchestrator:
                 anthropic_client=self.client,
             )
 
-        return await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+        _results = await asyncio.gather(
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        _results = filter_exceptions(_results, label="p03_parallel_synthesis")
+        return _results
 
     async def _synthesize(
         self, question: str, perspectives: list[AgentPerspective]

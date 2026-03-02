@@ -10,9 +10,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
 from protocols.tracing import make_client
+from protocols.config import THINKING_MODEL
 from .prompts import (
     FINAL_PROMPT,
     OPENING_PROMPT,
@@ -51,7 +53,7 @@ class DebateOrchestrator:
         self,
         agents: list[dict],
         rounds: int = 3,
-        thinking_model: str = "claude-opus-4-6",
+        thinking_model: str = THINKING_MODEL,
         thinking_budget: int = 10_000,
         trace: bool = False,
         trace_path: str | None = None,
@@ -144,14 +146,17 @@ class DebateOrchestrator:
             )
             return DebateArgument(
                 name=agent["name"],
-                content=_extract_text(response),
+                content=extract_text(response),
                 round_number=round_number,
                 scope=get_primary_scope(agent),
             )
 
-        return await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+        _results = await asyncio.gather(
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        _results = filter_exceptions(_results, label="p04_multi_round_debate")
+        return _results
 
     async def _synthesize(
         self, question: str, rounds: list[DebateRound]
@@ -170,15 +175,8 @@ class DebateOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 

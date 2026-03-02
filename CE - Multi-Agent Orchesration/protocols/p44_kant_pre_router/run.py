@@ -12,6 +12,7 @@ import asyncio
 import json
 
 from .orchestrator import KantRouterOrchestrator
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 def print_result(result):
@@ -41,10 +42,11 @@ def print_result(result):
 def main():
     parser = argparse.ArgumentParser(description="P44: Kant Architectonic Pre-Router")
     parser.add_argument("--question", "-q", required=True, help="The question to classify and route")
-    parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for agent reasoning")
-    parser.add_argument("--orchestration-model", default="claude-haiku-4-5-20251001", help="Model for classification")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL, help="Model for agent reasoning")
+    parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for classification")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking (default: 10000)")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output raw JSON result")
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     orchestrator = KantRouterOrchestrator(

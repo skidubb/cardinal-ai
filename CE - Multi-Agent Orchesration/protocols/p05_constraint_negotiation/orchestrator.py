@@ -11,11 +11,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
 from protocols.tracing import make_client
 from .constraints import ConstraintExtractor, ConstraintStore
 from .prompts import OPENING_PROMPT, REVISION_PROMPT, SYNTHESIS_PROMPT
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 @dataclass
@@ -48,8 +50,8 @@ class NegotiationOrchestrator:
         self,
         agents: list[dict],
         rounds: int = 3,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
         trace: bool = False,
         trace_path: str | None = None,
@@ -103,10 +105,12 @@ class NegotiationOrchestrator:
             print(f"  Extracting constraints...")
             extractions = await asyncio.gather(
                 *(
-                    self.extractor.extract(arg.name, arg.content)
+                    self.extractor.extract(arg.name, arg.content, return_exceptions=True)
                     for arg in arguments
-                )
+                ),
+                return_exceptions=True,
             )
+            extractions = filter_exceptions(extractions, label="p05_constraint_negotiation")
             for constraints in extractions:
                 self.constraint_store.add_many(constraints)
 
@@ -152,14 +156,17 @@ class NegotiationOrchestrator:
             )
             return NegotiationArgument(
                 name=agent["name"],
-                content=_extract_text(response),
+                content=extract_text(response),
                 round_number=round_number,
                 scope=get_primary_scope(agent),
             )
 
-        return await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+        _results = await asyncio.gather(
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        _results = filter_exceptions(_results, label="p05_constraint_negotiation")
+        return _results
 
     async def _synthesize(
         self, question: str, rounds: list[NegotiationRound]
@@ -181,16 +188,9 @@ class NegotiationOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
 def _format_prior_arguments(rounds: list[NegotiationRound]) -> str:

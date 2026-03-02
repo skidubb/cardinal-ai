@@ -13,7 +13,8 @@ from typing import Any, Callable
 import anthropic
 
 from protocols.blackboard import Blackboard
-from protocols.llm import agent_complete, extract_text
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
+from protocols.llm import agent_complete, extract_text, filter_exceptions
 
 
 def parallel_agent_stage(
@@ -26,7 +27,7 @@ def parallel_agent_stage(
 
     async def execute(bb: Blackboard, agents: list[dict], **config) -> None:
         client = config.get("client")
-        thinking_model = config.get("thinking_model", "claude-opus-4-6")
+        thinking_model = config.get("thinking_model", THINKING_MODEL)
         thinking_budget = config.get("thinking_budget", 10_000)
 
         # Build prompt from blackboard input
@@ -45,7 +46,7 @@ def parallel_agent_stage(
             )
             bb.write(topic_out, response, author=agent["name"], stage=topic_out)
 
-        await asyncio.gather(*(query_agent(a) for a in agents))
+        await asyncio.gather(*(query_agent(a, return_exceptions=True) for a in agents))
 
     return execute
 
@@ -59,7 +60,7 @@ def sequential_agent_stage(
 
     async def execute(bb: Blackboard, agents: list[dict], **config) -> None:
         client = config.get("client")
-        thinking_model = config.get("thinking_model", "claude-opus-4-6")
+        thinking_model = config.get("thinking_model", THINKING_MODEL)
         thinking_budget = config.get("thinking_budget", 10_000)
 
         input_entry = bb.read_latest(topic_in)
@@ -98,7 +99,7 @@ def mechanical_stage(
 
     async def execute(bb: Blackboard, agents: list[dict], **config) -> None:
         client = config.get("client")
-        orchestration_model = config.get("orchestration_model", "claude-haiku-4-5-20251001")
+        orchestration_model = config.get("orchestration_model", ORCHESTRATION_MODEL)
 
         # Gather all entries for topic_in
         entries = bb.read(topic_in)
@@ -151,7 +152,7 @@ def synthesis_stage(
 
     async def execute(bb: Blackboard, agents: list[dict], **config) -> None:
         client = config.get("client")
-        thinking_model = config.get("thinking_model", "claude-opus-4-6")
+        thinking_model = config.get("thinking_model", THINKING_MODEL)
         thinking_budget = config.get("thinking_budget", 10_000)
 
         # Gather content from all input topics

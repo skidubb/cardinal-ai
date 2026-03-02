@@ -12,7 +12,9 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_array, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     EVIDENCE_SEARCH_PROMPT,
     GENERATE_CONDITIONS_PROMPT,
@@ -35,8 +37,8 @@ class FalsificationOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         if not agents:
@@ -81,11 +83,13 @@ class FalsificationOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            return _extract_text(response)
+            return extract_text(response)
 
         raw_outputs = await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        raw_outputs = filter_exceptions(raw_outputs, label="p39_popper_falsification")
 
         # Combine all agent outputs and deduplicate via orchestration model
         combined = "\n\n".join(
@@ -104,7 +108,7 @@ class FalsificationOrchestrator:
                 ),
             }],
         )
-        return _parse_json_array(response.content[0].text)
+        return parse_json_array(response.content[0].text)
 
     async def _search_evidence(
         self, recommendation: str, context: str, conditions: list[dict]
@@ -127,11 +131,13 @@ class FalsificationOrchestrator:
                     system=agent["system_prompt"],
                     messages=[{"role": "user", "content": prompt}],
                 )
-                return _extract_text(response)
+                return extract_text(response)
 
             results = await asyncio.gather(
-                *(query_agent(agent) for agent in self.agents)
+                *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+                return_exceptions=True,
             )
+            results = filter_exceptions(results, label="p39_popper_falsification")
             condition_dict["evidence_for"] = []
             condition_dict["evidence_against"] = []
             condition_dict["assessment"] = ""
@@ -140,7 +146,7 @@ class FalsificationOrchestrator:
                 for agent, result in zip(self.agents, results)
             }
 
-        await asyncio.gather(*(search_condition(c) for c in conditions))
+        await asyncio.gather(*(search_condition(c, return_exceptions=True) for c in conditions))
 
     async def _render_verdict(
         self, recommendation: str, result: FalsificationResult
@@ -167,7 +173,7 @@ class FalsificationOrchestrator:
                 ),
             }],
         )
-        data = _parse_json_object(response.content[0].text)
+        data = parse_json_object(response.content[0].text)
 
         # Update conditions with verdict info
         for verdict_cond in data.get("conditions", []):
@@ -182,40 +188,6 @@ class FalsificationOrchestrator:
         result.synthesis = data.get("synthesis", "")
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_array(text: str) -> list:
-    """Extract a JSON array from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("["):
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)
 
-
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

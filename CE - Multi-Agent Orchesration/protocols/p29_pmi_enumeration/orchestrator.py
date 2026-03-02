@@ -10,7 +10,9 @@ import asyncio
 from dataclasses import dataclass
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     INTERESTING_PROMPT,
     MINUS_PROMPT,
@@ -36,8 +38,8 @@ class PMIOrchestrator:
     def __init__(
         self,
         agents: list[dict] | None = None,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         """
@@ -101,9 +103,10 @@ class PMIOrchestrator:
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
             )
-            return _extract_text(response)
+            return extract_text(response)
 
-        results = await asyncio.gather(*(query_frame(p) for p in prompts))
+        results = await asyncio.gather(*(query_frame(p, return_exceptions=True) for p in prompts))
+        results = filter_exceptions(results, label="p29_pmi_enumeration")
         return results[0], results[1], results[2]
 
     async def _synthesize(self, result: PMIResult) -> str:
@@ -122,13 +125,6 @@ class PMIOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)

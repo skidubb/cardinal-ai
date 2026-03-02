@@ -15,7 +15,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     VARIABLE_EXTRACTION_PROMPT,
     DEDUPLICATION_PROMPT,
@@ -69,8 +71,8 @@ class CausalLoopResult:
 class CausalLoopOrchestrator:
     """Runs the five-phase Causal Loop Mapping protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -152,10 +154,11 @@ class CausalLoopOrchestrator:
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return parsed.get("variables", [])
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p24_causal_loop_mapping")
         return [v for batch in results for v in batch]
 
     # ------------------------------------------------------------------
@@ -179,7 +182,7 @@ class CausalLoopOrchestrator:
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
         )
-        parsed = self._parse_json_object(self._extract_text(resp))
+        parsed = parse_json_object(extract_text(resp))
         variables = []
         for v in parsed.get("variables", []):
             variables.append(Variable(
@@ -212,10 +215,11 @@ class CausalLoopOrchestrator:
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return parsed.get("links", [])
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p24_causal_loop_mapping")
         return [link for batch in results for link in batch]
 
     # ------------------------------------------------------------------
@@ -365,40 +369,13 @@ class CausalLoopOrchestrator:
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}
 
     @staticmethod
     def _format_variables_block(variables: list[Variable]) -> str:

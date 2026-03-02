@@ -10,7 +10,9 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_array, parse_json_object
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     AUDIT_PROMPT,
     DECOMPOSE_PROMPT,
@@ -33,8 +35,8 @@ class AuditChainOrchestrator:
 
     def __init__(
         self,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         self.thinking_model = thinking_model
@@ -81,8 +83,8 @@ class AuditChainOrchestrator:
                 ),
             }],
         )
-        text = _extract_text(response)
-        return _parse_json_array(text)
+        text = extract_text(response)
+        return parse_json_array(text)
 
     async def _audit(self, steps: list[dict]) -> list[dict]:
         """Phase 2: Audit each decomposed step."""
@@ -96,8 +98,8 @@ class AuditChainOrchestrator:
                 "content": AUDIT_PROMPT.format(steps_json=steps_json),
             }],
         )
-        text = _extract_text(response)
-        return _parse_json_array(text)
+        text = extract_text(response)
+        return parse_json_array(text)
 
     async def _verdict(
         self, steps: list[dict], findings: list[dict]
@@ -116,43 +118,9 @@ class AuditChainOrchestrator:
             }],
         )
         text = response.content[0].text
-        return _parse_json_object(text)
+        return parse_json_object(text)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_array(text: str) -> list[dict]:
-    """Extract a JSON array from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("["):
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)
 
-
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

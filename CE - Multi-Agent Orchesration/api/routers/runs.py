@@ -12,6 +12,7 @@ from sse_starlette.sse import EventSourceResponse
 from api.database import engine, get_session
 from api.models import AgentOutput, Run, RunStep
 from api.runner import run_pipeline_stream, run_protocol_stream
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -22,18 +23,20 @@ class ProtocolRunRequest(BaseModel):
     protocol_key: str
     question: str
     agent_keys: list[str]
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
     rounds: int | None = None
+    no_tools: bool = False
 
 
 class PipelineStepRequest(BaseModel):
     protocol_key: str
     question_template: str
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
     rounds: int | None = None
     output_passthrough: bool = True
+    no_tools: bool = False
 
 
 class PipelineRunRequest(BaseModel):
@@ -113,6 +116,7 @@ def get_run(run_id: int, session: Session = Depends(get_session)) -> dict:
                 "agent_key": o.agent_key,
                 "model": o.model,
                 "output_text": o.output_text,
+                "tool_calls": json.loads(o.tool_calls_json) if o.tool_calls_json != "[]" else [],
                 "input_tokens": o.input_tokens,
                 "output_tokens": o.output_tokens,
                 "cost_usd": o.cost_usd,
@@ -148,6 +152,7 @@ async def start_protocol_run(payload: ProtocolRunRequest) -> EventSourceResponse
             thinking_model=payload.thinking_model,
             orchestration_model=payload.orchestration_model,
             rounds=payload.rounds,
+            no_tools=payload.no_tools,
         ),
         media_type="text/event-stream",
     )
@@ -176,6 +181,7 @@ async def start_pipeline_run(payload: PipelineRunRequest) -> EventSourceResponse
             "orchestration_model": s.orchestration_model,
             "rounds": s.rounds,
             "output_passthrough": s.output_passthrough,
+            "no_tools": s.no_tools,
         }
         for s in payload.steps
     ]

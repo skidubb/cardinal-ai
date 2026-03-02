@@ -10,7 +10,9 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     RANKING_PROMPT,
     REFRAME_PROMPT,
@@ -35,8 +37,8 @@ class LanguageGameOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         if not agents:
@@ -87,7 +89,7 @@ class LanguageGameOrchestrator:
                 ),
             }],
         )
-        data = _parse_json_object(response.content[0].text)
+        data = parse_json_object(response.content[0].text)
         # Extract just domain strings
         assignments = {}
         for agent in self.agents:
@@ -115,11 +117,13 @@ class LanguageGameOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            return agent["name"], _extract_text(response)
+            return agent["name"], extract_text(response)
 
         results = await asyncio.gather(
-            *(reframe_agent(agent) for agent in self.agents)
+            *(reframe_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        results = filter_exceptions(results, label="p31_wittgenstein_language_game")
         return dict(results)
 
     async def _rank_reframings(self, question: str, reframings: dict[str, str]) -> str:
@@ -139,7 +143,7 @@ class LanguageGameOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _synthesize(
         self,
@@ -169,29 +173,8 @@ class LanguageGameOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output that may contain markdown fences."""
-    import re
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

@@ -18,6 +18,7 @@ import json
 
 
 from .orchestrator import SublationOrchestrator
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 def print_result(result):
@@ -74,10 +75,11 @@ def main():
     parser.add_argument("--question", "-q", required=True, help="The tension or conflict to resolve through sublation")
     parser.add_argument("--position-a", help="Explicit thesis position (optional — derived from question if omitted)")
     parser.add_argument("--position-b", help="Explicit antithesis position (optional — derived from question if omitted)")
-    parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for all phases")
-    parser.add_argument("--orchestration-model", default="claude-haiku-4-5-20251001", help="Model for mechanical steps (unused in this protocol)")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL, help="Model for all phases")
+    parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for mechanical steps (unused in this protocol)")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking (default: 10000)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     orchestrator = SublationOrchestrator(

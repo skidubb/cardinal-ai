@@ -8,7 +8,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     CLIENT_PRESENT_PROMPT,
     CLIENT_REFLECT_PROMPT,
@@ -50,12 +52,6 @@ class TroikaResult:
     timings: dict[str, float] = field(default_factory=dict)
 
 
-def _extract_text(response) -> str:
-    """Pull plain text from an Anthropic API response."""
-    for block in response.content:
-        if block.type == "text":
-            return block.text
-    return ""
 
 
 class TroikaOrchestrator:
@@ -64,8 +60,8 @@ class TroikaOrchestrator:
     def __init__(
         self,
         agents: list[AgentSpec],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         if len(agents) < 3:
@@ -97,7 +93,7 @@ class TroikaOrchestrator:
                 )},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _consultant_initial(
         self, consultant: AgentSpec, question: str,
@@ -117,7 +113,7 @@ class TroikaOrchestrator:
                 )},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _consultant_respond(
         self, consultant: AgentSpec, question: str,
@@ -140,7 +136,7 @@ class TroikaOrchestrator:
                 )},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _consolidate(
         self, question: str, client_name: str, problem_statement: str,
@@ -163,7 +159,7 @@ class TroikaOrchestrator:
                 )},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _client_reflect(
         self, agent: AgentSpec, question: str,
@@ -190,7 +186,7 @@ class TroikaOrchestrator:
                 )},
             ],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _run_single_round(
         self, question: str, client: AgentSpec,
@@ -293,7 +289,7 @@ class TroikaOrchestrator:
                     )},
                 ],
             )
-            final_synthesis = _extract_text(response)
+            final_synthesis = extract_text(response)
             _count(self.thinking_model)
             timings["final_synthesis"] = round(time.time() - synth_t0, 2)
         elif len(rounds) == 1:

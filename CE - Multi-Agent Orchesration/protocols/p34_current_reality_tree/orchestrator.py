@@ -9,7 +9,9 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     CAUSAL_CHAIN_PROMPT,
     LOGIC_AUDIT_PROMPT,
@@ -34,8 +36,8 @@ class CRTOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         if not agents:
@@ -91,11 +93,14 @@ class CRTOrchestrator:
                 system=agent["system_prompt"],
                 messages=messages,
             )
-            return _extract_text(response)
+            return extract_text(response)
 
-        return await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+        _results = await asyncio.gather(
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        _results = filter_exceptions(_results, label="p34_current_reality_tree")
+        return _results
 
     async def _build_causal_tree(self, question: str, all_udes: str) -> str:
         """Phase 2: Tree Builder constructs causal chain from UDEs."""
@@ -110,7 +115,7 @@ class CRTOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _audit_logic(self, question: str, causal_tree: str) -> str:
         """Phase 3: Logic Auditor validates causal links using CLR."""
@@ -125,7 +130,7 @@ class CRTOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
     async def _synthesize(
         self, question: str, causal_tree: str, logic_audit: str
@@ -144,13 +149,6 @@ class CRTOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)

@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
 from protocols.tracing import make_client
@@ -39,6 +40,7 @@ from .prompts import (
     STRESS_WHITE_PROMPT,
 )
 from .team_assignment import assign_teams
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 # ---------------------------------------------------------------------------
@@ -81,8 +83,8 @@ class Airport5GPipelineOrchestrator:
         self,
         agents: list[dict[str, str]],
         *,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
         negotiation_rounds: int = 3,
         trace: bool = False,
@@ -155,7 +157,8 @@ class Airport5GPipelineOrchestrator:
             self._call_agent(agent, DISCOVER_SOLO_PROMPT.format(question=question))
             for agent in self.agents
         ]
-        solo_texts = await asyncio.gather(*solo_tasks)
+        solo_texts = await asyncio.gather(*solo_tasks, return_exceptions=True)
+        solo_texts = filter_exceptions(solo_texts, label="airport_5g_pipeline")
         solo_outputs = {a["name"]: t for a, t in zip(self.agents, solo_texts)}
 
         # Phase 2: Pair merge (parallel, Haiku)
@@ -169,7 +172,8 @@ class Airport5GPipelineOrchestrator:
             self._merge_pair(question, solo_outputs[a["name"]], solo_outputs[b["name"]])
             for a, b in pairs
         ]
-        pair_texts = await asyncio.gather(*pair_tasks)
+        pair_texts = await asyncio.gather(*pair_tasks, return_exceptions=True)
+        pair_texts = filter_exceptions(pair_texts, label="airport_5g_pipeline")
 
         # Phase 3: Final synthesis (Opus)
         print("  Phase 3: Full group synthesis...")
@@ -197,7 +201,7 @@ class Airport5GPipelineOrchestrator:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     # ==================================================================
     # Stage 2: Diagnose (ACH)
@@ -217,7 +221,8 @@ class Airport5GPipelineOrchestrator:
             self._evaluate_hypotheses(agent, question, stage1_output, hyp_block)
             for agent in self.agents
         ]
-        all_evidence = await asyncio.gather(*eval_tasks)
+        all_evidence = await asyncio.gather(*eval_tasks, return_exceptions=True)
+        all_evidence = filter_exceptions(all_evidence, label="airport_5g_pipeline")
 
         # Build matrix from all agent evaluations
         matrix: dict[tuple[str, str], list[str]] = {}
@@ -293,7 +298,7 @@ class Airport5GPipelineOrchestrator:
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": synthesis_prompt}],
         )
-        synthesis_text = _extract_text(resp)
+        synthesis_text = extract_text(resp)
         synthesis_data = _parse_json(synthesis_text)
 
         return StageResult(
@@ -324,7 +329,7 @@ class Airport5GPipelineOrchestrator:
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
-        parsed = _parse_json(_extract_text(resp))
+        parsed = _parse_json(extract_text(resp))
         return parsed.get("evidence", [])
 
     # ==================================================================
@@ -363,7 +368,8 @@ class Airport5GPipelineOrchestrator:
                     for agent in self.agents
                 ]
 
-            texts = await asyncio.gather(*tasks)
+            texts = await asyncio.gather(*tasks, return_exceptions=True)
+            texts = filter_exceptions(texts, label="airport_5g_pipeline")
             arguments = [
                 {"name": a["name"], "content": t, "round": round_num}
                 for a, t in zip(self.agents, texts)
@@ -400,7 +406,7 @@ class Airport5GPipelineOrchestrator:
             system="You are a strategic synthesizer producing actionable conclusions from multi-stakeholder constraint negotiations.",
             messages=[{"role": "user", "content": synthesis_prompt}],
         )
-        synthesis_text = _extract_text(resp)
+        synthesis_text = extract_text(resp)
 
         return StageResult(
             stage_name="negotiate",
@@ -428,7 +434,7 @@ class Airport5GPipelineOrchestrator:
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     async def _negotiate_revision(
         self, agent: dict, question: str, winning_hypothesis: str,
@@ -448,7 +454,7 @@ class Airport5GPipelineOrchestrator:
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     # ==================================================================
     # Stage 4: Stress-Test (Red/Blue/White)
@@ -485,7 +491,8 @@ class Airport5GPipelineOrchestrator:
             self._red_attack(agent, question, consensus)
             for agent in red_agents
         ]
-        attacks_raw = await asyncio.gather(*attack_tasks)
+        attacks_raw = await asyncio.gather(*attack_tasks, return_exceptions=True)
+        attacks_raw = filter_exceptions(attacks_raw, label="airport_5g_pipeline")
         attacks = []
         for agent, raw in zip(red_agents, attacks_raw):
             parsed = _parse_json(raw)
@@ -502,7 +509,8 @@ class Airport5GPipelineOrchestrator:
             self._blue_defense(agent, question, consensus, attacks_block)
             for agent in blue_agents
         ]
-        defenses_raw = await asyncio.gather(*defense_tasks)
+        defenses_raw = await asyncio.gather(*defense_tasks, return_exceptions=True)
+        defenses_raw = filter_exceptions(defenses_raw, label="airport_5g_pipeline")
         defenses = []
         for agent, raw in zip(blue_agents, defenses_raw):
             parsed = _parse_json(raw)
@@ -556,7 +564,7 @@ class Airport5GPipelineOrchestrator:
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     async def _blue_defense(
         self, agent: dict, question: str, consensus: str, attacks_block: str,
@@ -574,7 +582,7 @@ class Airport5GPipelineOrchestrator:
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     async def _white_adjudicate(
         self, agent: dict, question: str, consensus: str,
@@ -593,7 +601,7 @@ class Airport5GPipelineOrchestrator:
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     # ==================================================================
     # Helpers
@@ -608,7 +616,7 @@ class Airport5GPipelineOrchestrator:
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     async def _call_synthesis(self, prompt: str) -> str:
         """Call synthesis with Opus + thinking (no agent system prompt)."""
@@ -618,7 +626,7 @@ class Airport5GPipelineOrchestrator:
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extract_text(resp)
+        return extract_text(resp)
 
     @staticmethod
     def _format_final_output(
@@ -684,12 +692,6 @@ class Airport5GPipelineOrchestrator:
 # Module-level helpers
 # ---------------------------------------------------------------------------
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
 def _parse_json(text: str) -> dict:

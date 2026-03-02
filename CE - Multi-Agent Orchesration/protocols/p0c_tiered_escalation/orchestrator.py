@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     TIER1_AGENT_PROMPT,
     TIER1_CONFIDENCE_PROMPT,
@@ -66,8 +68,8 @@ DEFAULT_AGENTS = [
 class TieredEscalation:
     """Runs the three-tier escalation meta-protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -159,7 +161,7 @@ class TieredEscalation:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        response_text = self._extract_text(resp)
+        response_text = extract_text(resp)
 
         # Evaluate confidence (Haiku)
         conf_prompt = TIER1_CONFIDENCE_PROMPT.format(
@@ -170,7 +172,7 @@ class TieredEscalation:
             max_tokens=256,
             messages=[{"role": "user", "content": conf_prompt}],
         )
-        conf = self._parse_json_object(self._extract_text(conf_resp))
+        conf = parse_json_object(extract_text(conf_resp))
 
         return TierResult(
             tier=1,
@@ -198,9 +200,10 @@ class TieredEscalation:
                 max_tokens=4096,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return agent["name"], self._extract_text(resp)
+            return agent["name"], extract_text(resp)
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p0c_tiered_escalation")
         agent_responses = {name: text for name, text in results}
 
         # Synthesis (Haiku)
@@ -215,7 +218,7 @@ class TieredEscalation:
             max_tokens=4096,
             messages=[{"role": "user", "content": synth_prompt}],
         )
-        synth = self._parse_json_object(self._extract_text(synth_resp))
+        synth = parse_json_object(extract_text(synth_resp))
 
         consensus_score = synth.get("consensus_score", 0.0)
         tier_result = TierResult(
@@ -258,11 +261,13 @@ class TieredEscalation:
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return agent["name"], self._extract_text(resp)
+            return agent["name"], extract_text(resp)
 
         rebuttal_results = await asyncio.gather(
-            *[_rebuttal(a) for a in self.agents],
+            *[_rebuttal(a, return_exceptions=True) for a in self.agents],
+            return_exceptions=True,
         )
+        rebuttal_results = filter_exceptions(rebuttal_results, label="p0c_tiered_escalation")
         rebuttals = {name: text for name, text in rebuttal_results}
 
         # Oversight (Haiku)
@@ -280,7 +285,7 @@ class TieredEscalation:
             max_tokens=4096,
             messages=[{"role": "user", "content": oversight_prompt}],
         )
-        oversight = self._parse_json_object(self._extract_text(oversight_resp))
+        oversight = parse_json_object(extract_text(oversight_resp))
 
         passes = oversight.get("passes_safety_check", False)
         final_response = oversight.get("final_response", tier2.response)
@@ -298,31 +303,4 @@ class TieredEscalation:
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}

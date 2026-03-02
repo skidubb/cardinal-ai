@@ -20,6 +20,7 @@ import json
 
 from .orchestrator import TRIZOrchestrator
 from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 def print_result(result):
@@ -59,16 +60,17 @@ def main():
     parser.add_argument("--question", "-q", required=True, help="The plan or question to stress-test")
     parser.add_argument("--agents", "-a", nargs="+", help="Built-in agent roles (e.g., ceo cfo cto)")
     parser.add_argument("--agent-config", help="Path to JSON file with custom agent definitions")
-    parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for agent reasoning")
-    parser.add_argument("--orchestration-model", default="claude-haiku-4-5-20251001", help="Model for mechanical steps")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL, help="Model for agent reasoning")
+    parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for mechanical steps")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking (default: 10000)")
     parser.add_argument("--trace", action="store_true", help="Enable JSONL execution tracing")
     parser.add_argument("--trace-path", default=None, help="Explicit trace file path")
     parser.add_argument("--blackboard", action="store_true", help="Use blackboard-driven orchestrator")
     parser.add_argument("--dry-run", action="store_true", help="Print config and exit (no LLM calls)")
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
-    agents = build_agents(args.agents, args.agent_config)
+    agents = build_agents(args.agents, args.agent_config, mode=args.mode)
     print(f"Running TRIZ Inversion with {len(agents)} agents: {', '.join(a['name'] for a in agents)}")
 
     if args.blackboard:

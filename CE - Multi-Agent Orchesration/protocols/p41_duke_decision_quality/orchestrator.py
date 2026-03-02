@@ -11,8 +11,10 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object
 
 from .prompts import ASSESSMENT_PROMPT, PROCESS_EVALUATION_PROMPT
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 @dataclass
@@ -39,8 +41,8 @@ class DecisionQualityOrchestrator:
 
     def __init__(
         self,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         self.thinking_model = thinking_model
@@ -91,8 +93,8 @@ class DecisionQualityOrchestrator:
             messages=[{"role": "user", "content": prompt}],
         )
 
-        text = _extract_text(response)
-        data = _parse_json_object(text)
+        text = extract_text(response)
+        data = parse_json_object(text)
 
         for dim in DIMENSIONS:
             if dim in data:
@@ -123,31 +125,5 @@ class DecisionQualityOrchestrator:
         return response.content[0].text
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_object(text: str) -> dict:
-    """Extract the first JSON object from text."""
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError:
-            pass
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
-    return {}

@@ -11,7 +11,9 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     ABDUCTION_PROMPT,
     DEDUCTION_PROMPT,
@@ -35,8 +37,8 @@ class AbductionOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
         max_cycles: int = 3,
     ):
@@ -113,11 +115,13 @@ class AbductionOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            return _extract_text(response)
+            return extract_text(response)
 
         responses = await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        responses = filter_exceptions(responses, label="p36_peirce_abduction")
         return "\n\n".join(
             f"=== {agent['name']} ===\n{resp}"
             for agent, resp in zip(self.agents, responses)
@@ -135,11 +139,13 @@ class AbductionOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            return _extract_text(response)
+            return extract_text(response)
 
         responses = await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        responses = filter_exceptions(responses, label="p36_peirce_abduction")
         return "\n\n".join(
             f"=== {agent['name']} ===\n{resp}"
             for agent, resp in zip(self.agents, responses)
@@ -159,11 +165,13 @@ class AbductionOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            return _extract_text(response)
+            return extract_text(response)
 
         responses = await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        responses = filter_exceptions(responses, label="p36_peirce_abduction")
         return "\n\n".join(
             f"=== {agent['name']} ===\n{resp}"
             for agent, resp in zip(self.agents, responses)
@@ -181,7 +189,7 @@ class AbductionOrchestrator:
                 ),
             }],
         )
-        return _parse_json_object(response.content[0].text)
+        return parse_json_object(response.content[0].text)
 
     async def _synthesize(self, question: str, cycles: list[dict]) -> str:
         """Produce final briefing across all cycles."""
@@ -197,28 +205,8 @@ class AbductionOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

@@ -24,6 +24,7 @@ from protocols.agents import build_agents
 from protocols.llm import set_no_tools
 from scripts.emergence import EmergenceDetector, save_emergence_result
 from scripts.pairs_config import PAIRS_BY_ID, get_pair_questions
+from protocols.config import THINKING_MODEL
 
 EVALUATIONS_DIR = ROOT / "evaluations"
 
@@ -192,7 +193,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run one emergence comparison pair")
     parser.add_argument("--pair", "-p", type=int, required=True, help="Pair ID (1-10)")
     parser.add_argument("--agents", "-a", nargs="+", default=["ceo", "cfo", "cto", "cmo"])
-    parser.add_argument("--thinking-model", default="claude-opus-4-6")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 

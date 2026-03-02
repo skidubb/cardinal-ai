@@ -9,7 +9,9 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, filter_exceptions
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     BLACK_HAT_PROMPT,
     BLUE_HAT_FRAMING_PROMPT,
@@ -35,8 +37,8 @@ class SixHatsOrchestrator:
     def __init__(
         self,
         agents: list[dict],
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
     ):
         """
@@ -135,11 +137,13 @@ class SixHatsOrchestrator:
                     max_tokens=512,
                     messages=messages,
                 )
-            return agent["name"], _extract_text(response)
+            return agent["name"], extract_text(response)
 
         results = await asyncio.gather(
-            *(query_agent(agent) for agent in self.agents)
+            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            return_exceptions=True,
         )
+        results = filter_exceptions(results, label="p28_six_hats")
         return dict(results)
 
     async def _blue_hat_synthesize(
@@ -169,13 +173,6 @@ class SixHatsOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)

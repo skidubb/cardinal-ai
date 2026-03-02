@@ -20,6 +20,7 @@ import json
 
 from .orchestrator import CRTOrchestrator
 from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 def print_result(result):
@@ -59,13 +60,14 @@ def main():
     parser.add_argument("--question", "-q", required=True, help="The situation to analyze")
     parser.add_argument("--agents", "-a", nargs="+", help="Built-in agent roles (e.g., ceo cfo cto)")
     parser.add_argument("--agent-config", help="Path to JSON file with custom agent definitions")
-    parser.add_argument("--thinking-model", default="claude-opus-4-6", help="Model for agent reasoning")
-    parser.add_argument("--orchestration-model", default="claude-haiku-4-5-20251001", help="Model for mechanical steps")
+    parser.add_argument("--thinking-model", default=THINKING_MODEL, help="Model for agent reasoning")
+    parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for mechanical steps")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking (default: 10000)")
     parser.add_argument("--json", action="store_true", help="Output raw JSON result")
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
-    agents = build_agents(args.agents, args.agent_config)
+    agents = build_agents(args.agents, args.agent_config, mode=args.mode)
     orchestrator = CRTOrchestrator(
         agents=agents,
         thinking_model=args.thinking_model,

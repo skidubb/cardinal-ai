@@ -15,8 +15,10 @@ from pathlib import Path
 from typing import Any
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from protocols.tracing import make_client
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     HYPOTHESIS_GENERATION_PROMPT,
     EVIDENCE_LISTING_PROMPT,
@@ -72,8 +74,8 @@ class ACHResult:
 class ACHOrchestrator:
     """Runs the five-phase ACH protocol."""
 
-    thinking_model: str = "claude-opus-4-6"
-    orchestration_model: str = "claude-haiku-4-5-20251001"
+    thinking_model: str = THINKING_MODEL
+    orchestration_model: str = ORCHESTRATION_MODEL
 
     def __init__(
         self,
@@ -160,10 +162,11 @@ class ACHOrchestrator:
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return parsed.get("hypotheses", [])
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p16_ach")
         return [h for batch in results for h in batch]
 
     # ------------------------------------------------------------------
@@ -186,10 +189,11 @@ class ACHOrchestrator:
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             return parsed.get("evidence", [])
 
-        results = await asyncio.gather(*[_one(a) for a in self.agents])
+        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = filter_exceptions(results, label="p16_ach")
         return [e for batch in results for e in batch]
 
     # ------------------------------------------------------------------
@@ -215,7 +219,7 @@ class ACHOrchestrator:
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
             )
-            parsed = self._parse_json_object(self._extract_text(resp))
+            parsed = parse_json_object(extract_text(resp))
             cells = []
             for s in parsed.get("scores", []):
                 cells.append(MatrixCell(
@@ -233,7 +237,8 @@ class ACHOrchestrator:
                 return await _score_one(a, ev)
 
         tasks = [_throttled(a, ev) for a in self.agents for ev in evidence]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = filter_exceptions(results, label="p16_ach")
         return [c for batch in results for c in batch]
 
     # ------------------------------------------------------------------
@@ -356,43 +361,13 @@ class ACHOrchestrator:
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_object(self._extract_text(resp))
+        return parse_json_object(extract_text(resp))
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_text(response: anthropic.types.Message) -> str:
-        parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                parts.append(block.text)
-        return "\n".join(parts)
 
-    @staticmethod
-    def _parse_json_object(text: str) -> dict:
-        """Extract the first JSON object from text."""
-        # Try direct parse
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        # Try to find JSON block
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-        # Try to find raw braces
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-        return {}
 
     @staticmethod
     def _format_hypotheses_block(hypotheses: list[Hypothesis]) -> str:

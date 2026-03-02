@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from protocols.llm import parse_json_array
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 
 import anthropic
+from protocols.config import ORCHESTRATION_MODEL
 
 
 class ConstraintType(str, Enum):
@@ -95,7 +97,7 @@ PROPOSAL TEXT:
 class ConstraintExtractor:
     """Extracts constraints from agent proposals using a fast model."""
 
-    def __init__(self, model: str = "claude-haiku-4-5-20251001"):
+    def __init__(self, model: str = ORCHESTRATION_MODEL):
         self.model = model
         self.client = anthropic.AsyncAnthropic()
 
@@ -111,7 +113,7 @@ class ConstraintExtractor:
                 ),
             }],
         )
-        data = _parse_json_array(response.content[0].text)
+        data = parse_json_array(response.content[0].text)
         return [
             Constraint(
                 source_role=item.get("source_role", role_name),
@@ -124,16 +126,3 @@ class ConstraintExtractor:
         ]
 
 
-def _parse_json_array(text: str) -> list[dict]:
-    """Extract a JSON array from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("["):
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end != -1:
-            text = text[start : end + 1]
-    return json.loads(text)

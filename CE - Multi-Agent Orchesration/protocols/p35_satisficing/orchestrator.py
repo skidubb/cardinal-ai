@@ -10,7 +10,9 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.llm import extract_text, parse_json_object
 
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     EVALUATE_OPTION_PROMPT,
     GENERATE_OPTION_PROMPT,
@@ -35,8 +37,8 @@ class SatisficingOrchestrator:
     def __init__(
         self,
         agents: list[dict] | None = None,
-        thinking_model: str = "claude-opus-4-6",
-        orchestration_model: str = "claude-haiku-4-5-20251001",
+        thinking_model: str = THINKING_MODEL,
+        orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
         max_attempts: int = 5,
     ):
@@ -123,7 +125,7 @@ class SatisficingOrchestrator:
                 "content": THRESHOLD_PROMPT.format(question=question),
             }],
         )
-        return _parse_json_object(_extract_text(response))
+        return parse_json_object(extract_text(response))
 
     async def _generate_option(
         self, question: str, criteria: str, rejections: list[dict]
@@ -153,7 +155,7 @@ class SatisficingOrchestrator:
                 ),
             }],
         )
-        return _parse_json_object(_extract_text(response))
+        return parse_json_object(extract_text(response))
 
     async def _evaluate_option(
         self, question: str, criteria: str, option: str
@@ -172,7 +174,7 @@ class SatisficingOrchestrator:
                 ),
             }],
         )
-        return _parse_json_object(_extract_text(response))
+        return parse_json_object(extract_text(response))
 
     async def _synthesize(self, question: str, result: SatisficingResult) -> str:
         """Final synthesis briefing."""
@@ -195,28 +197,8 @@ class SatisficingOrchestrator:
                 ),
             }],
         )
-        return _extract_text(response)
+        return extract_text(response)
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    """Extract text from a response that may contain thinking blocks."""
-    parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    return "\n".join(parts)
 
 
-def _parse_json_object(text: str) -> dict:
-    """Extract a JSON object from LLM output that may contain markdown fences."""
-    text = text.strip()
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-    return json.loads(text)

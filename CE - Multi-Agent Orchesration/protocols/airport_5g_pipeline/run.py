@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from .orchestrator import Airport5GPipelineOrchestrator, PipelineResult
+from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
 DEFAULT_AGENT_CONFIG = Path(__file__).resolve().parents[2] / "agents" / "airport_5g_agents.json"
@@ -159,12 +160,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--thinking-model",
-        default="claude-opus-4-6",
+        default=THINKING_MODEL,
         help="Model for agent reasoning (default: claude-opus-4-6).",
     )
     parser.add_argument(
         "--orchestration-model",
-        default="claude-haiku-4-5-20251001",
+        default=ORCHESTRATION_MODEL,
         help="Model for mechanical steps (default: claude-haiku-4-5-20251001).",
     )
     parser.add_argument(
@@ -200,6 +201,7 @@ def main() -> None:
         help="Save results to this directory (creates stage files + board report).",
     )
 
+    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
     agents = load_agents(args.agent_config)
 
