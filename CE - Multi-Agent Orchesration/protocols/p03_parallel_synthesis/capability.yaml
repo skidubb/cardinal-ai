@@ -10,3 +10,4 @@ supports_rounds: false
 description: All agents answer independently, synthesizer merges into unified recommendation.
 when_to_use: General-purpose baseline for any strategic question.
 when_not_to_use: When adversarial stress-testing or deep iteration is needed.
+tools_enabled: true

@@ -11,3 +11,4 @@ supports_rounds: false
 description: Classify complexity domain, then probe/sense/respond appropriately.
 when_to_use: Uncertain situations needing complexity-aware approach.
 when_not_to_use: Clear-cut decisions with known best practices.
+tools_enabled: true

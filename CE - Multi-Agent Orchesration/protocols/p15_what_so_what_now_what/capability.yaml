@@ -11,3 +11,4 @@ supports_rounds: false
 description: 'Three-phase sensemaking: observe facts, interpret meaning, decide action.'
 when_to_use: Structured sensemaking from observations to actions.
 when_not_to_use: When diagnosis is already clear and action is needed.
+tools_enabled: true

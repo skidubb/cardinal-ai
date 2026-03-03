@@ -81,22 +81,36 @@ def model_for_stage(stage_type: str) -> str:
     return COGNITIVE_TIERS[level]
 
 
-# ── Frontier model catalog (for per-agent assignment in agents.py) ──────────
-# Convenience constants — agents can also use raw LiteLLM strings directly.
+# ── Frontier model catalog ────────────────────────────────────────────────
+# LMSys Chatbot Arena leaderboard (Mar 2026).  Scores shown for reference.
+# Agents can use raw LiteLLM strings directly; these are convenience aliases.
+#
+#  Rank  Model                          Score
+#  ────  ─────                          ─────
+#   1    claude-opus-4-6                 1504
+#   2    claude-opus-4-6-thinking        1501
+#   3    gemini-3.1-pro-preview          1500
+#   4    grok-4.20-beta1                 1494
+#   5    gemini-3-pro                    1486
+#   6    gpt-5.2-chat-latest             1479
+#   7    gemini-3-flash                  1473
+#   8    grok-4.1-thinking               1473
+#   9    claude-opus-4-5                 1470
+#
 FRONTIER_MODELS = {
-    # Anthropic
+    # ── Tier 1: Frontier (Arena 1490+) ─────────────────────────────────────
     "claude-opus": "claude-opus-4-6",
+    "gemini-pro": "gemini/gemini-3.1-pro-preview",
+    "grok": "xai/grok-4.20-beta1",
+
+    # ── Tier 2: Near-Frontier (Arena 1470-1489) ───────────────────────────
+    "gemini-3-pro": "gemini/gemini-3-pro",
+    "gpt-5": "openai/gpt-5.2-chat-latest",
+    "gemini-flash": "gemini/gemini-3-flash",
+    "grok-thinking": "xai/grok-4.1-thinking",
+
+    # ── Tier 3: Strong (Arena <1470 or utility) ───────────────────────────
     "claude-sonnet": "claude-sonnet-4-6",
     "claude-haiku": "claude-haiku-4-5-20251001",
-    # OpenAI
-    "gpt-5-pro": "gpt-5.2-pro",
-    "gpt-5": "gpt-5.2",
-    # Google
-    "gemini-pro": "gemini/gemini-3-pro-preview",
-    "gemini-flash": "gemini/gemini-2.5-flash-preview-09-2025",
-    # xAI
-    "grok": "xai/grok-4",
-    "grok-fast": "xai/grok-4-1-fast-reasoning",
-    # DeepSeek
     "deepseek-r1": "deepseek/deepseek-r1",
 }

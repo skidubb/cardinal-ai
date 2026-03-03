@@ -12,7 +12,7 @@ import argparse
 import asyncio
 
 from .orchestrator import TwentyFiveTenOrchestrator
-from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.agents import build_agents
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 

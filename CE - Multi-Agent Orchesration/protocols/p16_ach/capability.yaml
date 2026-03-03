@@ -11,3 +11,4 @@ supports_rounds: false
 description: Generate hypotheses, score evidence for/against, eliminate least supported.
 when_to_use: Root cause analysis, competing explanations with evidence.
 when_not_to_use: Creative ideation, consensus building.
+tools_enabled: true

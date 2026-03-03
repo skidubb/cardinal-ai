@@ -11,3 +11,4 @@ supports_rounds: false
 description: Imagine the plan has failed — work backward to find what went wrong.
 when_to_use: Stress-testing plans before commitment.
 when_not_to_use: Post-mortem analysis, estimation tasks.
+tools_enabled: true

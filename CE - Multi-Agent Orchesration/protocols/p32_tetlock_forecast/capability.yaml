@@ -10,3 +10,4 @@ supports_rounds: true
 description: Calibrated probability estimates using superforecasting methodology.
 when_to_use: Probability assessment, calibrated predictions.
 when_not_to_use: Creative ideation, qualitative strategy.
+tools_enabled: true

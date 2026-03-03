@@ -11,3 +11,4 @@ supports_rounds: false
 description: Cluster ideas by affinity to discover emergent themes.
 when_to_use: Organizing many ideas into actionable themes.
 when_not_to_use: Small option sets, binary decisions.
+tools_enabled: true

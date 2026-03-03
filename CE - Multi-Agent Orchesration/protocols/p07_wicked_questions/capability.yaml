@@ -11,3 +11,4 @@ supports_rounds: false
 description: Surface paradoxes and tensions that have no simple resolution.
 when_to_use: Complex strategic dilemmas with inherent contradictions.
 when_not_to_use: Clear-cut decisions, estimation tasks.
+tools_enabled: true

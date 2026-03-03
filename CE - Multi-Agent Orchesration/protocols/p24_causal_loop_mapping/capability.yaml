@@ -10,3 +10,4 @@ supports_rounds: false
 description: Map reinforcing/balancing feedback loops in a system.
 when_to_use: Understanding complex dynamics, finding leverage points.
 when_not_to_use: Simple linear cause-effect, prioritization.
+tools_enabled: true

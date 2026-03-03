@@ -10,3 +10,4 @@ supports_rounds: false
 description: Red attacks, Blue defends, White adjudicates plan vulnerabilities.
 when_to_use: Stress-testing strategy against adversarial scenarios.
 when_not_to_use: Brainstorming, estimation, consensus building.
+tools_enabled: true

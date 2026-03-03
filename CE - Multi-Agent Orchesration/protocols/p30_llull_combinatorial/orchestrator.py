@@ -5,7 +5,6 @@ Brute-force combination of concept categories, then evaluate for non-obvious con
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
 

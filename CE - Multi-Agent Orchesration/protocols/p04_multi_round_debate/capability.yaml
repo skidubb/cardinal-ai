@@ -11,3 +11,4 @@ supports_rounds: true
 description: N rounds of structured debate with opening, rebuttals, and synthesis.
 when_to_use: Contested decisions where positions need to evolve through argument.
 when_not_to_use: Simple factual questions, estimation tasks.
+tools_enabled: true

@@ -12,3 +12,4 @@ description: Design tests that could falsify the hypothesis — strongest eviden
   attempted refutation.
 when_to_use: Testing assumptions, validating hypotheses rigorously.
 when_not_to_use: Creative ideation, consensus building.
+tools_enabled: true

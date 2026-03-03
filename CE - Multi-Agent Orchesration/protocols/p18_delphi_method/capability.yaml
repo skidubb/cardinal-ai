@@ -10,3 +10,4 @@ supports_rounds: true
 description: Iterative expert estimation with anonymous feedback and convergence.
 when_to_use: Forecasting, sizing, probability assessment.
 when_not_to_use: Qualitative strategic questions, creative ideation.
+tools_enabled: true

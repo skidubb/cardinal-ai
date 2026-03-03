@@ -12,3 +12,4 @@ description: Dynamic weighting based on process philosophy — importance shifts
   context.
 when_to_use: Decisions where relative importance of criteria changes dynamically.
 when_not_to_use: Fixed-criteria scoring, simple ranking.
+tools_enabled: true

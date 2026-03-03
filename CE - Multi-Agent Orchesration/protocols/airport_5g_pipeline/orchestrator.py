@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
 import time
 from collections import Counter
@@ -19,10 +18,8 @@ from typing import Any
 from dotenv import load_dotenv
 load_dotenv()
 
-import anthropic
 from protocols.llm import extract_text, filter_exceptions
 
-from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
 from protocols.tracing import make_client
 from protocols.p05_constraint_negotiation.constraints import ConstraintExtractor, ConstraintStore
 

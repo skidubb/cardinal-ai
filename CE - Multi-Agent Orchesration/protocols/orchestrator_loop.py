@@ -6,7 +6,7 @@ Orchestrator never reads content. Only checks triggers and dispatches stages.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable
 
 from protocols.blackboard import Blackboard

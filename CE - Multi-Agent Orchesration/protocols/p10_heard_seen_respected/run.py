@@ -8,7 +8,7 @@ import asyncio
 import textwrap
 
 from .orchestrator import AgentSpec, HSROrchestrator, HSRResult
-from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.agents import build_agents
 
 
 def print_result(result: HSRResult) -> None:
@@ -35,13 +35,13 @@ def print_result(result: HSRResult) -> None:
     # Phase 3 — Bridge Synthesis
     print(f"\n{sep}\nPHASE 3 — BRIDGE SYNTHESIS\n{sep}")
 
-    print(f"\n--- Common Ground ---")
+    print("\n--- Common Ground ---")
     print(result.common_ground)
 
-    print(f"\n--- Key Differences ---")
+    print("\n--- Key Differences ---")
     print(result.key_differences)
 
-    print(f"\n--- Translation Guide ---")
+    print("\n--- Translation Guide ---")
     print(result.translation_guide)
 
     # Stats

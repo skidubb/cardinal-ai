@@ -7,11 +7,8 @@ then synthesize the minimum viable specification set.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 import anthropic
 from protocols.llm import extract_text, parse_json_object, filter_exceptions

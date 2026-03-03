@@ -7,11 +7,8 @@ or errors detected, escalate to progressively more rigorous protocols.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 import anthropic
 from protocols.llm import extract_text, parse_json_object, filter_exceptions

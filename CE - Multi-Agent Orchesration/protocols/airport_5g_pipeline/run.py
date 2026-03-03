@@ -106,8 +106,8 @@ def _build_board_report(result: PipelineResult) -> str:
     sections.append("# DFW Airport Private 5G Deployment — Decision-Maker Simulation Report")
     sections.append(f"\n**Strategic Question:** {result.question}")
     sections.append(f"**Analysis Duration:** {result.total_elapsed:.0f} seconds")
-    sections.append(f"**Constituencies Modeled:** 6 (Airport CIO, Airport CRO, Anchor Airline VP, Cargo Director, Concessions Tech Lead, AT&T Carrier Rep)")
-    sections.append(f"**Protocol Pipeline:** Discover (1-2-4-All) → Diagnose (ACH) → Negotiate (Constraint Negotiation) → Stress-Test (Red/Blue/White)")
+    sections.append("**Constituencies Modeled:** 6 (Airport CIO, Airport CRO, Anchor Airline VP, Cargo Director, Concessions Tech Lead, AT&T Carrier Rep)")
+    sections.append("**Protocol Pipeline:** Discover (1-2-4-All) → Diagnose (ACH) → Negotiate (Constraint Negotiation) → Stress-Test (Red/Blue/White)")
 
     sections.append("\n---\n")
 

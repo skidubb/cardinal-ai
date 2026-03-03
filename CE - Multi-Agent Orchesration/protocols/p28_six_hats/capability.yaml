@@ -11,3 +11,4 @@ supports_rounds: false
 description: De Bono parallel thinking — each agent wears a different thinking hat.
 when_to_use: Ensuring all thinking modes (facts, emotions, risks, benefits) are covered.
 when_not_to_use: Pure quantitative estimation.
+tools_enabled: true

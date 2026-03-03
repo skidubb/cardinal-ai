@@ -6,7 +6,6 @@ Accept the FIRST option that clears "good enough" thresholds. No optimization.
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass, field
 
 import anthropic
@@ -79,7 +78,7 @@ class SatisficingOrchestrator:
                 f"{option_data.get('option_description', '')}"
             )
 
-            print(f"Phase 3: Evaluating option against thresholds...")
+            print("Phase 3: Evaluating option against thresholds...")
             eval_data = await self._evaluate_option(question, criteria_text, option_text)
 
             accepted = eval_data.get("overall", "REJECT") == "ACCEPT"

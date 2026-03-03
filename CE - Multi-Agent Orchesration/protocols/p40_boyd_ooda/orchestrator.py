@@ -69,22 +69,22 @@ class OODAOrchestrator:
             cycle = {"cycle_number": cycle_num}
 
             # Phase 1: OBSERVE (parallel across agents, compact)
-            print(f"  Observe...")
+            print("  Observe...")
             observations = await self._observe(question, prior_context)
             cycle["observe"] = observations
 
             # Phase 2: ORIENT (thinking-enabled, the critical step)
-            print(f"  Orient...")
+            print("  Orient...")
             model = await self._orient(observations)
             cycle["orient"] = model
 
             # Phase 3: DECIDE (compact)
-            print(f"  Decide...")
+            print("  Decide...")
             decision = await self._decide(model)
             cycle["decide"] = decision
 
             # Phase 4: ACT (project consequences for next cycle)
-            print(f"  Act...")
+            print("  Act...")
             act_output = await self._act(decision, question)
             cycle["act"] = act_output
 

@@ -95,7 +95,7 @@ async def agent_complete(
             "max_tokens": max_tokens,
         }
 
-        if _is_anthropic_model(agent_model):
+        if _is_anthropic_model(agent_model) and thinking_budget > 0:
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
 
         if not effective_no_tools and tools:
@@ -129,10 +129,13 @@ async def agent_complete(
     create_kwargs = {
         "model": fallback_model,
         "max_tokens": thinking_budget + 4096 if max_tokens == 14_096 else max_tokens,
-        "thinking": {"type": "enabled", "budget_tokens": thinking_budget},
         "system": system_prompt,
         "messages": messages,
     }
+    if thinking_budget > 0:
+        create_kwargs["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+    else:
+        create_kwargs["thinking"] = {"type": "disabled"}
     if effective_tools:
         create_kwargs["tools"] = effective_tools
 

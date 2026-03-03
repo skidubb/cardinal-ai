@@ -5,7 +5,6 @@ Thesis → Antithesis → Sublation (aufheben): preserve, negate, transcend.
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 
 import anthropic

@@ -11,3 +11,4 @@ supports_rounds: false
 description: Map logical relationships between propositions using Aristotelian logic.
 when_to_use: Clarifying logical structure of competing claims.
 when_not_to_use: Creative ideation, quantitative estimation.
+tools_enabled: true

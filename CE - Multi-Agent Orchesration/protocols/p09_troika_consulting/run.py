@@ -10,7 +10,7 @@ import textwrap
 from dataclasses import asdict
 
 from .orchestrator import AgentSpec, TroikaOrchestrator, TroikaResult
-from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.agents import build_agents
 
 
 def print_result(result: TroikaResult) -> None:
@@ -36,7 +36,7 @@ def print_result(result: TroikaResult) -> None:
         print(f"\n--- Phase 2b: Consultant 2 ({rnd.consultants[1]}) ---")
         print(textwrap.fill(rnd.consultant2_response, width=88))
 
-        print(f"\n--- Phase 2c: Consolidated Advice ---")
+        print("\n--- Phase 2c: Consolidated Advice ---")
         print(textwrap.fill(rnd.consolidated_advice, width=88))
 
         print(f"\n--- Phase 3: Client Reflection ({rnd.client_name}) ---")

@@ -12,3 +12,4 @@ description: Structured reflection — look back at the solution to extract lear
   and verify.
 when_to_use: Post-analysis reflection, extracting reusable patterns.
 when_not_to_use: Real-time decisions, creative ideation.
+tools_enabled: true

@@ -13,7 +13,7 @@ import asyncio
 import json
 
 from .orchestrator import PreMortemOrchestrator
-from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.agents import build_agents
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 

@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import textwrap
 
 from .orchestrator import MinSpecsOrchestrator, MinSpecsResult
 from protocols.agents import BUILTIN_AGENTS, build_agents

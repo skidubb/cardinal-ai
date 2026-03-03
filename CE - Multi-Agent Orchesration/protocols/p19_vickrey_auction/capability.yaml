@@ -10,3 +10,4 @@ supports_rounds: false
 description: Second-price sealed-bid auction for honest priority revelation.
 when_to_use: Ranking options where agents have hidden preferences.
 when_not_to_use: Open-ended exploration, estimation tasks.
+tools_enabled: true

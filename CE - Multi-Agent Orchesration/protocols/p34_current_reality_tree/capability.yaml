@@ -11,3 +11,4 @@ supports_rounds: false
 description: Map cause-effect chains to find root causes of undesirable effects.
 when_to_use: Root cause analysis with multiple symptoms.
 when_not_to_use: Ideation, prioritization without diagnosis.
+tools_enabled: true

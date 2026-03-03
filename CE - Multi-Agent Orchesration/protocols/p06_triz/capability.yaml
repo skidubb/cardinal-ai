@@ -11,3 +11,4 @@ supports_rounds: false
 description: Invert "what would guarantee failure?" into solutions.
 when_to_use: Stress-testing plans, finding hidden risks.
 when_not_to_use: Simple factual questions, pure prioritization.
+tools_enabled: true

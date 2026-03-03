@@ -10,3 +10,4 @@ supports_rounds: false
 description: Escalate from cheap single-agent to expensive multi-agent based on complexity.
 when_to_use: When cost optimization matters and question complexity is uncertain.
 when_not_to_use: When running a known-complex protocol directly.
+tools_enabled: false

@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 import json
 import random
-import re
 from dataclasses import dataclass, field
 
 import anthropic

@@ -9,7 +9,6 @@ import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import anthropic
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope

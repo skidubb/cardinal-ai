@@ -11,3 +11,4 @@ supports_rounds: false
 description: Alternate between discovery (what is?) and action (what should we do?).
 when_to_use: Situations needing both diagnosis and actionable next steps.
 when_not_to_use: Pure estimation, already-diagnosed problems.
+tools_enabled: true

@@ -16,10 +16,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 
 from .orchestrator import TRIZOrchestrator
-from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.agents import build_agents
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
@@ -75,7 +74,7 @@ def main():
 
     if args.blackboard:
         from protocols.orchestrator_loop import Orchestrator
-        from protocols.tracing import make_client, BlackboardTracer
+        from protocols.tracing import make_client
         from .protocol_def import P06_DEF
 
         if args.dry_run:

@@ -8,7 +8,7 @@ import asyncio
 import textwrap
 
 from .orchestrator import AgentSpec, OneTwoFourAllOrchestrator, OneTwoFourAllResult
-from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.agents import build_agents
 
 
 def print_result(result: OneTwoFourAllResult) -> None:

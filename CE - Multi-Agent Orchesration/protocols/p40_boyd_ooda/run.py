@@ -19,7 +19,7 @@ import asyncio
 import json
 
 from .orchestrator import OODAOrchestrator
-from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.agents import build_agents
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 
@@ -37,19 +37,19 @@ def print_result(result):
         print(f"CYCLE {cycle['cycle_number']}")
         print("-" * 40)
 
-        print(f"\n  OBSERVE:")
+        print("\n  OBSERVE:")
         for line in cycle["observe"].split("\n"):
             print(f"    {line}")
 
-        print(f"\n  ORIENT:")
+        print("\n  ORIENT:")
         for line in cycle["orient"].split("\n"):
             print(f"    {line}")
 
-        print(f"\n  DECIDE:")
+        print("\n  DECIDE:")
         for line in cycle["decide"].split("\n"):
             print(f"    {line}")
 
-        print(f"\n  ACT:")
+        print("\n  ACT:")
         for line in cycle["act"].split("\n"):
             print(f"    {line}")
 

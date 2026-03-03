@@ -6,7 +6,6 @@ Decomposes reasoning into independently verifiable steps, then audits each step.
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass, field
 
 import anthropic

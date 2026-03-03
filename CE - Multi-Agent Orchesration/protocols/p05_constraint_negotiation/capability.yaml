@@ -12,3 +12,4 @@ description: Agents propose plans with constraints, iteratively negotiate to sat
   hard constraints.
 when_to_use: Decisions with competing requirements across functions.
 when_not_to_use: Open-ended exploration without clear constraints.
+tools_enabled: true

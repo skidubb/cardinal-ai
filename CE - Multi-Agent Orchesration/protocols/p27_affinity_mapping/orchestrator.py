@@ -6,8 +6,6 @@ Generate items, LLM-based semantic clustering, theme labeling, hierarchy synthes
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Any

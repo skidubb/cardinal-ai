@@ -11,3 +11,4 @@ supports_rounds: false
 description: Systematic decomposition and audit of reasoning chains.
 when_to_use: Auditing complex arguments for logical gaps.
 when_not_to_use: Brainstorming, estimation tasks.
+tools_enabled: true

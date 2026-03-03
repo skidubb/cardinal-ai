@@ -10,3 +10,4 @@ supports_rounds: false
 description: Categorical framework for ethical/practical pre-screening of decisions.
 when_to_use: Decisions with ethical dimensions needing principled screening.
 when_not_to_use: Pure quantitative analysis, technical decisions.
+tools_enabled: true

@@ -10,3 +10,4 @@ supports_rounds: false
 description: Map initiatives across birth-maturity-destruction-renewal lifecycle.
 when_to_use: Portfolio management, deciding what to grow/sunset/renew.
 when_not_to_use: Single initiative analysis, simple prioritization.
+tools_enabled: true

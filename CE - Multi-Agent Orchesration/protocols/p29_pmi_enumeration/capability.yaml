@@ -11,3 +11,4 @@ supports_rounds: false
 description: Plus/Minus/Interesting enumeration for balanced evaluation.
 when_to_use: Quick balanced assessment of an idea or proposal.
 when_not_to_use: Deep adversarial testing, complex system analysis.
+tools_enabled: true

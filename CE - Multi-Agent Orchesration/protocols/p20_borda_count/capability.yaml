@@ -10,3 +10,4 @@ supports_rounds: false
 description: Ranked-choice voting to aggregate preferences into consensus.
 when_to_use: Ranking options with multiple stakeholder preferences.
 when_not_to_use: Binary decisions, quantitative estimation.
+tools_enabled: true

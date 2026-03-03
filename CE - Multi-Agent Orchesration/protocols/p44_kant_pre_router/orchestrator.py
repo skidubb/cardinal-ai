@@ -6,12 +6,10 @@ to the optimal coordination protocol.
 
 from __future__ import annotations
 
-import json
-import re
 from dataclasses import dataclass
 
 import anthropic
-from protocols.llm import extract_text, parse_json_object
+from protocols.llm import parse_json_object
 
 from .prompts import CLASSIFICATION_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL

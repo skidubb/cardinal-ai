@@ -8,8 +8,6 @@ whose removal dissolves the entire conflict without compromise.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 from dataclasses import dataclass, field
 
 import anthropic

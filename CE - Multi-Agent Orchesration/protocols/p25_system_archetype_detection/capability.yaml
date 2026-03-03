@@ -12,3 +12,4 @@ description: Identify classic system archetype patterns (fixes that fail, shifti
   the burden, etc).
 when_to_use: Recurring problems suggesting systemic patterns.
 when_not_to_use: One-time decisions, creative brainstorming.
+tools_enabled: true

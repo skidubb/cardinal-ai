@@ -11,3 +11,4 @@ supports_rounds: false
 description: Find good-enough solutions by defining minimum acceptable criteria.
 when_to_use: Decisions where perfect is enemy of good — time-constrained choices.
 when_not_to_use: High-stakes irreversible decisions needing optimization.
+tools_enabled: true

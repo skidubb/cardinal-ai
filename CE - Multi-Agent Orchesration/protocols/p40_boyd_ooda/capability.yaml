@@ -11,3 +11,4 @@ supports_rounds: true
 description: Observe-Orient-Decide-Act cycle for rapid decision-making.
 when_to_use: Fast-moving competitive situations needing rapid iteration.
 when_not_to_use: Long-term strategic planning, deep analysis.
+tools_enabled: true

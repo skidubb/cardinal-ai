@@ -11,3 +11,4 @@ supports_rounds: false
 description: 'Progressive idea refinement: solo→pairs→groups→whole.'
 when_to_use: Building consensus through escalating group sizes.
 when_not_to_use: Small teams, time-critical decisions.
+tools_enabled: true

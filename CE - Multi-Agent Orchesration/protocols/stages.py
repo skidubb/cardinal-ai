@@ -7,14 +7,12 @@ Agent stages use agent_complete() from llm.py. Mechanical stages use Anthropic d
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any, Callable
 
-import anthropic
 
 from protocols.blackboard import Blackboard
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
-from protocols.llm import agent_complete, extract_text, filter_exceptions
+from protocols.llm import agent_complete, extract_text
 
 
 def parallel_agent_stage(

@@ -11,3 +11,4 @@ supports_rounds: false
 description: Theory of Constraints tool — resolve conflicts by challenging assumptions.
 when_to_use: Apparent conflicts where both sides seem valid.
 when_not_to_use: Open-ended brainstorming, estimation.
+tools_enabled: true

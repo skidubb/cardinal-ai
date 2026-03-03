@@ -11,3 +11,4 @@ supports_rounds: false
 description: Abductive reasoning — infer best explanation from surprising observations.
 when_to_use: Making sense of unexpected data or anomalies.
 when_not_to_use: Well-understood situations, pure prioritization.
+tools_enabled: true
