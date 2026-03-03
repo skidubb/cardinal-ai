@@ -202,7 +202,7 @@ class TieredEscalation:
             )
             return agent["name"], extract_text(resp)
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p0c_tiered_escalation")
         agent_responses = {name: text for name, text in results}
 
@@ -264,7 +264,7 @@ class TieredEscalation:
             return agent["name"], extract_text(resp)
 
         rebuttal_results = await asyncio.gather(
-            *[_rebuttal(a, return_exceptions=True) for a in self.agents],
+            *[_rebuttal(a) for a in self.agents],
             return_exceptions=True,
         )
         rebuttal_results = filter_exceptions(rebuttal_results, label="p0c_tiered_escalation")

@@ -105,7 +105,7 @@ class NegotiationOrchestrator:
             print(f"  Extracting constraints...")
             extractions = await asyncio.gather(
                 *(
-                    self.extractor.extract(arg.name, arg.content, return_exceptions=True)
+                    self.extractor.extract(arg.name, arg.content)
                     for arg in arguments
                 ),
                 return_exceptions=True,
@@ -162,7 +162,7 @@ class NegotiationOrchestrator:
             )
 
         _results = await asyncio.gather(
-            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         _results = filter_exceptions(_results, label="p05_constraint_negotiation")

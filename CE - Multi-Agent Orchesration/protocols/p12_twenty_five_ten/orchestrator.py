@@ -113,7 +113,7 @@ class TwentyFiveTenOrchestrator:
             return _parse_idea_card(idx, agent["name"], text)
 
         cards = await asyncio.gather(
-            *(gen_idea(i, agent, return_exceptions=True) for i, agent in enumerate(self.agents)),
+            *(gen_idea(i, agent) for i, agent in enumerate(self.agents)),
             return_exceptions=True,
         )
         cards = filter_exceptions(cards, label="p12_twenty_five_ten")

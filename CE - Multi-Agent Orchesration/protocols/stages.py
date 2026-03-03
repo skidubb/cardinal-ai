@@ -46,7 +46,7 @@ def parallel_agent_stage(
             )
             bb.write(topic_out, response, author=agent["name"], stage=topic_out)
 
-        await asyncio.gather(*(query_agent(a, return_exceptions=True) for a in agents))
+        await asyncio.gather(*(query_agent(a) for a in agents), return_exceptions=True)
 
     return execute
 

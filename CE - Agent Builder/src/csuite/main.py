@@ -159,10 +159,16 @@ def _query_agent(role: str, question: str, session_id: str | None = None):
 
     console.print(f"\n[dim]Session: {agent.get_session_id()}[/dim]\n")
 
-    with console.status(f"[cyan]Consulting {agent.config.name}..."):
-        response = run_async(agent.chat(question))
-
-    agent.display_response(response)
+    try:
+        with console.status(f"[cyan]Consulting {agent.config.name}..."):
+            response = run_async(agent.chat(question))
+        agent.display_response(response)
+    except Exception as e:
+        console.print(Panel(
+            f"[red bold]Error:[/red bold] {e}",
+            title="[red]Agent Error[/red]",
+            border_style="red",
+        ))
 
     console.print(f"[dim]Session saved: {agent.get_session_id()}[/dim]\n")
 
@@ -367,9 +373,16 @@ def interactive():
                 if directive not in agents:
                     agents[directive] = create_agent(directive)
                 agent = agents[directive]
-                with console.status(f"[cyan]Consulting {agent.config.name}..."):
-                    response = run_async(agent.chat(question))
-                agent.display_response(response)
+                try:
+                    with console.status(f"[cyan]Consulting {agent.config.name}..."):
+                        response = run_async(agent.chat(question))
+                    agent.display_response(response)
+                except Exception as e:
+                    console.print(Panel(
+                        f"[red bold]Error:[/red bold] {e}",
+                        title="[red]Agent Error[/red]",
+                        border_style="red",
+                    ))
             else:
                 console.print(f"[yellow]Unknown agent: {directive}[/yellow]")
         else:
@@ -397,10 +410,16 @@ def _interactive_loop(agent: BaseAgent):
             console.print("[dim]Session saved. Goodbye![/dim]")
             break
 
-        with console.status(f"[cyan]Consulting {agent.config.name}..."):
-            response = run_async(agent.chat(user_input))
-
-        agent.display_response(response)
+        try:
+            with console.status(f"[cyan]Consulting {agent.config.name}..."):
+                response = run_async(agent.chat(user_input))
+            agent.display_response(response)
+        except Exception as e:
+            console.print(Panel(
+                f"[red bold]Error:[/red bold] {e}",
+                title="[red]Agent Error[/red]",
+                border_style="red",
+            ))
 
 
 # ============================================================================

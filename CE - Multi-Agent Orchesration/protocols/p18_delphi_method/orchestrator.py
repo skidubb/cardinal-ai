@@ -169,7 +169,7 @@ class DelphiOrchestrator:
                 reasoning=parsed.get("reasoning", ""),
             )
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p18_delphi_method")
         return list(results)
 
@@ -227,7 +227,7 @@ class DelphiOrchestrator:
                 reasoning=parsed.get("reasoning", ""),
             )
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p18_delphi_method")
         return list(results)
 

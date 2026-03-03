@@ -120,7 +120,7 @@ class LanguageGameOrchestrator:
             return agent["name"], extract_text(response)
 
         results = await asyncio.gather(
-            *(reframe_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(reframe_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         results = filter_exceptions(results, label="p31_wittgenstein_language_game")

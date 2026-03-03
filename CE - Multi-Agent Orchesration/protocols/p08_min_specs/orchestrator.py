@@ -182,7 +182,7 @@ class MinSpecsOrchestrator:
             parsed = parse_json_object(extract_text(resp))
             return parsed.get("specs", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p08_min_specs")
         return [s for batch in results for s in batch]
 
@@ -243,7 +243,7 @@ class MinSpecsOrchestrator:
             async with sem:
                 return await _test_one(spec)
 
-        _results = await asyncio.gather(*[_throttled(s, return_exceptions=True) for s in specs])
+        _results = await asyncio.gather(*[_throttled(s) for s in specs], return_exceptions=True)
         _results = filter_exceptions(_results, label="p08_min_specs")
         return _results
 

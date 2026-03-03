@@ -146,7 +146,7 @@ class ArchetypeDetector:
             parsed = parse_json_object(extract_text(resp))
             return parsed.get("dynamics", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p25_system_archetype_detection")
         return [d for batch in results for d in batch]
 
@@ -206,7 +206,7 @@ class ArchetypeDetector:
             parsed = parse_json_object(extract_text(resp))
             return parsed.get("scores", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p25_system_archetype_detection")
         return list(results)
 

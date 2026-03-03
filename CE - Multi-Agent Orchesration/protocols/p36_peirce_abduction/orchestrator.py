@@ -118,7 +118,7 @@ class AbductionOrchestrator:
             return extract_text(response)
 
         responses = await asyncio.gather(
-            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         responses = filter_exceptions(responses, label="p36_peirce_abduction")
@@ -142,7 +142,7 @@ class AbductionOrchestrator:
             return extract_text(response)
 
         responses = await asyncio.gather(
-            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         responses = filter_exceptions(responses, label="p36_peirce_abduction")
@@ -168,7 +168,7 @@ class AbductionOrchestrator:
             return extract_text(response)
 
         responses = await asyncio.gather(
-            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         responses = filter_exceptions(responses, label="p36_peirce_abduction")

@@ -167,7 +167,7 @@ class RedBlueWhiteOrchestrator:
                 vulnerabilities=parsed.get("vulnerabilities", []),
             )
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.red_agents])
+        results = await asyncio.gather(*[_one(a) for a in self.red_agents], return_exceptions=True)
         results = filter_exceptions(results, label="p17_red_blue_white")
         return list(results)
 
@@ -216,7 +216,7 @@ class RedBlueWhiteOrchestrator:
                 mitigations=parsed.get("mitigations", []),
             )
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.blue_agents])
+        results = await asyncio.gather(*[_one(a) for a in self.blue_agents], return_exceptions=True)
         results = filter_exceptions(results, label="p17_red_blue_white")
         return list(results)
 

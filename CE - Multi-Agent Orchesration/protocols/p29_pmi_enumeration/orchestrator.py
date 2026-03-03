@@ -105,7 +105,7 @@ class PMIOrchestrator:
             )
             return extract_text(response)
 
-        results = await asyncio.gather(*(query_frame(p, return_exceptions=True) for p in prompts))
+        results = await asyncio.gather(*(query_frame(p) for p in prompts), return_exceptions=True)
         results = filter_exceptions(results, label="p29_pmi_enumeration")
         return results[0], results[1], results[2]
 

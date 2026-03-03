@@ -11,6 +11,7 @@ Provides shared functionality for all agents including:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
@@ -28,6 +29,7 @@ from csuite.memory.store import MemoryStore
 from csuite.session import Session, SessionManager
 from csuite.tools.cost_tracker import CostTracker, TaskType
 from csuite.tools.registry import execute_tool, get_tools_for_role
+from csuite.tools.resilience import RetryConfig, retry_async
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,9 @@ class BaseAgent(ABC):
 
         # Load business context from CLAUDE.md if available
         self.business_context = self._load_business_context()
+
+        # Per-instance lock for session mutation safety under concurrent async calls
+        self._chat_lock = asyncio.Lock()
 
         # Memory + Learning subsystems (graceful no-op if disabled)
         self.memory_store = MemoryStore()
@@ -217,115 +222,156 @@ class BaseAgent(ABC):
         Returns:
             The assistant's response text
         """
-        # Add user message to session
-        self.session.add_message("user", user_message)
+        async with self._chat_lock:
+            # Add user message to session before any API call so it's recorded even on failure
+            self.session.add_message("user", user_message)
 
-        # Build messages for API
-        messages = self._get_messages()
+            try:
+                # Build messages for API
+                messages = self._get_messages()
 
-        # Load tools if enabled
-        tools = get_tools_for_role(self.ROLE) if self._should_use_tools() else []
+                # Load tools if enabled
+                tools = get_tools_for_role(self.ROLE) if self._should_use_tools() else []
 
-        # Track cost across iterations for per-query cost ceiling
-        iteration_cost = 0.0
+                # Track cost across iterations for per-query cost ceiling
+                iteration_cost = 0.0
 
-        # Agentic loop — keeps calling until Claude stops using tools
-        iteration = 0
-        assistant_message = ""
+                # Agentic loop — keeps calling until Claude stops using tools
+                iteration = 0
+                assistant_message = ""
 
-        while iteration < self.MAX_TOOL_ITERATIONS:
-            iteration += 1
+                while iteration < self.MAX_TOOL_ITERATIONS:
+                    iteration += 1
 
-            api_kwargs: dict[str, Any] = dict(
-                model=self.config.model or self.settings.default_model,
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                system=self._build_system_prompt(query=user_message),
-                messages=messages,
-            )
-            if tools:
-                api_kwargs["tools"] = tools
-
-            response = self.client.messages.create(**api_kwargs)
-
-            # Log usage for this iteration
-            self._log_usage(response, task_type=task_type, audit_id=audit_id)
-
-            # Track iteration cost for per-query ceiling
-            query_cost = self._estimate_response_cost(response)
-            iteration_cost += query_cost
-
-            if response.stop_reason == "tool_use":
-                # Append assistant message (with tool_use blocks) to messages
-                messages.append({"role": "assistant", "content": response.content})
-
-                # Execute each tool call, build tool_result blocks
-                tool_results = []
-                for block in response.content:
-                    if block.type == "tool_use":
-                        block.input["_agent_role"] = self.ROLE
-                        result = await execute_tool(
-                            block.name, block.input, self.settings,
-                            cost_tracker=self.cost_tracker,
-                        )
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": result,
-                        })
-                messages.append({"role": "user", "content": tool_results})  # type: ignore[dict-item]
-
-                # Check per-query cost ceiling
-                if iteration_cost >= self.settings.tool_cost_limit:
-                    logger.warning(
-                        "Tool cost limit reached ($%.4f >= $%.2f) after %d iterations",
-                        iteration_cost, self.settings.tool_cost_limit, iteration,
+                    api_kwargs: dict[str, Any] = dict(
+                        model=self.config.model or self.settings.default_model,
+                        max_tokens=self.config.max_tokens,
+                        temperature=self.config.temperature,
+                        system=self._build_system_prompt(query=user_message),
+                        messages=messages,
                     )
-                    # Extract any text from last response
+                    if tools:
+                        api_kwargs["tools"] = tools
+
+                    response = await self._call_api(api_kwargs)
+
+                    # Log usage for this iteration
+                    self._log_usage(response, task_type=task_type, audit_id=audit_id)
+
+                    # Track iteration cost for per-query ceiling
+                    query_cost = self._estimate_response_cost(response)
+                    iteration_cost += query_cost
+
+                    if response.stop_reason == "tool_use":
+                        # Append assistant message (with tool_use blocks) to messages
+                        messages.append({"role": "assistant", "content": response.content})
+
+                        # Execute each tool call, build tool_result blocks
+                        tool_results = []
+                        for block in response.content:
+                            if block.type == "tool_use":
+                                block.input["_agent_role"] = self.ROLE
+                                result = await execute_tool(
+                                    block.name, block.input, self.settings,
+                                    cost_tracker=self.cost_tracker,
+                                )
+                                tool_results.append({
+                                    "type": "tool_result",
+                                    "tool_use_id": block.id,
+                                    "content": result,
+                                })
+                        messages.append({"role": "user", "content": tool_results})  # type: ignore[dict-item]
+
+                        # Check per-query cost ceiling
+                        if iteration_cost >= self.settings.tool_cost_limit:
+                            logger.warning(
+                                "Tool cost limit reached ($%.4f >= $%.2f) after %d iterations",
+                                iteration_cost, self.settings.tool_cost_limit, iteration,
+                            )
+                            # Extract any text from last response
+                            for block in response.content:
+                                if hasattr(block, "text"):
+                                    assistant_message += block.text
+                            if not assistant_message:
+                                assistant_message = (
+                                    "[Tool cost limit reached. Returning partial results. "
+                                    f"Spent ${iteration_cost:.4f} across {iteration} iterations.]"
+                                )
+                            break
+
+                        continue  # Loop back for Claude's next response
+
+                    # stop_reason == "end_turn" — extract final text
                     for block in response.content:
                         if hasattr(block, "text"):
                             assistant_message += block.text
+                    break
+                else:
+                    # Hit MAX_TOOL_ITERATIONS
+                    logger.warning("Hit max tool iterations (%d)", self.MAX_TOOL_ITERATIONS)
                     if not assistant_message:
                         assistant_message = (
-                            "[Tool cost limit reached. Returning partial results. "
-                            f"Spent ${iteration_cost:.4f} across {iteration} iterations.]"
+                            f"[Reached maximum tool iterations ({self.MAX_TOOL_ITERATIONS}). "
+                            "Returning partial results.]"
                         )
-                    break
 
-                continue  # Loop back for Claude's next response
-
-            # stop_reason == "end_turn" — extract final text
-            for block in response.content:
-                if hasattr(block, "text"):
-                    assistant_message += block.text
-            break
-        else:
-            # Hit MAX_TOOL_ITERATIONS
-            logger.warning("Hit max tool iterations (%d)", self.MAX_TOOL_ITERATIONS)
-            if not assistant_message:
-                assistant_message = (
-                    f"[Reached maximum tool iterations ({self.MAX_TOOL_ITERATIONS}). "
-                    "Returning partial results.]"
+                # Add assistant response to session
+                self.session.add_message(
+                    "assistant",
+                    assistant_message,
+                    model=response.model,
+                    usage={
+                        "input_tokens": response.usage.input_tokens,
+                        "output_tokens": response.usage.output_tokens,
+                    },
                 )
 
-        # Add assistant response to session
-        self.session.add_message(
-            "assistant",
-            assistant_message,
-            model=response.model,
-            usage={
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            },
+                # Persist session
+                self.session_manager.save(self.session)
+
+                # Post-response: store memories and detect corrections
+                self._post_response_learning(user_message, assistant_message)
+
+                return assistant_message
+
+            except anthropic.APIError as e:
+                logger.error("Anthropic API error for %s: %s", self.ROLE, e.message)
+                self.session_manager.save(self.session)
+                return f"API error: {e.message}. Please check your API key and try again."
+
+            except Exception:
+                logger.exception("Unexpected error in %s.chat()", self.ROLE)
+                self.session_manager.save(self.session)
+                return "I encountered an error processing your request. Please try again."
+
+    async def _call_api(self, api_kwargs: dict[str, Any]) -> Any:
+        """Call the Anthropic messages API with retry logic.
+
+        Wraps self.client.messages.create() with exponential backoff retry
+        for transient errors (rate limits, overloaded, connection issues).
+        """
+        _retry_config = RetryConfig(
+            max_retries=3,
+            base_delay=1.0,
+            max_delay=15.0,
+            retryable_exceptions=(
+                anthropic.RateLimitError,
+                anthropic.InternalServerError,
+                anthropic.APIConnectionError,
+                ConnectionError,
+                TimeoutError,
+            ),
         )
 
-        # Persist session
-        self.session_manager.save(self.session)
+        async def _create() -> Any:
+            return self.client.messages.create(**api_kwargs)
 
-        # Post-response: store memories and detect corrections
-        self._post_response_learning(user_message, assistant_message)
-
-        return assistant_message
+        return await retry_async(
+            _create,
+            config=_retry_config,
+            api_name="anthropic",
+            endpoint="messages.create",
+        )
 
     def _estimate_response_cost(self, response: Any) -> float:
         """Estimate cost of a single API response for budget tracking.
@@ -376,63 +422,64 @@ class BaseAgent(ABC):
             yield result
             return
 
-        # Add user message to session
-        self.session.add_message("user", user_message)
+        async with self._chat_lock:
+            # Add user message to session
+            self.session.add_message("user", user_message)
 
-        # Build messages for API
-        messages = self._get_messages()
+            # Build messages for API
+            messages = self._get_messages()
 
-        # Call Claude API with streaming
-        full_response = ""
-        input_tokens = 0
-        output_tokens = 0
-        model_used = self.config.model or self.settings.default_model
+            # Call Claude API with streaming
+            full_response = ""
+            input_tokens = 0
+            output_tokens = 0
+            model_used = self.config.model or self.settings.default_model
 
-        with self.client.messages.stream(
-            model=self.config.model or self.settings.default_model,
-            max_tokens=self.config.max_tokens,
-            temperature=self.config.temperature,
-            system=self._build_system_prompt(query=user_message),
-            messages=messages,  # type: ignore[arg-type]
-        ) as stream:
-            for text in stream.text_stream:
-                full_response += text
-                yield text
+            with self.client.messages.stream(
+                model=self.config.model or self.settings.default_model,
+                max_tokens=self.config.max_tokens,
+                temperature=self.config.temperature,
+                system=self._build_system_prompt(query=user_message),
+                messages=messages,  # type: ignore[arg-type]
+            ) as stream:
+                for text in stream.text_stream:
+                    full_response += text
+                    yield text
 
-            # Get final message for usage stats
-            final_message = stream.get_final_message()
-            if final_message:
-                input_tokens = final_message.usage.input_tokens
-                output_tokens = final_message.usage.output_tokens
-                model_used = final_message.model
+                # Get final message for usage stats
+                final_message = stream.get_final_message()
+                if final_message:
+                    input_tokens = final_message.usage.input_tokens
+                    output_tokens = final_message.usage.output_tokens
+                    model_used = final_message.model
 
-        # Add complete response to session
-        self.session.add_message(
-            "assistant",
-            full_response,
-            model=model_used,
-            usage={
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-            },
-        )
+            # Add complete response to session
+            self.session.add_message(
+                "assistant",
+                full_response,
+                model=model_used,
+                usage={
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                },
+            )
 
-        # Log usage to cost tracker (Directive D10)
-        self.cost_tracker.log_usage(
-            agent=self.ROLE.upper(),
-            model=model_used,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            task_type=task_type or self.DEFAULT_TASK_TYPE,
-            session_id=self.session.id,
-            audit_id=audit_id,
-        )
+            # Log usage to cost tracker (Directive D10)
+            self.cost_tracker.log_usage(
+                agent=self.ROLE.upper(),
+                model=model_used,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                task_type=task_type or self.DEFAULT_TASK_TYPE,
+                session_id=self.session.id,
+                audit_id=audit_id,
+            )
 
-        # Persist session
-        self.session_manager.save(self.session)
+            # Persist session
+            self.session_manager.save(self.session)
 
-        # Post-response: store memories and detect corrections
-        self._post_response_learning(user_message, full_response)
+            # Post-response: store memories and detect corrections
+            self._post_response_learning(user_message, full_response)
 
     def _post_response_learning(self, user_message: str, assistant_message: str) -> None:
         """Store memories, detect corrections, and self-evaluate after a response."""

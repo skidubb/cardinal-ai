@@ -156,7 +156,7 @@ class VickreyOrchestrator:
                 reasoning=parsed.get("reasoning", ""),
             )
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p19_vickrey_auction")
         return list(results)
 

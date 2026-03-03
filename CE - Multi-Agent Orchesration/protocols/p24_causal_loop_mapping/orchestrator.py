@@ -157,7 +157,7 @@ class CausalLoopOrchestrator:
             parsed = parse_json_object(extract_text(resp))
             return parsed.get("variables", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p24_causal_loop_mapping")
         return [v for batch in results for v in batch]
 
@@ -218,7 +218,7 @@ class CausalLoopOrchestrator:
             parsed = parse_json_object(extract_text(resp))
             return parsed.get("links", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p24_causal_loop_mapping")
         return [link for batch in results for link in batch]
 

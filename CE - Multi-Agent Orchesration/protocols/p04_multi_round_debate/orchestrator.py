@@ -152,7 +152,7 @@ class DebateOrchestrator:
             )
 
         _results = await asyncio.gather(
-            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         _results = filter_exceptions(_results, label="p04_multi_round_debate")

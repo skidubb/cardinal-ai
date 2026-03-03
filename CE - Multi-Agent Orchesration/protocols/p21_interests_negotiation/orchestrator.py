@@ -166,7 +166,7 @@ class InterestsNegotiationOrchestrator:
             parsed = parse_json_object(extract_text(resp))
             return agent["name"], parsed.get("interests", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p21_interests_negotiation")
         return {name: interests for name, interests in results}
 
@@ -226,7 +226,7 @@ class InterestsNegotiationOrchestrator:
                 opt["proposed_by"] = agent["name"]
             return opts
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p21_interests_negotiation")
         return [opt for batch in results for opt in batch]
 

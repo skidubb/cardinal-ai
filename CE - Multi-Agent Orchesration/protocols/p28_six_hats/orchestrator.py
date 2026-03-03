@@ -140,7 +140,7 @@ class SixHatsOrchestrator:
             return agent["name"], extract_text(response)
 
         results = await asyncio.gather(
-            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         results = filter_exceptions(results, label="p28_six_hats")

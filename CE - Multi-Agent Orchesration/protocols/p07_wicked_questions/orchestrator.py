@@ -132,7 +132,7 @@ class WickedQuestionsOrchestrator:
             return response.content[0].text
 
         _results = await asyncio.gather(
-            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         _results = filter_exceptions(_results, label="p07_wicked_questions")

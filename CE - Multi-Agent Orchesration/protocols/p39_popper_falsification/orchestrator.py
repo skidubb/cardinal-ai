@@ -86,7 +86,7 @@ class FalsificationOrchestrator:
             return extract_text(response)
 
         raw_outputs = await asyncio.gather(
-            *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+            *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
         raw_outputs = filter_exceptions(raw_outputs, label="p39_popper_falsification")
@@ -134,7 +134,7 @@ class FalsificationOrchestrator:
                 return extract_text(response)
 
             results = await asyncio.gather(
-                *(query_agent(agent, return_exceptions=True) for agent in self.agents),
+                *(query_agent(agent) for agent in self.agents),
                 return_exceptions=True,
             )
             results = filter_exceptions(results, label="p39_popper_falsification")
@@ -146,7 +146,7 @@ class FalsificationOrchestrator:
                 for agent, result in zip(self.agents, results)
             }
 
-        await asyncio.gather(*(search_condition(c, return_exceptions=True) for c in conditions))
+        await asyncio.gather(*(search_condition(c) for c in conditions), return_exceptions=True)
 
     async def _render_verdict(
         self, recommendation: str, result: FalsificationResult

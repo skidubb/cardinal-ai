@@ -159,7 +159,7 @@ class BordaCountOrchestrator:
             rankings = parsed.get("rankings", [])
             return Ballot(agent=agent["name"], rankings=rankings)
 
-        ballots = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        ballots = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         ballots = filter_exceptions(ballots, label="p20_borda_count")
         return list(ballots)
 

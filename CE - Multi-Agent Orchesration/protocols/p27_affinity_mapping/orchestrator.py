@@ -128,7 +128,7 @@ class AffinityMappingOrchestrator:
             parsed = parse_json_object(extract_text(resp))
             return agent["name"], parsed.get("items", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p27_affinity_mapping")
         return {name: items for name, items in results}
 

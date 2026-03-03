@@ -155,7 +155,7 @@ class EcocyclePlanningOrchestrator:
                 ))
             return results
 
-        batches = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        batches = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         batches = filter_exceptions(batches, label="p13_ecocycle_planning")
         return [item for batch in batches for item in batch]
 
@@ -223,7 +223,7 @@ class EcocyclePlanningOrchestrator:
                 stage = "renewal"
             return initiative, stage
 
-        results = await asyncio.gather(*[_resolve_one(i, return_exceptions=True) for i in contested])
+        results = await asyncio.gather(*[_resolve_one(i) for i in contested], return_exceptions=True)
         results = filter_exceptions(results, label="p13_ecocycle_planning")
         return dict(results)
 

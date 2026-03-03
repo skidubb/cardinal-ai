@@ -128,7 +128,7 @@ class DADOrchestrator:
                 d["source_agent"] = agent["name"]
             return deviants
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p11_discovery_action_dialogue")
         return [d for batch in results for d in batch]
 
@@ -167,7 +167,7 @@ class DADOrchestrator:
             async with sem:
                 return await _filter_one(d)
 
-        results = await asyncio.gather(*[_throttled(d, return_exceptions=True) for d in deviants])
+        results = await asyncio.gather(*[_throttled(d) for d in deviants], return_exceptions=True)
         results = filter_exceptions(results, label="p11_discovery_action_dialogue")
         return [r for r in results if r is not None]
 

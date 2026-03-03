@@ -133,7 +133,7 @@ class CrazyEightsOrchestrator:
             ideas = [str(i).strip() for i in ideas if str(i).strip()][:8]
             return agent["name"], ideas
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p26_crazy_eights")
         return {name: ideas for name, ideas in results}
 
@@ -196,7 +196,7 @@ class CrazyEightsOrchestrator:
             # Enforce exactly 3
             return votes[:3]
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p26_crazy_eights")
 
         # Tally votes

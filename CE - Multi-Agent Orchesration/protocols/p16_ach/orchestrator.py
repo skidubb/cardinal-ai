@@ -165,7 +165,7 @@ class ACHOrchestrator:
             parsed = parse_json_object(extract_text(resp))
             return parsed.get("hypotheses", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p16_ach")
         return [h for batch in results for h in batch]
 
@@ -192,7 +192,7 @@ class ACHOrchestrator:
             parsed = parse_json_object(extract_text(resp))
             return parsed.get("evidence", [])
 
-        results = await asyncio.gather(*[_one(a, return_exceptions=True) for a in self.agents])
+        results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
         results = filter_exceptions(results, label="p16_ach")
         return [e for batch in results for e in batch]
 
