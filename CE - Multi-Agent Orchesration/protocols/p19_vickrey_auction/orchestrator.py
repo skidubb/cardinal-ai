@@ -6,15 +6,13 @@ Second-price sealed-bid auction for option selection among multiple agents.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import time
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -143,12 +141,15 @@ class VickreyOrchestrator:
                 system_prompt=agent["system_prompt"],
                 options_block=options_block,
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=2048,
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=0,
+                max_tokens=2048,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return Bid(
                 agent=agent["name"],
                 selected_option=parsed.get("selected_option", ""),
@@ -193,12 +194,15 @@ class VickreyOrchestrator:
             second_price_confidence=second_price,
             bids_block=bids_block,
         )
-        resp = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=2048,
+        text = await agent_complete(
+            agent=winner_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=0,
+            max_tokens=2048,
+            anthropic_client=self.client,
         )
-        return parse_json_object(extract_text(resp))
+        return parse_json_object(text)
 
     # ------------------------------------------------------------------
     # Phase 4: Final Assessment

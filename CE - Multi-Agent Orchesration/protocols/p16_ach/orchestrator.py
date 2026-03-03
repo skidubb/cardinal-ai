@@ -6,16 +6,13 @@ Generate hypotheses, score evidence for/against each, eliminate least supported.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import time
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import anthropic
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 from protocols.tracing import make_client
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -156,13 +153,14 @@ class ACHOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=self.thinking_budget,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return parsed.get("hypotheses", [])
 
         results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
@@ -183,13 +181,14 @@ class ACHOrchestrator:
                 system_prompt=agent["system_prompt"],
                 hypotheses_block=hyp_block,
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=self.thinking_budget,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return parsed.get("evidence", [])
 
         results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
@@ -355,13 +354,16 @@ class ACHOrchestrator:
             diagnostic_block=diagnostic_block,
         )
 
-        resp = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+        # Sensitivity synthesis uses first agent as proxy for model routing
+        proxy_agent = self.agents[0] if self.agents else {"name": "synthesizer", "system_prompt": ""}
+        text = await agent_complete(
+            agent=proxy_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=self.thinking_budget,
+            anthropic_client=self.client,
         )
-        return parse_json_object(extract_text(resp))
+        return parse_json_object(text)
 
     # ------------------------------------------------------------------
     # Helpers

@@ -6,15 +6,12 @@ Adversarial stress-testing: Red attacks, Blue defends, White adjudicates.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import anthropic
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, parse_json_object, filter_exceptions
 
 from protocols.scoping import filter_context_for_agent, tag_context
 from protocols.tracing import make_client
@@ -152,16 +149,14 @@ class RedBlueWhiteOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=12288,
-                thinking={
-                    "type": "enabled",
-                    "budget_tokens": 8192,
-                },
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=8192,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return Attack(
                 agent=parsed.get("agent", agent["name"]),
                 vulnerabilities=parsed.get("vulnerabilities", []),
@@ -201,16 +196,14 @@ class RedBlueWhiteOrchestrator:
                 system_prompt=agent["system_prompt"],
                 attacks_block=scoped_attacks,
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=12288,
-                thinking={
-                    "type": "enabled",
-                    "budget_tokens": 8192,
-                },
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=8192,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return Defense(
                 agent=parsed.get("agent", agent["name"]),
                 mitigations=parsed.get("mitigations", []),
@@ -241,16 +234,15 @@ class RedBlueWhiteOrchestrator:
             attacks_block=attacks_block,
             defenses_block=defenses_block,
         )
-        resp = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=14096,
-            thinking={
-                "type": "enabled",
-                "budget_tokens": 10000,
-            },
+        text = await agent_complete(
+            agent=self.white_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=10000,
+            max_tokens=14096,
+            anthropic_client=self.client,
         )
-        parsed = parse_json_object(extract_text(resp))
+        parsed = parse_json_object(text)
 
         adjudications = []
         for item in parsed.get("adjudications", []):
@@ -283,12 +275,15 @@ class RedBlueWhiteOrchestrator:
             plan=plan,
             adjudication_block=adjudication_block,
         )
-        resp = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=4096,
+        text = await agent_complete(
+            agent=self.white_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=0,
+            max_tokens=4096,
+            anthropic_client=self.client,
         )
-        return parse_json_object(extract_text(resp))
+        return parse_json_object(text)
 
     # ------------------------------------------------------------------
     # Formatting helpers

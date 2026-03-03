@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import sys
 
 from .orchestrator import ArchetypeDetector, ArchetypeResult
 
@@ -109,12 +108,22 @@ def main() -> None:
         help="Output raw JSON instead of formatted text.",
     )
 
+    parser.add_argument(
+        "--agent-model",
+        default=None,
+        help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
+             "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
+    )
     parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     agents = DEFAULT_AGENTS
     if args.agents:
         agents = json.loads(args.agents)
+
+    if args.agent_model:
+        for agent in agents:
+            agent["model"] = args.agent_model
 
     detector = ArchetypeDetector(
         agents=agents,

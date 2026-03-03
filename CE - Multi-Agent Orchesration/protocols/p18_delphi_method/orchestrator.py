@@ -6,15 +6,13 @@ Iterative expert estimation with anonymous feedback and convergence detection.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import statistics
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -154,13 +152,14 @@ class DelphiOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=self.thinking_budget,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return Estimate(
                 agent=agent["name"],
                 estimate=float(parsed.get("estimate", 0)),
@@ -212,13 +211,14 @@ class DelphiOrchestrator:
                 spread=previous_round.spread,
                 anonymous_reasoning=anonymous_reasoning,
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=self.thinking_budget,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return Estimate(
                 agent=agent["name"],
                 estimate=float(parsed.get("estimate", 0)),

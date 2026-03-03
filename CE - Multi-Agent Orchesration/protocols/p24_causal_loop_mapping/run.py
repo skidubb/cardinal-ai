@@ -125,9 +125,19 @@ def main() -> None:
         help="Output raw JSON instead of formatted text.",
     )
 
+    parser.add_argument(
+        "--agent-model",
+        default=None,
+        help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
+             "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
+    )
     parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
     agents = build_agents(args.agents, mode=args.mode)
+
+    if args.agent_model:
+        for agent in agents:
+            agent["model"] = args.agent_model
 
     orchestrator = CausalLoopOrchestrator(
         agents=agents,

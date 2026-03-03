@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -158,12 +157,15 @@ class InterestsNegotiationOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=2048,
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=0,
+                max_tokens=2048,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return agent["name"], parsed.get("interests", [])
 
         results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
@@ -215,12 +217,15 @@ class InterestsNegotiationOrchestrator:
                 compatible_block=compatible_block,
                 conflicting_block=conflicting_block,
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=2048,
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=0,
+                max_tokens=2048,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             opts = parsed.get("options", [])
             for opt in opts:
                 opt["proposed_by"] = agent["name"]
@@ -296,12 +301,16 @@ class InterestsNegotiationOrchestrator:
             scored_options_block="\n".join(scored_block) or "None",
             pareto_block="\n".join(pareto_block) or "No Pareto-optimal options found",
         )
-        resp = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=4096,
+        proxy_agent = self.agents[0] if self.agents else {"name": "synthesizer", "system_prompt": ""}
+        text = await agent_complete(
+            agent=proxy_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=0,
+            max_tokens=4096,
+            anthropic_client=self.client,
         )
-        return parse_json_object(extract_text(resp))
+        return parse_json_object(text)
 
     # ------------------------------------------------------------------
     # Helpers

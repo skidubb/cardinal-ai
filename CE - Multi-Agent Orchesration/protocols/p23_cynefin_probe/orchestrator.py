@@ -9,14 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import time
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -153,12 +152,15 @@ class CynefinOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=1024,
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=0,
+                max_tokens=1024,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             domain = parsed.get("domain", "confused").lower().strip()
             if domain not in VALID_DOMAINS:
                 domain = "confused"
@@ -227,12 +229,15 @@ class CynefinOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=0,
+                max_tokens=max_tokens,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return agent["name"], parsed
 
         results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
@@ -269,12 +274,16 @@ class CynefinOrchestrator:
             responses_block=responses_block,
         )
 
-        resp = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=4096,
+        proxy_agent = self.agents[0] if self.agents else {"name": "synthesizer", "system_prompt": ""}
+        text = await agent_complete(
+            agent=proxy_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=0,
+            max_tokens=4096,
+            anthropic_client=self.client,
         )
-        return parse_json_object(extract_text(resp))
+        return parse_json_object(text)
 
     # ------------------------------------------------------------------
     # Helpers

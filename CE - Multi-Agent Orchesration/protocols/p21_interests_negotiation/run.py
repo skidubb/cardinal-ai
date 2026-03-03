@@ -8,7 +8,7 @@ import asyncio
 import json
 
 from .orchestrator import InterestsNegotiationOrchestrator, NegotiationResult
-from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.agents import build_agents
 
 
 def print_result(result: NegotiationResult) -> None:
@@ -110,9 +110,18 @@ def main():
     parser.add_argument("--max-rounds", type=int, default=2, help="Max option-generation rounds (default: 2)")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output raw JSON result")
     parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument(
+        "--agent-model",
+        default=None,
+        help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
+             "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
+    )
     args = parser.parse_args()
 
     agents = build_agents(args.agents, mode=args.mode)
+    if args.agent_model:
+        for agent in agents:
+            agent["model"] = args.agent_model
     orchestrator = InterestsNegotiationOrchestrator(
         agents=agents,
         max_rounds=args.max_rounds,

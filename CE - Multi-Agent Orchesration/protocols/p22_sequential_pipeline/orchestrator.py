@@ -3,12 +3,11 @@
 Agent A -> Agent B -> Agent C — each builds on prior output.
 """
 
-import asyncio
 import json
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.llm import extract_text
+from protocols.llm import agent_complete, extract_text
 
 from .prompts import FINAL_SYNTHESIS_PROMPT, QUALITY_GATE_PROMPT, STAGE_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -66,6 +65,7 @@ class SequentialPipelineOrchestrator:
         self.thinking_model = thinking_model
         self.orchestration_model = orchestration_model
         self.max_thinking_tokens = max_thinking_tokens
+        self._agents: list[dict] | None = None
 
     async def _run_stage(
         self,
@@ -85,20 +85,18 @@ class SequentialPipelineOrchestrator:
             prior_outputs=_format_prior_outputs(prior_stages),
         )
 
-        response = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=16000,
-            temperature=1,  # required for extended thinking
-            thinking={
-                "type": "enabled",
-                "budget_tokens": self.max_thinking_tokens,
-            },
+        text = await agent_complete(
+            agent=agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=self.max_thinking_tokens,
+            max_tokens=16000,
+            anthropic_client=self.client,
         )
 
         return StageOutput(
             agent_name=agent["name"],
-            content=extract_text(response),
+            content=text,
             stage_number=stage_number,
         )
 
@@ -141,18 +139,15 @@ class SequentialPipelineOrchestrator:
             all_outputs=_format_all_outputs(stages),
         )
 
-        response = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=16000,
-            temperature=1,
-            thinking={
-                "type": "enabled",
-                "budget_tokens": self.max_thinking_tokens,
-            },
+        proxy_agent = self._agents[0] if self._agents else {"name": "synthesizer", "system_prompt": ""}
+        return await agent_complete(
+            agent=proxy_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=self.max_thinking_tokens,
+            max_tokens=16000,
+            anthropic_client=self.client,
         )
-
-        return extract_text(response)
 
     async def run(
         self, question: str, agents: list[dict]
@@ -166,6 +161,7 @@ class SequentialPipelineOrchestrator:
         Returns:
             SequentialPipelineResult with all stage outputs and final synthesis.
         """
+        self._agents = agents
         result = SequentialPipelineResult(question=question)
         total_stages = len(agents)
 

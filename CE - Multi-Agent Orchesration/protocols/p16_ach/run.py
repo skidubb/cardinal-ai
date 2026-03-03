@@ -141,8 +141,19 @@ def main() -> None:
     )
 
     parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument(
+        "--agent-model",
+        default=None,
+        help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
+             "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
+    )
     args = parser.parse_args()
     agents = build_agents(args.agents, mode=args.mode)
+
+    # Apply agent-model override if specified
+    if args.agent_model:
+        for agent in agents:
+            agent["model"] = args.agent_model
 
     orchestrator = ACHOrchestrator(
         agents=agents,

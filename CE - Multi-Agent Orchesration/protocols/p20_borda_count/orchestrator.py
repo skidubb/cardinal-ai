@@ -6,14 +6,12 @@ Ranked-choice voting with Borda scoring across multiple agents.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -150,12 +148,15 @@ class BordaCountOrchestrator:
                 options_block=options_block,
                 num_options=len(options),
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=4096,
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=0,
+                max_tokens=4096,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             rankings = parsed.get("rankings", [])
             return Ballot(agent=agent["name"], rankings=rankings)
 
@@ -302,12 +303,16 @@ class BordaCountOrchestrator:
             tiebreak_details=tiebreak_details,
         )
 
-        resp = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=4096,
+        proxy_agent = self.agents[0] if self.agents else {"name": "synthesizer", "system_prompt": ""}
+        text = await agent_complete(
+            agent=proxy_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=0,
+            max_tokens=4096,
+            anthropic_client=self.client,
         )
-        return parse_json_object(extract_text(resp))
+        return parse_json_object(text)
 
     @staticmethod
     def _format_ballots_block(ballots: list[Ballot]) -> str:

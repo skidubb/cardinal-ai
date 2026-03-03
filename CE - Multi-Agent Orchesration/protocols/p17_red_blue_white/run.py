@@ -151,6 +151,12 @@ def main() -> None:
     )
 
     parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument(
+        "--agent-model",
+        default=None,
+        help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
+             "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
+    )
     args = parser.parse_args()
 
     red_agents = build_agents(args.red)
@@ -161,6 +167,13 @@ def main() -> None:
         print(f"Unknown agent: {white_key}. Available: {', '.join(BUILTIN_AGENTS)}")
         sys.exit(1)
     white_agent = BUILTIN_AGENTS[white_key]
+
+    if args.agent_model:
+        for agent in red_agents:
+            agent["model"] = args.agent_model
+        for agent in blue_agents:
+            agent["model"] = args.agent_model
+        white_agent["model"] = args.agent_model
 
     orchestrator = RedBlueWhiteOrchestrator(
         red_agents=red_agents,

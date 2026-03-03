@@ -54,11 +54,20 @@ def main():
         help="Max thinking tokens per stage (default: 10000).",
     )
     parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument(
+        "--agent-model",
+        default=None,
+        help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
+             "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
+    )
     args = parser.parse_args()
 
     agents = build_agents(args.agents, mode=args.mode)
+    if args.agent_model:
+        for agent in agents:
+            agent["model"] = args.agent_model
 
-    print(f"P22: Sequential Pipeline")
+    print("P22: Sequential Pipeline")
     print(f"Question: {args.question}")
     print(f"Pipeline: {' -> '.join(a['name'] for a in agents)}")
     print()

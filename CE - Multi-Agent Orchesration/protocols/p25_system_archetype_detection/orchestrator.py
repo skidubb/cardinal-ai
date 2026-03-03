@@ -7,14 +7,12 @@ Shifting the Burden, Limits to Growth, etc.) and recommend interventions.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -138,12 +136,15 @@ class ArchetypeDetector:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=2048,
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=0,
+                max_tokens=2048,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return parsed.get("dynamics", [])
 
         results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
@@ -198,12 +199,15 @@ class ArchetypeDetector:
                 system_prompt=agent["system_prompt"],
                 dynamics_block=dynamics_block,
             )
-            resp = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=2048,
+            text = await agent_complete(
+                agent=agent,
+                fallback_model=self.thinking_model,
                 messages=[{"role": "user", "content": prompt}],
+                thinking_budget=0,
+                max_tokens=2048,
+                anthropic_client=self.client,
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(text)
             return parsed.get("scores", [])
 
         results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)
@@ -252,12 +256,16 @@ class ArchetypeDetector:
             dynamics_block=dynamics_block,
             scores_block=scores_block,
         )
-        resp = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=4096,
+        proxy_agent = self.agents[0] if self.agents else {"name": "synthesizer", "system_prompt": ""}
+        text = await agent_complete(
+            agent=proxy_agent,
+            fallback_model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
+            thinking_budget=0,
+            max_tokens=4096,
+            anthropic_client=self.client,
         )
-        return parse_json_object(extract_text(resp))
+        return parse_json_object(text)
 
     # ------------------------------------------------------------------
     # Helpers
