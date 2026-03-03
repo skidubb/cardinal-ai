@@ -89,7 +89,7 @@ def main():
     reco.add_argument("--protocol", required=True, help="Protocol ID (e.g., p16_ach)")
     reco.add_argument("--problem-type", required=True, help="Problem type (e.g., diagnostic)")
 
-    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     orchestrator = WhiteheadOrchestrator()

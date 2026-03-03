@@ -8,6 +8,7 @@ Or provide custom agents via: --agent-config agents.json
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 
@@ -354,7 +355,7 @@ AGENT_CATEGORIES = {
 def build_agents(
     agent_names: list[str] | None = None,
     agent_config_path: str | None = None,
-    mode: str = "research",
+    mode: str | None = None,
 ) -> list[dict]:
     """Build agent list from CLI args.
 
@@ -364,6 +365,8 @@ def build_agents(
     - JSON config file: --agent-config agents.json
     - mode: "research" (lightweight dicts) or "production" (real SDK agents with tools)
     """
+    mode = mode or os.environ.get("AGENT_MODE", "production")
+
     if agent_config_path:
         with open(agent_config_path) as f:
             return json.load(f)

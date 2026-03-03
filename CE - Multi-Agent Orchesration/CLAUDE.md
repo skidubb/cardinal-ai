@@ -36,15 +36,26 @@ Each protocol lives in `protocols/p{NN}_{name}/` with these files:
 | `run.py` | CLI entry point with argparse, `BUILTIN_AGENTS` dict, `print_result()` |
 | `constraints.py` | Only in P5 — self-contained constraint extraction |
 
-**Agent contract**: Agents are `{"name": str, "system_prompt": str}` dicts. No classes, no inheritance. Any agent collection works.
+**Agent contract**:
+
+> **Protocols orchestrate SDK agents built in CE - Agent Builder.**
+>
+> Each agent key (e.g., `ceo`, `cfo`, `cto`) resolves to a fully initialized `SdkAgent` with tools, MCP servers, and memory. The orchestrator calls `agent.chat(prompt)` and gets back a response from a capable agent — not a bare LLM completion.
+>
+> This is the product: **build agents in Agent Builder, send them through protocols in Orchestration.**
+>
+> Thin dicts `{"name": str, "system_prompt": str}` are the research/fallback mode — used when Agent Builder is not installed or via `--mode research` / `AGENT_MODE=research`.
+
+**Agent modes**: Production mode (default) builds real SDK agents via `build_production_agents()`. Research mode (`--mode research` or `AGENT_MODE=research` env var) uses lightweight dicts. The API runner (`api/runner.py`) tries production first and falls back to enriched dicts if Agent Builder is not importable.
 
 **Model strategy**: Two model tiers passed to orchestrators:
 - `thinking_model` (default: `claude-opus-4-6`) — for agent reasoning, synthesis, creative stages
 - `orchestration_model` (default: `claude-haiku-4-5-20251001`) — for mechanical stages (dedup, ranking, extraction, classification)
+- Agents support model override via `--agent-model` flag (routes through LiteLLM for non-Anthropic models like `gemini/gemini-3.1-pro-preview`)
 
 **Async throughout**: All orchestrators use `anthropic.AsyncAnthropic()` and `asyncio.gather()` for parallel agent queries. CLIs wrap with `asyncio.run()`.
 
-**Result pattern**: Each protocol defines dataclasses for its output (e.g., `TRIZResult`, `DebateResult`). No persistence — results are returned in-memory and printed by `run.py`.
+**Result pattern**: Each protocol defines dataclasses for its output (e.g., `TRIZResult`, `DebateResult`). Raw results are persisted as JSON to `smoke-tests/{pid}_raw_result.json` by the batch runner. Synthesis reports (markdown) are generated separately via Opus.
 
 ## Key Documents
 

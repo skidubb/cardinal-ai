@@ -109,7 +109,7 @@ def main():
     )
     parser.add_argument("--max-rounds", type=int, default=2, help="Max option-generation rounds (default: 2)")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output raw JSON result")
-    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
     parser.add_argument(
         "--agent-model",
         default=None,

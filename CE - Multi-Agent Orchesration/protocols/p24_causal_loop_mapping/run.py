@@ -131,7 +131,7 @@ def main() -> None:
         help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
              "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
     )
-    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
     agents = build_agents(args.agents, mode=args.mode)
 

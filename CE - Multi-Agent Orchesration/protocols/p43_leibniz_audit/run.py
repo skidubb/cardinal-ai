@@ -59,7 +59,7 @@ def main():
     parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL, help="Model for verdict phase")
     parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output raw JSON")
-    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     orchestrator = AuditChainOrchestrator(

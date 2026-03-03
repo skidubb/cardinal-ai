@@ -66,7 +66,7 @@ def main():
     parser.add_argument("--trace-path", default=None, help="Explicit trace file path")
     parser.add_argument("--blackboard", action="store_true", help="Use blackboard-driven orchestrator")
     parser.add_argument("--dry-run", action="store_true", help="Print config and exit (no LLM calls)")
-    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     agents = build_agents(args.agents, args.agent_config, mode=args.mode)

@@ -119,7 +119,7 @@ def main() -> None:
         help="Output raw JSON instead of formatted text.",
     )
 
-    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
     parser.add_argument(
         "--agent-model",
         default=None,

@@ -50,8 +50,10 @@ pip install -r requirements.txt
 python -m protocols.p06_triz.run -q "Should we expand?" -a ceo cfo cto
 python -m protocols.p04_multi_round_debate.run -q "..." -a ceo cfo cto --rounds 3
 
-# All protocols accept: -q, -a, --thinking-model, --orchestration-model
+# All protocols accept: -q, -a, --thinking-model, --orchestration-model, --mode
 # Multi-round protocols also accept: --rounds/-r
+# Default mode is "production" (real SDK agents). Use --mode research for lightweight dicts.
+# Or set AGENT_MODE=research env var to override globally.
 
 # Evaluation harness
 python scripts/evaluate.py --protocol p16_ach --question Q4.1 --agents ceo cfo cto
@@ -59,19 +61,19 @@ python scripts/evaluate.py --protocol p16_ach --question Q4.1 --agents ceo cfo c
 
 ## Architecture
 
-### CE - Agent Builder — Two Independent Agent Systems
+### CE - Agent Builder — The Agent Factory
 
-1. **Claude Code agents** (`~/claude-dotfiles/agents/*.md`) — 7 executives + 30 sub-agents invoked via Task tool. Executives use `model: opus`, sub-agents use `model: sonnet/haiku`.
+**Product agents** (`src/csuite/`) — `SdkAgent` class (Claude Agent SDK) with tools, MCP servers, and memory. These are the agents that run through protocols in CE - Multi-Agent Orchestration. Expose `async chat(message) -> str`.
 
-2. **Python CLI agents** (`src/csuite/`) — Click CLI with dual backend: legacy `BaseAgent` subclasses (direct Anthropic API) or `SdkAgent` (claude-agent-sdk with MCP tools). Controlled by `AGENT_BACKEND` env var. Both expose `async chat(message) -> str`.
-
-These two systems are **not connected** — independent implementations sharing the same role definitions.
+**Scott's personal agents** (`~/claude-dotfiles/agents/*.md`) — 7 executives + 30 sub-agents invoked via Claude Code Task tool. These are NOT the product — they're Scott's personal Claude Code agent teams using thin dicts.
 
 Key flows: Orchestrator runs agents in parallel via `asyncio.gather` → synthesis prompt. Debate runs N sequential rounds (agents parallel within each round). Audit is a sequential 7-agent pipeline.
 
 ### CE - Multi-Agent Orchesration — Protocol Pattern
 
-Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async class with `run(question)`), `prompts.py` (string constants), `run.py` (CLI). Agents are simple dicts `{"name": str, "system_prompt": str}` — no classes. Two model tiers: `thinking_model` (Opus) for reasoning, `orchestration_model` (Haiku) for mechanical steps. 48 protocols across 8 categories (see project-level `CLAUDE.md` for taxonomy).
+Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async class with `run(question)`), `prompts.py` (string constants), `run.py` (CLI). Two model tiers: `thinking_model` (Opus) for reasoning, `orchestration_model` (Haiku) for mechanical steps. 48 protocols across 8 categories (see project-level `CLAUDE.md` for taxonomy).
+
+**Protocols orchestrate SDK agents built in CE - Agent Builder.** Default mode is `production` — each agent key resolves to a fully initialized `SdkAgent` (via `AgentBridge`) with tools, MCP servers, and memory. Use `--mode research` or `AGENT_MODE=research` for lightweight dict agents. The API runner (`api/runner.py`) tries production first, falls back to DB-enriched dicts if Agent Builder is unavailable.
 
 Shared agent registry: `protocols/agents.py` — 56 agents across 14 categories, supports `@category` group syntax.
 

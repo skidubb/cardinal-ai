@@ -64,7 +64,7 @@ def main():
         help="Agent keys to include (default: ceo cfo cto cmo)",
     )
     parser.add_argument("--thinking-budget", type=int, default=10_000, help="Extended thinking budget")
-    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     agent_dicts = build_agents(args.agents, mode=args.mode)

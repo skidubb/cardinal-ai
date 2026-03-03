@@ -54,7 +54,7 @@ def main():
     parser.add_argument("--rounds", "-r", type=int, default=5, help="Number of scoring rounds")
     parser.add_argument("--thinking-model", default=THINKING_MODEL)
     parser.add_argument("--orchestration-model", default=ORCHESTRATION_MODEL)
-    parser.add_argument("--mode", choices=["research", "production"], default="research", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
     args = parser.parse_args()
 
     agents = build_agents(args.agents, args.agent_config, mode=args.mode)
