@@ -16,7 +16,11 @@ Extract the following features as JSON:
   "time_horizon": "<immediate|short|medium|long>",
   "needs_evidence": <true|false — does this require data, facts, or empirical support?>,
   "needs_creativity": <true|false — does this require novel ideas or divergent thinking?>,
-  "has_conflict": <true|false — are there competing interests, adversarial dynamics, or tradeoffs?>
+  "has_conflict": <true|false — are there competing interests, adversarial dynamics, or tradeoffs?>,
+  "decomposability": <1-5, where 1=monolithic/cannot be broken apart, 5=fully decomposable into independent sub-problems>,
+  "sequential_dependencies": <1-5, where 1=all sub-tasks independent/parallelizable, 5=strict sequential chain where each step depends on prior>,
+  "tool_count": <0-5, estimated number of distinct analytical tools/frameworks needed to answer well>,
+  "coordination_overhead": "<low|medium|high — how much inter-agent communication is needed vs independent work>"
 }}
 
 Respond ONLY with the JSON object, no extra text.
@@ -65,7 +69,12 @@ Classification reasoning: {type_reasoning}
 
 {protocol_mapping}
 
-Select the best protocol. If complexity < 2 and risk < 2, prefer cheaper protocols regardless of problem type.
+Select the best protocol using these rules:
+1. If complexity < 2 and risk < 2, prefer cheaper protocols regardless of problem type.
+2. If decomposability >= 4 and sequential_dependencies <= 2, prefer PARALLEL protocols (P3, P14, P6) — parallelizable tasks benefit most from multi-agent coordination.
+3. If sequential_dependencies >= 4, prefer SEQUENTIAL protocols (P22, P36, P47) — sequential tasks degrade under parallel coordination.
+4. If coordination_overhead is "high" and stakeholder_count is "many", prefer DEBATE protocols (P4, P5, P17) — high-friction protocols surface hidden tensions.
+5. If decomposability <= 2 and complexity >= 4, prefer SYSTEMS protocols (P24, P25, P48) — monolithic complex problems need systems thinking.
 
 Respond in JSON:
 {{

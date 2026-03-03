@@ -1,0 +1,15 @@
+protocol_id: P48
+name: Black Swan Detection
+category: Wave 2 Research
+problem_types:
+- Estimation
+- Diagnostic
+- Exploration
+cost_tier: high
+min_agents: 2
+max_agents: null
+supports_rounds: false
+description: Adversarial epistemic hygiene — surfaces catastrophic-but-improbable scenarios mainstream framing misses using Santa Fe complexity thinking, Taleb fragility analysis, and structured analytic techniques.
+when_to_use: Strategic risk assessment, identifying hidden systemic fragilities, pre-mortem for major decisions, challenging consensus assumptions.
+when_not_to_use: Well-understood operational risks, routine planning, situations requiring speed over depth.
+tools_enabled: true
