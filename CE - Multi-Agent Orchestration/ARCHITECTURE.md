@@ -149,6 +149,55 @@ Live tool visibility: `set_event_queue(queue)` injects an `asyncio.Queue` into t
 
 ---
 
+## Agent Dispatch Mechanism
+
+`agent_complete()` in `protocols/llm.py` (line ~168) is the single gateway for every agent LLM call. It uses a three-path dispatch based on runtime inspection of the agent object.
+
+### Decision Tree
+
+```
+agent object received by agent_complete()
+│
+├─ hasattr(agent, "chat") and callable(agent.chat)?
+│  YES → Production path: await agent.chat(message)
+│        AgentBridge wraps SdkAgent → full tools, MCP servers,
+│        Pinecone memory, DuckDB learning. The LLM dispatch
+│        layer is bypassed entirely; the SDK agent handles its
+│        own model calls and tool loops internally.
+│
+├─ agent["model"] is set?
+│  YES → LiteLLM path: litellm.acompletion(model=agent["model"], ...)
+│        Supports any provider LiteLLM knows (OpenAI, Gemini,
+│        Anthropic). Extended thinking enabled for Anthropic
+│        models when thinking_budget > 0. Stateless — no tools
+│        unless explicit tool schemas are passed.
+│
+└─ Otherwise (no .chat, no model field)
+   → Anthropic SDK path: client.messages.create(model=fallback_model, ...)
+     Uses the orchestrator's fallback_model (typically Opus).
+     Supports extended thinking and an agentic tool loop
+     (up to MAX_TOOL_ITERATIONS). This is the default path
+     for research-mode dict agents.
+```
+
+### How `--mode` Affects Agent Construction
+
+The `--mode` flag (or `AGENT_MODE` env var) controls what `build_agents()` returns:
+
+- **`--mode production`** (default): Calls `build_production_agents(keys)` which creates `AgentBridge` objects wrapping real `SdkAgent` instances from CE - Agent Builder. These objects have a `.chat()` method, so `agent_complete()` takes the production path. Agents get full tool access, memory, and learning.
+
+- **`--mode research`**: Returns plain dicts from `BUILTIN_AGENTS` registry (`{"name": str, "system_prompt": str}`). No `.chat()` method, no `model` field, so `agent_complete()` falls through to the Anthropic SDK path. Agents are stateless LLM completions with no tool access beyond what the stage executor explicitly passes.
+
+### Capability Summary
+
+| Path | Tool Access | Memory | Extended Thinking | Multi-Provider |
+|------|------------|--------|-------------------|----------------|
+| Production (SdkAgent) | Full (MCP + registered tools) | Pinecone + DuckDB | Via SDK agent config | No (Anthropic only) |
+| LiteLLM | Only if schemas passed | None | Anthropic models only | Yes |
+| Anthropic SDK | Agentic tool loop | None | Yes | No |
+
+---
+
 ## Key File Index
 
 | File | Role |
