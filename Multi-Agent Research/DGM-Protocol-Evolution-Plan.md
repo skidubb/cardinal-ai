@@ -83,7 +83,7 @@ SELECT parent prompt variant
 
 ### Files to Create
 
-All in `CE - Multi-Agent Orchesration/`:
+All in `CE - Multi-Agent Orchestration/`:
 
 #### 1. `evolution/prompt_registry.py`
 - `PromptVariant` dataclass: `id`, `protocol_key`, `prompt_name`, `content`, `parent_id`, `generation`, `mutation_description`, `created_at`

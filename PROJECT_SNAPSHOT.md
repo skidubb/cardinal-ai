@@ -53,7 +53,7 @@ flowchart TD
 - Hatchling package, installable via `pip install -e ".[dev]"`
 - Key files: `src/csuite/session.py`, `src/csuite/tools/registry.py`, `src/csuite/memory/store.py`
 
-### CE - Multi-Agent Orchestration (`CE - Multi-Agent Orchesration/`)
+### CE - Multi-Agent Orchestration (`CE - Multi-Agent Orchestration/`)
 - 48 protocols in `protocols/p{NN}_{name}/` — each has `orchestrator.py`, `prompts.py`, `run.py`, `protocol_def.py`
 - Two execution paths: legacy orchestrator (default) and blackboard-driven (opt-in via `--blackboard`)
 - Blackboard pattern: append-only state, trigger-based stage dispatch, 7 stage types
@@ -75,7 +75,7 @@ CE - AGENTS/
 │   ├── src/csuite/           # Core agent code
 │   ├── tests/
 │   └── demo/
-├── CE - Multi-Agent Orchesration/  # Protocol engine
+├── CE - Multi-Agent Orchestration/  # Protocol engine
 │   ├── protocols/            # 48 protocols + shared infra
 │   ├── api/                  # FastAPI server
 │   ├── ui/                   # React dashboard
@@ -144,7 +144,7 @@ CE - AGENTS/
 - React UI is scaffolded but non-functional — no API integration, stores are empty shells
 - No CI/CD — all testing is manual smoke-tests
 - Blackboard path is untested at scale; only dry-run verified for most protocols
-- Directory name has a typo ("Orchesration") baked into all paths
+- Directory name has a typo ("Orchestration") baked into all paths
 - CE-Evals is disconnected — no automated quality loop feeding back into protocol tuning
 - No deployment story — everything runs locally
 - Smoke-test coverage only spans P16-P25; 38 protocols have zero runtime validation

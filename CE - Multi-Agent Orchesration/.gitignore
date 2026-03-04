@@ -1,5 +1,0 @@
-.env
-.DS_Store
-firebase-debug.log
-*.log
-__pycache__/

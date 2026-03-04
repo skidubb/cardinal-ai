@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""CLI entry point for P21: Interests-Based Negotiation."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+
+from .orchestrator import InterestsNegotiationOrchestrator, NegotiationResult
+from protocols.agents import build_agents
+
+
+def print_result(result: NegotiationResult) -> None:
+    """Pretty-print the negotiation result."""
+    sep = "=" * 72
+
+    print(f"\n{sep}")
+    print("P21: INTERESTS-BASED NEGOTIATION")
+    print(sep)
+    print(f"\nScenario: {result.question}\n")
+
+    # Phase 1 — Interests
+    print(f"{sep}\nPHASE 1 — SURFACED INTERESTS\n{sep}")
+    for agent_name, interests in result.interest_maps.items():
+        print(f"\n--- {agent_name} ---")
+        for i in interests:
+            priority = i.get("priority", "?")
+            itype = i.get("type", "?")
+            print(f"  [{priority}/{itype}] {i.get('interest', '')}")
+
+    # Phase 2 — Interest Map
+    print(f"\n{sep}\nPHASE 2 — INTEREST MAP\n{sep}")
+    cat = result.categorized_interests
+    print("\nShared Interests:")
+    for item in cat.get("shared", []):
+        holders = ", ".join(item.get("holders", []))
+        print(f"  - {item.get('interest', '')} ({holders})")
+    print("\nCompatible Interests:")
+    for item in cat.get("compatible", []):
+        print(f"  - {item.get('interest', '')} ({item.get('holder', '')})")
+    print("\nConflicting Interests:")
+    for item in cat.get("conflicting", []):
+        a = item.get("interest_a", {})
+        b = item.get("interest_b", {})
+        print(f"  - {a.get('holder', '')}: {a.get('interest', '')} vs {b.get('holder', '')}: {b.get('interest', '')}")
+        print(f"    Tension: {item.get('tension', '')}")
+
+    # Phase 3 — Options
+    print(f"\n{sep}\nPHASE 3 — GENERATED OPTIONS\n{sep}")
+    for i, opt in enumerate(result.generated_options):
+        proposer = opt.get("proposed_by", "?")
+        print(f"\n  Option {i} [{proposer}]: {opt.get('option', '')}")
+        satisfies = opt.get("satisfies_interests", [])
+        if satisfies:
+            print(f"    Satisfies: {', '.join(satisfies)}")
+
+    # Phase 4 — Scores
+    print(f"\n{sep}\nPHASE 4 — OPTION SCORES\n{sep}")
+    for s in result.option_scores:
+        idx = s.get("option_index", "?")
+        pareto = " [PARETO]" if s.get("pareto_optimal") else ""
+        agent_scores = s.get("agent_scores", {})
+        scores_str = ", ".join(
+            f"{k}: {v.get('score', '?')}" for k, v in agent_scores.items()
+        ) if isinstance(agent_scores, dict) else str(agent_scores)
+        print(f"  Option {idx}{pareto}: {scores_str}")
+
+    # Agreement
+    print(f"\n{sep}\nFINAL AGREEMENT\n{sep}")
+    agreement = result.selected_agreement.get("agreement", result.selected_agreement)
+    print(f"\n{agreement.get('summary', '')}")
+    terms = agreement.get("key_terms", [])
+    if terms:
+        print("\nKey Terms:")
+        for t in terms:
+            print(f"  - {t}")
+    trade_offs = agreement.get("trade_offs", [])
+    if trade_offs:
+        print("\nTrade-offs:")
+        for t in trade_offs:
+            print(f"  - {t}")
+    impl = agreement.get("implementation_notes", "")
+    if impl:
+        print(f"\nImplementation: {impl}")
+
+    # Satisfaction
+    print(f"\n{sep}\nINTEREST SATISFACTION\n{sep}")
+    for agent, score in result.interest_satisfaction.items():
+        print(f"  {agent}: {score:.2f}")
+
+    # Timings
+    print(f"\n{sep}\nTIMINGS\n{sep}")
+    for phase, elapsed in result.timings.items():
+        print(f"  {phase}: {elapsed}s")
+    print()
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="P21: Interests-Based Negotiation — mutual gains through interest mapping",
+    )
+    parser.add_argument("--question", "-q", required=True, help="Negotiation scenario to resolve")
+    parser.add_argument(
+        "--agents", "-a",
+        nargs="+",
+        default=["ceo", "cfo", "cto"],
+        help="Agent keys to include (default: ceo cfo cto)",
+    )
+    parser.add_argument("--max-rounds", type=int, default=2, help="Max option-generation rounds (default: 2)")
+    parser.add_argument("--json", action="store_true", dest="json_output", help="Output raw JSON result")
+    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument(
+        "--agent-model",
+        default=None,
+        help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
+             "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
+    )
+    parser.add_argument("--blackboard", action="store_true", help="Use blackboard-driven orchestrator")
+    parser.add_argument("--dry-run", action="store_true", help="Print config and exit (no LLM calls)")
+    parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking")
+    args = parser.parse_args()
+
+    agents = build_agents(args.agents, mode=args.mode)
+    if args.agent_model:
+        for agent in agents:
+            agent["model"] = args.agent_model
+
+    if args.blackboard:
+        from protocols.orchestrator_loop import Orchestrator
+        from pathlib import Path
+        from protocols.tracing import make_client
+        from .protocol_def import P21_DEF
+
+        if args.dry_run:
+            print(f"[dry-run] Protocol: {P21_DEF.protocol_id}, stages: {[s.name for s in P21_DEF.stages]}")
+            return
+
+        client = make_client(protocol_id="p21_interests_negotiation", trace=getattr(args, 'trace', False), trace_path=Path(args.trace_path) if getattr(args, 'trace_path', None) else None)
+        config = {
+            "client": client,
+            "thinking_model": getattr(args, 'thinking_model', None),
+            "orchestration_model": getattr(args, 'orchestration_model', getattr(args, 'thinking_model', None)),
+            "thinking_budget": getattr(args, 'thinking_budget', 10000),
+        }
+        orch = Orchestrator()
+        bb = asyncio.run(orch.run(P21_DEF, args.question, agents, **config))
+
+        print("\n" + "=" * 70)
+        print("INTERESTS-BASED NEGOTIATION RESULTS (blackboard)")
+        print("=" * 70)
+        synthesis = bb.read_latest("synthesis")
+        if synthesis:
+            print(f"\n{synthesis.content}")
+        print(f"\nResources: {bb.resource_signals()}")
+        return
+
+    orchestrator = InterestsNegotiationOrchestrator(
+        agents=agents,
+        max_rounds=args.max_rounds,
+    )
+    result = asyncio.run(orchestrator.run(args.question))
+
+    if args.json_output:
+        from dataclasses import asdict
+        print(json.dumps(asdict(result), indent=2, default=str))
+    else:
+        print_result(result)
+
+
+if __name__ == "__main__":
+    main()

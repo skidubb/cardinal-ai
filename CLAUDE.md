@@ -11,7 +11,7 @@ Monorepo for Cardinal Element's agentic AI work. Consolidates three previously s
 | Directory | What it is | Setup |
 |-----------|-----------|-------|
 | `CE - Agent Builder/` | C-Suite CLI app — 7 executive AI agents with synthesis, debate, audit | `pip install -e ".[dev]"` (hatchling) |
-| `CE - Multi-Agent Orchesration/` | 48 coordination protocols + 56-agent registry + evaluation harness | `pip install -r requirements.txt` |
+| `CE - Multi-Agent Orchestration/` | 48 coordination protocols + 56-agent registry + evaluation harness | `pip install -r requirements.txt` |
 | `CE - Evals/` | LLM-as-judge evaluation framework (Claude, GPT-4, Gemini backends) | `pip install -e .` (setuptools) |
 | `n8n Workflows/` | n8n automation workflow JSON exports | N/A (imported into n8n) |
 
@@ -40,9 +40,9 @@ mypy src/csuite --ignore-missing-imports        # Type check
 streamlit run demo/app.py                       # Demo UI
 ```
 
-### CE - Multi-Agent Orchesration
+### CE - Multi-Agent Orchestration
 ```bash
-cd "CE - Multi-Agent Orchesration"
+cd "CE - Multi-Agent Orchestration"
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
@@ -69,7 +69,7 @@ python scripts/evaluate.py --protocol p16_ach --question Q4.1 --agents ceo cfo c
 
 Key flows: Orchestrator runs agents in parallel via `asyncio.gather` → synthesis prompt. Debate runs N sequential rounds (agents parallel within each round). Audit is a sequential 7-agent pipeline.
 
-### CE - Multi-Agent Orchesration — Protocol Pattern
+### CE - Multi-Agent Orchestration — Protocol Pattern
 
 Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async class with `run(question)`), `prompts.py` (string constants), `run.py` (CLI). Two model tiers: `thinking_model` (Opus) for reasoning, `orchestration_model` (Haiku) for mechanical steps. 48 protocols across 8 categories (see project-level `CLAUDE.md` for taxonomy).
 
@@ -101,4 +101,4 @@ Each project requires `.env` with at minimum `ANTHROPIC_API_KEY`. Copy from `.en
 
 Each project has its own detailed CLAUDE.md with full architecture docs:
 - `CE - Agent Builder/.claude/CLAUDE.md` — CLI commands, agent system architecture, all patterns
-- `CE - Multi-Agent Orchesration/CLAUDE.md` — Protocol architecture, taxonomy, diagram conventions
+- `CE - Multi-Agent Orchestration/CLAUDE.md` — Protocol architecture, taxonomy, diagram conventions

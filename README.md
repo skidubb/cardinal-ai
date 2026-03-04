@@ -8,7 +8,7 @@ Monorepo for Cardinal Element's agentic AI work — agent systems, orchestration
 CE - AGENTS/
 ├── CE - Agent Builder/              # C-Suite multi-agent system
 ├── CE - Evals/                      # Evaluation framework
-├── CE - Multi-Agent Orchesration/   # 47+ coordination protocols
+├── CE - Multi-Agent Orchestration/   # 47+ coordination protocols
 ├── CE - Recursive Loops/            # Recursive loop patterns
 ├── n8n Workflows/                   # n8n automation workflows
 ├── Scripts/                         # Utility scripts
@@ -20,7 +20,7 @@ CE - AGENTS/
 ### CE - Agent Builder
 The C-Suite agent system — specialized AI agents for executive functions (CEO, CTO, CFO, CMO, COO, CPO) with MCP server integrations. Built with Claude Agent SDK.
 
-### CE - Multi-Agent Orchesration
+### CE - Multi-Agent Orchestration
 47+ multi-agent coordination protocols spanning Liberating Structures adaptations, game-theoretic mechanisms, philosophical reasoning frameworks, and systems thinking approaches. Each protocol is a self-contained module with runner, config, and prompt templates.
 
 ### CE - Evals
@@ -42,5 +42,5 @@ Common utilities, types, and configuration shared across projects.
 
 This monorepo consolidates:
 - [ce-c-suite](https://github.com/skidubb/ce-c-suite) → `CE - Agent Builder/`
-- [coordination-lab](https://github.com/skidubb/coordination-lab) → `CE - Multi-Agent Orchesration/`
+- [coordination-lab](https://github.com/skidubb/coordination-lab) → `CE - Multi-Agent Orchestration/`
 - [CE-Evals](https://github.com/skidubb/CE-Evals) → `CE - Evals/`
