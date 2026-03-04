@@ -350,7 +350,7 @@ class Airport5GPipelineOrchestrator:
                 ]
             else:
                 print(f"  Round {round_num}/{self.negotiation_rounds}: Revisions...")
-                peer_constraints = constraint_store.format_for_prompt()
+                _peer_constraints = constraint_store.format_for_prompt()
                 prior_args = "\n\n".join(
                     f"[{a['name']}]:\n{a['content']}"
                     for rnd in rounds_data

@@ -12,7 +12,6 @@ from protocols.stages import mechanical_stage, multi_round_stage, synthesis_stag
 from .prompts import (
     THRESHOLD_PROMPT,
     GENERATE_OPTION_PROMPT,
-    EVALUATE_OPTION_PROMPT,
     SYNTHESIS_PROMPT,
 )
 

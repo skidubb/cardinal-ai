@@ -48,6 +48,27 @@ class BordaResult:
 
 
 # ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+def _fuzzy_match(option: str, options: list[str]) -> str | None:
+    """Return the best case-insensitive substring match for option in options, or None."""
+    option_lower = option.lower()
+    for candidate in options:
+        if option_lower == candidate.lower() or option_lower in candidate.lower() or candidate.lower() in option_lower:
+            return candidate
+    return None
+
+
+def _get_rank(ballot: "Ballot", option: str) -> int:
+    """Return the rank of option in ballot.rankings, or a large fallback if not found."""
+    for entry in ballot.rankings:
+        if entry.get("option", "") == option:
+            return entry.get("rank", 9999)
+    return 9999
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -224,7 +245,7 @@ class BordaCountOrchestrator:
                     tied_options_block=tied_options_block,
                     head_to_head_block=head_to_head_block,
                 )
-                resp = await self.client.messages.create(
+                _resp = await self.client.messages.create(
                     model=self.orchestration_model,
                     max_tokens=1024,
                     messages=[{"role": "user", "content": prompt}],

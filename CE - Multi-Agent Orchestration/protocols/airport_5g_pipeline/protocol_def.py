@@ -7,7 +7,7 @@ Composes sub-patterns: parallel → mechanical → sequential → synthesis.
 from __future__ import annotations
 
 from protocols.orchestrator_loop import ProtocolDef, Stage
-from protocols.triggers import always, after, after_all
+from protocols.triggers import always, after
 from protocols.stages import (
     parallel_agent_stage,
     mechanical_stage,

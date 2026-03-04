@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useToolStore } from '../stores/toolStore'
-import { useAgentStore } from '../stores/agentStore'
+
 import { api } from '../api'
 import type { Agent, Framework, Delegation } from '../types'
 

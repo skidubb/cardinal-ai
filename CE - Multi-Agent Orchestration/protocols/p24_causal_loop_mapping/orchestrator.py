@@ -349,8 +349,8 @@ class CausalLoopOrchestrator:
     ) -> dict[str, Any]:
         var_block = self._format_variables_block(variables)
         links_block = "\n".join(
-            f"- {l.from_var} --({l.polarity})--> {l.to_var}: {l.reasoning}"
-            for l in links
+            f"- {link.from_var} --({link.polarity})--> {link.to_var}: {link.reasoning}"
+            for link in links
         )
         reinforcing_block = self._format_loops_block(reinforcing) or "None detected"
         balancing_block = self._format_loops_block(balancing) or "None detected"

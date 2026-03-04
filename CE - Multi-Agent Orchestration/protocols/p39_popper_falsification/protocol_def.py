@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from protocols.orchestrator_loop import ProtocolDef, Stage
 from protocols.triggers import always, after
-from protocols.stages import parallel_agent_stage, mechanical_stage, synthesis_stage
+from protocols.stages import parallel_agent_stage, synthesis_stage
 from .prompts import (
     GENERATE_CONDITIONS_PROMPT,
     EVIDENCE_SEARCH_PROMPT,

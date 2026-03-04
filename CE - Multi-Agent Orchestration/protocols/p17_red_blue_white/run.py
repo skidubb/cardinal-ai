@@ -196,6 +196,7 @@ def main() -> None:
             "orchestration_model": getattr(args, 'orchestration_model', getattr(args, 'thinking_model', None)),
             "thinking_budget": getattr(args, 'thinking_budget', 10000),
         }
+        agents = red_agents + blue_agents + [white_agent]
         orch = Orchestrator()
         bb = asyncio.run(orch.run(P17_DEF, args.question, agents, **config))
 

@@ -5,11 +5,7 @@ from protocols.triggers import always, after
 from protocols.stages import parallel_agent_stage, mechanical_stage, synthesis_stage
 from .prompts import (
     DOMAIN_CLASSIFICATION_PROMPT,
-    CLEAR_RESPONSE_PROMPT,
-    COMPLICATED_RESPONSE_PROMPT,
     COMPLEX_RESPONSE_PROMPT,
-    CHAOTIC_RESPONSE_PROMPT,
-    CONFUSED_RESPONSE_PROMPT,
     SYNTHESIS_PROMPT,
 )
 

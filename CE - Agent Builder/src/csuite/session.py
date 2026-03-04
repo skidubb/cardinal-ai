@@ -11,19 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from csuite.config import get_settings
-
-# Lazy-loaded global
-_store: Any = None
-
-
-def _get_store() -> Any:
-    global _store
-    if _store is None:
-        from csuite.storage import DuckDBStore
-        settings = get_settings()
-        _store = DuckDBStore(db_path=settings.duckdb_path)
-    return _store
+from csuite.storage.provider import get_db
 
 
 class Message(BaseModel):
@@ -118,12 +106,12 @@ class SessionManager:
 
     def save(self, session: Session) -> None:
         """Save a session to DuckDB."""
-        db = _get_store()
+        db = get_db()
         db.save_session(**_session_to_db_args(session))
 
     def load(self, session_id: str, agent_role: str | None = None) -> Session | None:
         """Load a session from DuckDB."""
-        db = _get_store()
+        db = get_db()
         data = db.load_session(session_id, agent_role)
         if data is None:
             return None
@@ -131,7 +119,7 @@ class SessionManager:
 
     def cleanup_old_sessions(self, max_age_days: int = 90) -> int:
         """Delete sessions older than max_age_days. Returns count deleted."""
-        db = _get_store()
+        db = get_db()
         return db.delete_old_sessions(max_age_days)
 
     def list_sessions(
@@ -140,7 +128,7 @@ class SessionManager:
         limit: int = 20,
     ) -> list[Session]:
         """List sessions, optionally filtered by agent role."""
-        db = _get_store()
+        db = get_db()
         # Lazily clean up old sessions on list
         try:
             db.delete_old_sessions()
@@ -166,7 +154,7 @@ class SessionManager:
 
     def delete(self, session_id: str, agent_role: str | None = None) -> bool:
         """Delete a session."""
-        db = _get_store()
+        db = get_db()
         return db.delete_session(session_id)
 
     def fork(self, session_id: str, title: str, agent_role: str | None = None) -> Session | None:
@@ -191,4 +179,71 @@ class SessionManager:
         self.save(session)
         return session
 
+
+# ---------------------------------------------------------------------------
+# Debate models (used by debate.py and prompts/debate_prompt.py)
+# ---------------------------------------------------------------------------
+
+
+class DebateArgument(BaseModel):
+    """A single argument made by one agent in one round of a debate."""
+
+    role: str
+    agent_name: str
+    content: str
+    round_number: int
+
+
+class DebateRound(BaseModel):
+    """One round of a multi-round debate."""
+
+    round_number: int
+    round_type: str  # "opening" | "rebuttal" | "final" | "negotiation"
+    arguments: list[DebateArgument] = Field(default_factory=list)
+
+
+class DebateSession(BaseModel):
+    """Full state of a multi-round debate."""
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
+    question: str
+    agent_roles: list[str]
+    total_rounds: int
+    rounds: list[DebateRound] = Field(default_factory=list)
+    synthesis: str | None = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    def add_round(self, round_: DebateRound) -> None:
+        self.rounds.append(round_)
+
+    def set_synthesis(self, text: str) -> None:
+        self.synthesis = text
+
+    def get_all_arguments_through_round(self, through_round: int) -> list[DebateArgument]:
+        args: list[DebateArgument] = []
+        for r in self.rounds:
+            if r.round_number <= through_round:
+                args.extend(r.arguments)
+        return args
+
+
+class DebateSessionManager:
+    """Minimal persistence shim for DebateSession (saves to DuckDB if available)."""
+
+    def save(self, debate: DebateSession) -> None:  # noqa: B027
+        """Persist a debate session. No-op if storage is unavailable."""
+        try:
+            db = get_db()
+            db.save_session(
+                session_id=debate.id,
+                agent_role="debate",
+                title=debate.question[:80],
+                parent_session_id=None,
+                metadata={"question": debate.question, "agent_roles": debate.agent_roles},
+                created_at=debate.created_at.isoformat(),
+                updated_at=datetime.now().isoformat(),
+                messages=[],
+            )
+        except Exception:
+            pass
 
