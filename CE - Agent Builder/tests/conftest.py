@@ -21,22 +21,16 @@ def temp_duckdb_path(tmp_path: Path) -> Path:
 @pytest.fixture
 def duckdb_store(temp_duckdb_path: Path) -> DuckDBStore:
     store = DuckDBStore(db_path=temp_duckdb_path)
-    # Reset lazy-loaded globals in modules that cache the store
-    import csuite.learning.experience_log as _exp_mod
-    import csuite.learning.preferences as _pref_mod
-    import csuite.session as _sess_mod
+    # Patch the centralized provider to return our test store
+    import csuite.storage.provider as _provider_mod
 
-    old_stores = (
-        _sess_mod._store, _exp_mod._store, _pref_mod._store,
-    )
-    _sess_mod._store = None
-    _exp_mod._store = None
-    _pref_mod._store = None
+    old_store = _provider_mod._store
+    _provider_mod._store = store
 
     yield store
 
     # Restore
-    _sess_mod._store, _exp_mod._store, _pref_mod._store = old_stores
+    _provider_mod._store = old_store
     store.close()
 
 

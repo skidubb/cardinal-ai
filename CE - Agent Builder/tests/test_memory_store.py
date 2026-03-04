@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from csuite.memory.store import MemoryStore
 
 _SETTINGS = "csuite.memory.store.get_settings"
-_INDEX = "csuite.memory.store._get_index"
+_INDEX = "csuite.memory.store.get_pinecone_index"
 
 
 def _mock_settings(enabled: bool = True, configured: bool = True) -> MagicMock:

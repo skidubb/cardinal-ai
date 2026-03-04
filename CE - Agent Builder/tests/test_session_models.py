@@ -1,7 +1,5 @@
 """Tests for session models and managers — uses DuckDB fixture."""
 
-from unittest.mock import patch
-
 from csuite.session import (
     Session,
     SessionManager,
@@ -55,61 +53,54 @@ class TestSessionModel:
 
 class TestSessionManager:
     def test_create_and_load(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = SessionManager()
-            session = mgr.create_session("ceo", title="Test")
-            loaded = mgr.load(session.id, "ceo")
-            assert loaded is not None
-            assert loaded.id == session.id
-            assert loaded.agent_role == "ceo"
+        mgr = SessionManager()
+        session = mgr.create_session("ceo", title="Test")
+        loaded = mgr.load(session.id, "ceo")
+        assert loaded is not None
+        assert loaded.id == session.id
+        assert loaded.agent_role == "ceo"
 
     def test_save_with_messages(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = SessionManager()
-            session = mgr.create_session("cfo")
-            session.add_message("user", "Hello")
-            session.add_message("assistant", "Hi there")
-            mgr.save(session)
-            loaded = mgr.load(session.id, "cfo")
-            assert loaded is not None
-            assert len(loaded.messages) == 2
-            assert loaded.messages[0].content == "Hello"
+        mgr = SessionManager()
+        session = mgr.create_session("cfo")
+        session.add_message("user", "Hello")
+        session.add_message("assistant", "Hi there")
+        mgr.save(session)
+        loaded = mgr.load(session.id, "cfo")
+        assert loaded is not None
+        assert len(loaded.messages) == 2
+        assert loaded.messages[0].content == "Hello"
 
     def test_list_sessions(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = SessionManager()
-            mgr.create_session("ceo", title="S1")
-            mgr.create_session("ceo", title="S2")
-            mgr.create_session("cfo", title="S3")
-            ceo_sessions = mgr.list_sessions("ceo")
-            assert len(ceo_sessions) == 2
+        mgr = SessionManager()
+        mgr.create_session("ceo", title="S1")
+        mgr.create_session("ceo", title="S2")
+        mgr.create_session("cfo", title="S3")
+        ceo_sessions = mgr.list_sessions("ceo")
+        assert len(ceo_sessions) == 2
 
     def test_delete(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = SessionManager()
-            session = mgr.create_session("cto")
-            assert mgr.delete(session.id) is True
-            assert mgr.load(session.id, "cto") is None
+        mgr = SessionManager()
+        session = mgr.create_session("cto")
+        assert mgr.delete(session.id) is True
+        assert mgr.load(session.id, "cto") is None
 
     def test_delete_nonexistent(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = SessionManager()
-            assert mgr.delete("nonexistent") is False
+        mgr = SessionManager()
+        assert mgr.delete("nonexistent") is False
 
     def test_fork(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = SessionManager()
-            original = mgr.create_session("ceo")
-            original.add_message("user", "Original Q")
-            mgr.save(original)
-            forked = mgr.fork(original.id, "Forked Session", "ceo")
-            assert forked is not None
-            assert forked.id != original.id
-            assert forked.parent_session_id == original.id
-            assert len(forked.messages) == 1
-            assert forked.title == "Forked Session"
+        mgr = SessionManager()
+        original = mgr.create_session("ceo")
+        original.add_message("user", "Original Q")
+        mgr.save(original)
+        forked = mgr.fork(original.id, "Forked Session", "ceo")
+        assert forked is not None
+        assert forked.id != original.id
+        assert forked.parent_session_id == original.id
+        assert len(forked.messages) == 1
+        assert forked.title == "Forked Session"
 
     def test_fork_nonexistent(self, duckdb_store):
-        with patch("csuite.session._get_store", return_value=duckdb_store):
-            mgr = SessionManager()
-            assert mgr.fork("nope", "title", "ceo") is None
+        mgr = SessionManager()
+        assert mgr.fork("nope", "title", "ceo") is None

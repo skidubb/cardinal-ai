@@ -6,20 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from csuite.config import get_settings
-
-# Lazy-loaded global
-_store: Any = None
-
-
-def _get_store() -> Any:
-    global _store
-    if _store is None:
-        from csuite.storage import DuckDBStore
-        settings = get_settings()
-        _store = DuckDBStore(db_path=settings.duckdb_path)
-    return _store
-
+from csuite.storage.provider import get_db
 
 DEFAULT_PREFS: dict[str, Any] = {
     "communication_style": [],
@@ -37,7 +24,7 @@ class PreferenceTracker:
         pass
 
     def _load(self, role: str) -> dict[str, Any]:
-        db = _get_store()
+        db = get_db()
         data = db.load_preferences(role)
         if data is None:
             import copy
@@ -45,7 +32,7 @@ class PreferenceTracker:
         return data
 
     def _save(self, role: str, data: dict[str, Any]) -> None:
-        db = _get_store()
+        db = get_db()
         db.save_preferences(role, data)
 
     def record_feedback(

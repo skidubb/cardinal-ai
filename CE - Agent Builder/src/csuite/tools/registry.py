@@ -109,6 +109,193 @@ ROLE_TOOL_MAP: dict[str, list[str]] = {
         "pinecone_search_knowledge",
         *_COMMON_TOOLS,
     ],
+    # --- CEO Direct Reports (inherit CEO tools) ---
+    "ceo-board-prep": [
+        "sec_search_companies", "sec_get_financials", "sec_get_filings",
+        "sec_generate_prospect_brief", "census_estimate_market_size",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "ceo-competitive-intel": [
+        "sec_search_companies", "sec_get_financials", "sec_get_filings",
+        "sec_generate_prospect_brief", "census_estimate_market_size",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "ceo-deal-strategist": [
+        "sec_search_companies", "sec_get_financials", "sec_get_filings",
+        "sec_generate_prospect_brief", "census_estimate_market_size",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    # --- CFO Direct Reports (inherit CFO tools) ---
+    "cfo-cash-flow-forecaster": [
+        "pricing_calculate_audit", "pricing_calculate_implementation",
+        "pricing_calculate_retainer", "sec_search_companies", "sec_get_financials",
+        "sec_get_filings", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cfo-client-profitability": [
+        "pricing_calculate_audit", "pricing_calculate_implementation",
+        "pricing_calculate_retainer", "sec_search_companies", "sec_get_financials",
+        "sec_get_filings", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cfo-pricing-strategist": [
+        "pricing_calculate_audit", "pricing_calculate_implementation",
+        "pricing_calculate_retainer", "sec_search_companies", "sec_get_financials",
+        "sec_get_filings", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    # --- CMO Direct Reports (inherit CMO tools) ---
+    "cmo-brand-designer": [
+        "census_estimate_market_size", "census_get_industry_benchmarks",
+        "bls_assess_labor_market", "pinecone_search_knowledge",
+        "openai_generate_image", "gemini_generate_image", *_COMMON_TOOLS,
+    ],
+    "cmo-distribution-strategist": [
+        "census_estimate_market_size", "census_get_industry_benchmarks",
+        "bls_assess_labor_market", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cmo-linkedin-ghostwriter": [
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cmo-market-intel": [
+        "census_estimate_market_size", "census_get_industry_benchmarks",
+        "bls_assess_labor_market", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cmo-outbound-campaign": [
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cmo-thought-leadership": [
+        "census_estimate_market_size", "census_get_industry_benchmarks",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    # --- COO Direct Reports (inherit COO tools) ---
+    "coo-bench-coordinator": [
+        "bls_get_employment_trend", "bls_assess_labor_market",
+        "pinecone_search_knowledge", "notion_query_database",
+        "notion_create_page", *_COMMON_TOOLS,
+    ],
+    "coo-engagement-manager": [
+        "bls_get_employment_trend", "bls_assess_labor_market",
+        "pinecone_search_knowledge", "notion_query_database",
+        "notion_create_page", *_COMMON_TOOLS,
+    ],
+    "coo-process-builder": [
+        "bls_get_employment_trend", "bls_assess_labor_market",
+        "pinecone_search_knowledge", "notion_query_database",
+        "notion_create_page", *_COMMON_TOOLS,
+    ],
+    # --- CPO Direct Reports (inherit CPO tools) ---
+    "cpo-client-insights": [
+        "census_get_industry_benchmarks", "pricing_calculate_audit",
+        "pricing_calculate_implementation", "pricing_calculate_retainer",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cpo-deliverable-designer": [
+        "census_get_industry_benchmarks", "pricing_calculate_audit",
+        "pricing_calculate_implementation", "pricing_calculate_retainer",
+        "pinecone_search_knowledge", "openai_generate_image",
+        "gemini_generate_image", *_COMMON_TOOLS,
+    ],
+    "cpo-service-designer": [
+        "census_get_industry_benchmarks", "pricing_calculate_audit",
+        "pricing_calculate_implementation", "pricing_calculate_retainer",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    # --- CTO Direct Reports (inherit CTO tools) ---
+    "cto-ai-systems-designer": [
+        "github_get_org", "github_analyze_tech_stack",
+        "github_assess_engineering_maturity", "github_generate_prospect_profile",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cto-audit-architect": [
+        "github_get_org", "github_analyze_tech_stack",
+        "github_assess_engineering_maturity", "github_generate_prospect_profile",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cto-internal-platform": [
+        "github_get_org", "github_analyze_tech_stack",
+        "github_assess_engineering_maturity", "github_generate_prospect_profile",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    # --- GTM Leadership (inherit CRO tools) ---
+    "gtm-cro": [
+        "sec_search_companies", "sec_get_financials", "sec_get_filings",
+        "pricing_calculate_audit", "pricing_calculate_implementation",
+        "pricing_calculate_retainer", "census_estimate_market_size",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-vp-sales": [
+        "sec_search_companies", "sec_get_financials", "sec_get_filings",
+        "pricing_calculate_audit", "pricing_calculate_implementation",
+        "pricing_calculate_retainer", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-vp-growth-ops": [
+        "census_estimate_market_size", "census_get_industry_benchmarks",
+        "bls_assess_labor_market", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-vp-partnerships": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "gtm-vp-revops": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "gtm-vp-success": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    # --- GTM Sales & Pipeline ---
+    "gtm-ae-strategist": [
+        "sec_search_companies", "sec_get_financials",
+        "pricing_calculate_audit", "pricing_calculate_implementation",
+        "pricing_calculate_retainer", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-deal-desk": [
+        "sec_search_companies", "sec_get_financials",
+        "pricing_calculate_audit", "pricing_calculate_implementation",
+        "pricing_calculate_retainer", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-sales-ops": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "gtm-sdr-manager": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "gtm-sdr-agent": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    # --- GTM Marketing & Demand Gen ---
+    "gtm-abm-specialist": [
+        "census_estimate_market_size", "census_get_industry_benchmarks",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-content-marketer": [
+        "census_estimate_market_size", "bls_assess_labor_market",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-demand-gen": [
+        "census_estimate_market_size", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-analytics": [
+        "sec_search_companies", "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "gtm-revenue-analyst": [
+        "sec_search_companies", "sec_get_financials",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    # --- GTM Partners & Channels ---
+    "gtm-partner-manager": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "gtm-partner-enablement": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "gtm-alliance-ops": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "gtm-channel-marketer": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    # --- GTM Customer Success & Retention ---
+    "gtm-csm-lead": [
+        "pinecone_search_knowledge", "notion_query_database",
+        "notion_create_page", *_COMMON_TOOLS,
+    ],
+    "gtm-onboarding-specialist": [
+        "pinecone_search_knowledge", "notion_query_database",
+        "notion_create_page", *_COMMON_TOOLS,
+    ],
+    "gtm-renewals-manager": [
+        "pinecone_search_knowledge", "notion_query_database", *_COMMON_TOOLS,
+    ],
+    # --- GTM Operations & Infrastructure ---
+    "gtm-data-ops": [
+        "pinecone_search_knowledge", "notion_query_database",
+        "notion_create_page", *_COMMON_TOOLS,
+    ],
+    "gtm-systems-admin": [
+        "pinecone_search_knowledge", "notion_query_database",
+        "notion_create_page", *_COMMON_TOOLS,
+    ],
+    # --- External Perspectives ---
+    "vc-app-investor": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "vc-infra-investor": ["pinecone_search_knowledge", *_COMMON_TOOLS],
+    "brand-essence": ["pinecone_search_knowledge", *_COMMON_TOOLS],
     # --- Airport 5G Decision-Maker Simulation Agents ---
     "airport-cio": ["pinecone_search_knowledge", *_COMMON_TOOLS],
     "airport-cro": ["pinecone_search_knowledge", *_COMMON_TOOLS],

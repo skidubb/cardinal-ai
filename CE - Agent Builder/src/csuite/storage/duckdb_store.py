@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -90,6 +91,7 @@ class DuckDBStore:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = duckdb.connect(str(self.db_path))
+        self._write_lock = threading.Lock()
         self._init_schema()
 
     def _init_schema(self) -> None:
@@ -111,17 +113,18 @@ class DuckDBStore:
     # -- Experience log operations --
 
     def add_lesson(self, role: str, lesson: str, timestamp: str) -> None:
-        self.conn.execute(
-            "INSERT INTO experience_logs (role, lesson, timestamp) VALUES (?, ?, ?)",
-            [role, lesson, timestamp],
-        )
-        # Trim to most recent 50 per role
-        self.conn.execute(
-            """DELETE FROM experience_logs WHERE role = ? AND id NOT IN (
-                 SELECT id FROM experience_logs WHERE role = ? ORDER BY id DESC LIMIT 50
-               )""",
-            [role, role],
-        )
+        with self._write_lock:
+            self.conn.execute(
+                "INSERT INTO experience_logs (role, lesson, timestamp) VALUES (?, ?, ?)",
+                [role, lesson, timestamp],
+            )
+            # Trim to most recent 50 per role
+            self.conn.execute(
+                """DELETE FROM experience_logs WHERE role = ? AND id NOT IN (
+                     SELECT id FROM experience_logs WHERE role = ? ORDER BY id DESC LIMIT 50
+                   )""",
+                [role, role],
+            )
 
     def get_lessons(self, role: str, limit: int = 50) -> list[tuple[str, str]]:
         """Returns list of (timestamp, lesson) tuples."""
@@ -133,10 +136,11 @@ class DuckDBStore:
     # -- Preference operations --
 
     def save_preferences(self, role: str, data: dict[str, Any]) -> None:
-        self.conn.execute(
-            "INSERT OR REPLACE INTO preferences (role, data) VALUES (?, ?::JSON)",
-            [role, json.dumps(data, default=str)],
-        )
+        with self._write_lock:
+            self.conn.execute(
+                "INSERT OR REPLACE INTO preferences (role, data) VALUES (?, ?::JSON)",
+                [role, json.dumps(data, default=str)],
+            )
 
     def load_preferences(self, role: str) -> dict[str, Any] | None:
         result = self.conn.execute(
@@ -160,34 +164,35 @@ class DuckDBStore:
         updated_at: str,
         messages: list[dict[str, Any]],
     ) -> None:
-        self.conn.execute(
-            """INSERT OR REPLACE INTO sessions
-               (id, agent_role, title, parent_session_id, metadata, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?::JSON, ?, ?)""",
-            [
-                session_id,
-                agent_role,
-                title,
-                parent_session_id,
-                json.dumps(metadata, default=str),
-                created_at,
-                updated_at,
-            ],
-        )
-        # Delete existing messages for this session, then re-insert
-        self.conn.execute("DELETE FROM messages WHERE session_id = ?", [session_id])
-        for msg in messages:
+        with self._write_lock:
             self.conn.execute(
-                """INSERT INTO messages (session_id, role, content, timestamp, metadata)
-                   VALUES (?, ?, ?, ?, ?::JSON)""",
+                """INSERT OR REPLACE INTO sessions
+                   (id, agent_role, title, parent_session_id, metadata, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?::JSON, ?, ?)""",
                 [
                     session_id,
-                    msg["role"],
-                    msg["content"],
-                    msg["timestamp"],
-                    json.dumps(msg.get("metadata", {}), default=str),
+                    agent_role,
+                    title,
+                    parent_session_id,
+                    json.dumps(metadata, default=str),
+                    created_at,
+                    updated_at,
                 ],
             )
+            # Delete existing messages for this session, then re-insert
+            self.conn.execute("DELETE FROM messages WHERE session_id = ?", [session_id])
+            for msg in messages:
+                self.conn.execute(
+                    """INSERT INTO messages (session_id, role, content, timestamp, metadata)
+                       VALUES (?, ?, ?, ?, ?::JSON)""",
+                    [
+                        session_id,
+                        msg["role"],
+                        msg["content"],
+                        msg["timestamp"],
+                        json.dumps(msg.get("metadata", {}), default=str),
+                    ],
+                )
 
     def load_session(
         self, session_id: str, agent_role: str | None = None
@@ -262,52 +267,55 @@ class DuckDBStore:
 
     def delete_old_sessions(self, max_age_days: int = 90) -> int:
         """Delete sessions older than max_age_days. Returns count of deleted sessions."""
-        self.conn.execute(
-            """DELETE FROM messages WHERE session_id IN (
-                 SELECT id FROM sessions
-                 WHERE CAST(updated_at AS TIMESTAMP) < CURRENT_TIMESTAMP - INTERVAL ? DAY
-               )""",
-            [max_age_days],
-        )
-        result2 = self.conn.execute(
-            """DELETE FROM sessions
-               WHERE CAST(updated_at AS TIMESTAMP) < CURRENT_TIMESTAMP - INTERVAL ? DAY
-               RETURNING id""",
-            [max_age_days],
-        )
-        deleted = result2.fetchall()
-        return len(deleted)
+        with self._write_lock:
+            self.conn.execute(
+                """DELETE FROM messages WHERE session_id IN (
+                     SELECT id FROM sessions
+                     WHERE CAST(updated_at AS TIMESTAMP) < CURRENT_TIMESTAMP - INTERVAL ? DAY
+                   )""",
+                [max_age_days],
+            )
+            result2 = self.conn.execute(
+                """DELETE FROM sessions
+                   WHERE CAST(updated_at AS TIMESTAMP) < CURRENT_TIMESTAMP - INTERVAL ? DAY
+                   RETURNING id""",
+                [max_age_days],
+            )
+            deleted = result2.fetchall()
+            return len(deleted)
 
     def delete_session(self, session_id: str) -> bool:
-        exists = self.conn.execute(
-            "SELECT id FROM sessions WHERE id = ?", [session_id]
-        ).fetchone()
-        if not exists:
-            return False
-        self.conn.execute("DELETE FROM messages WHERE session_id = ?", [session_id])
-        self.conn.execute("DELETE FROM sessions WHERE id = ?", [session_id])
-        return True
+        with self._write_lock:
+            exists = self.conn.execute(
+                "SELECT id FROM sessions WHERE id = ?", [session_id]
+            ).fetchone()
+            if not exists:
+                return False
+            self.conn.execute("DELETE FROM messages WHERE session_id = ?", [session_id])
+            self.conn.execute("DELETE FROM sessions WHERE id = ?", [session_id])
+            return True
 
     # -- Debate session operations --
 
     def save_debate(self, debate_data: dict[str, Any]) -> None:
-        self.conn.execute(
-            """INSERT OR REPLACE INTO debate_sessions
-               (id, question, agent_roles, total_rounds, rounds, synthesis, status,
-                created_at, updated_at)
-               VALUES (?, ?, ?::JSON, ?, ?::JSON, ?, ?, ?, ?)""",
-            [
-                debate_data["id"],
-                debate_data["question"],
-                json.dumps(debate_data["agent_roles"]),
-                debate_data["total_rounds"],
-                json.dumps(debate_data["rounds"], default=str),
-                debate_data.get("synthesis"),
-                debate_data.get("status", "in_progress"),
-                debate_data["created_at"],
-                debate_data["updated_at"],
-            ],
-        )
+        with self._write_lock:
+            self.conn.execute(
+                """INSERT OR REPLACE INTO debate_sessions
+                   (id, question, agent_roles, total_rounds, rounds, synthesis, status,
+                    created_at, updated_at)
+                   VALUES (?, ?, ?::JSON, ?, ?::JSON, ?, ?, ?, ?)""",
+                [
+                    debate_data["id"],
+                    debate_data["question"],
+                    json.dumps(debate_data["agent_roles"]),
+                    debate_data["total_rounds"],
+                    json.dumps(debate_data["rounds"], default=str),
+                    debate_data.get("synthesis"),
+                    debate_data.get("status", "in_progress"),
+                    debate_data["created_at"],
+                    debate_data["updated_at"],
+                ],
+            )
 
     def load_debate(self, debate_id: str) -> dict[str, Any] | None:
         row = self.conn.execute(
@@ -342,22 +350,25 @@ class DuckDBStore:
         return results
 
     def delete_debate(self, debate_id: str) -> bool:
-        result = self.conn.execute(
-            "DELETE FROM debate_sessions WHERE id = ? RETURNING id", [debate_id]
-        ).fetchone()
-        return result is not None
+        with self._write_lock:
+            result = self.conn.execute(
+                "DELETE FROM debate_sessions WHERE id = ? RETURNING id", [debate_id]
+            ).fetchone()
+            return result is not None
 
     # -- Causal trace operations --
 
     def save_causal_trace(self, event_id: str, graph_data: dict[str, Any]) -> None:
         from datetime import datetime
         node_count = len(graph_data.get("nodes", {}))
-        self.conn.execute(
-            """INSERT OR REPLACE INTO causal_traces
-               (event_id, graph_data, node_count, created_at)
-               VALUES (?, ?::JSON, ?, ?)""",
-            [event_id, json.dumps(graph_data, default=str), node_count, datetime.now().isoformat()],
-        )
+        with self._write_lock:
+            self.conn.execute(
+                """INSERT OR REPLACE INTO causal_traces
+                   (event_id, graph_data, node_count, created_at)
+                   VALUES (?, ?::JSON, ?, ?)""",
+                [event_id, json.dumps(graph_data, default=str), node_count,
+                 datetime.now().isoformat()],
+            )
 
     def load_causal_trace(self, event_id: str) -> dict[str, Any] | None:
         row = self.conn.execute(
@@ -383,23 +394,24 @@ class DuckDBStore:
     # -- Evaluation run operations --
 
     def save_evaluation_run(self, data: dict[str, Any]) -> None:
-        self.conn.execute(
-            """INSERT OR REPLACE INTO evaluation_runs
-               (id, question_id, mode, output_text, cost, duration_seconds,
-                judge_scores, trace_metrics, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?::JSON, ?::JSON, ?)""",
-            [
-                data["id"],
-                data["question_id"],
-                data["mode"],
-                data.get("output_text"),
-                data.get("cost", 0.0),
-                data.get("duration_seconds", 0.0),
-                json.dumps(data.get("judge_scores", {})),
-                json.dumps(data.get("trace_metrics", {})),
-                data["created_at"],
-            ],
-        )
+        with self._write_lock:
+            self.conn.execute(
+                """INSERT OR REPLACE INTO evaluation_runs
+                   (id, question_id, mode, output_text, cost, duration_seconds,
+                    judge_scores, trace_metrics, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?::JSON, ?::JSON, ?)""",
+                [
+                    data["id"],
+                    data["question_id"],
+                    data["mode"],
+                    data.get("output_text"),
+                    data.get("cost", 0.0),
+                    data.get("duration_seconds", 0.0),
+                    json.dumps(data.get("judge_scores", {})),
+                    json.dumps(data.get("trace_metrics", {})),
+                    data["created_at"],
+                ],
+            )
 
     def list_evaluation_runs(self, limit: int = 50) -> list[dict[str, Any]]:
         rows = self.conn.execute(

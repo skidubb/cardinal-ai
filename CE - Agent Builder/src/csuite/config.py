@@ -4,11 +4,14 @@ Configuration management for C-Suite agents.
 Uses pydantic-settings for environment variable management with validation.
 """
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+HAIKU_MODEL = os.getenv("HAIKU_MODEL", "claude-haiku-4-5-20251001")
 
 
 class Settings(BaseSettings):
@@ -192,48 +195,239 @@ AGENT_CONFIGS = {
         temperature=0.6,  # Balanced for revenue strategy
         max_tokens=8192,
     ),
+    # --- CEO Direct Reports ---
+    "ceo-board-prep": AgentConfig(
+        name="CEO's Board Prep Specialist", role="ceo-board-prep",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "ceo-competitive-intel": AgentConfig(
+        name="CEO's Competitive Intelligence Analyst", role="ceo-competitive-intel",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "ceo-deal-strategist": AgentConfig(
+        name="CEO's Deal Strategist", role="ceo-deal-strategist",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- CFO Direct Reports ---
+    "cfo-cash-flow-forecaster": AgentConfig(
+        name="CFO's Cash Flow Forecaster", role="cfo-cash-flow-forecaster",
+        model="claude-opus-4-6", temperature=0.5,
+    ),
+    "cfo-client-profitability": AgentConfig(
+        name="CFO's Client Profitability Analyst", role="cfo-client-profitability",
+        model="claude-opus-4-6", temperature=0.5,
+    ),
+    "cfo-pricing-strategist": AgentConfig(
+        name="CFO's Pricing Strategist", role="cfo-pricing-strategist",
+        model="claude-opus-4-6", temperature=0.5,
+    ),
+    # --- CMO Direct Reports ---
+    "cmo-brand-designer": AgentConfig(
+        name="CMO's Brand Designer", role="cmo-brand-designer",
+        model="claude-opus-4-6", temperature=0.8,
+    ),
+    "cmo-distribution-strategist": AgentConfig(
+        name="CMO's Distribution Strategist", role="cmo-distribution-strategist",
+        model="claude-opus-4-6", temperature=0.8,
+    ),
+    "cmo-linkedin-ghostwriter": AgentConfig(
+        name="CMO's LinkedIn Ghostwriter", role="cmo-linkedin-ghostwriter",
+        model="claude-opus-4-6", temperature=0.8,
+    ),
+    "cmo-market-intel": AgentConfig(
+        name="CMO's Market Intelligence Analyst", role="cmo-market-intel",
+        model="claude-opus-4-6", temperature=0.8,
+    ),
+    "cmo-outbound-campaign": AgentConfig(
+        name="CMO's Outbound Campaign Specialist", role="cmo-outbound-campaign",
+        model="claude-opus-4-6", temperature=0.8,
+    ),
+    "cmo-thought-leadership": AgentConfig(
+        name="CMO's Thought Leadership Director", role="cmo-thought-leadership",
+        model="claude-opus-4-6", temperature=0.8,
+    ),
+    # --- COO Direct Reports ---
+    "coo-bench-coordinator": AgentConfig(
+        name="COO's Bench Coordinator", role="coo-bench-coordinator",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "coo-engagement-manager": AgentConfig(
+        name="COO's Engagement Manager", role="coo-engagement-manager",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "coo-process-builder": AgentConfig(
+        name="COO's Process Builder", role="coo-process-builder",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- CPO Direct Reports ---
+    "cpo-client-insights": AgentConfig(
+        name="CPO's Client Insights Analyst", role="cpo-client-insights",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "cpo-deliverable-designer": AgentConfig(
+        name="CPO's Deliverable Designer", role="cpo-deliverable-designer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "cpo-service-designer": AgentConfig(
+        name="CPO's Service Designer", role="cpo-service-designer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- CTO Direct Reports ---
+    "cto-ai-systems-designer": AgentConfig(
+        name="CTO's AI Systems Designer", role="cto-ai-systems-designer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "cto-audit-architect": AgentConfig(
+        name="CTO's Audit Architect", role="cto-audit-architect",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "cto-internal-platform": AgentConfig(
+        name="CTO's Internal Platform Engineer", role="cto-internal-platform",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- GTM Leadership ---
+    "gtm-cro": AgentConfig(
+        name="Chief Revenue Officer (GTM)", role="gtm-cro",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-vp-sales": AgentConfig(
+        name="VP of Sales", role="gtm-vp-sales",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-vp-growth-ops": AgentConfig(
+        name="VP of Growth Ops", role="gtm-vp-growth-ops",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-vp-partnerships": AgentConfig(
+        name="VP of Partnerships", role="gtm-vp-partnerships",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-vp-revops": AgentConfig(
+        name="VP of Revenue Operations", role="gtm-vp-revops",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-vp-success": AgentConfig(
+        name="VP of Customer Success", role="gtm-vp-success",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- GTM Sales & Pipeline ---
+    "gtm-ae-strategist": AgentConfig(
+        name="AE Strategist", role="gtm-ae-strategist",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-deal-desk": AgentConfig(
+        name="Deal Desk", role="gtm-deal-desk",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-sales-ops": AgentConfig(
+        name="Sales Ops Analyst", role="gtm-sales-ops",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-sdr-manager": AgentConfig(
+        name="SDR Manager", role="gtm-sdr-manager",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-sdr-agent": AgentConfig(
+        name="SDR Agent", role="gtm-sdr-agent",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- GTM Marketing & Demand Gen ---
+    "gtm-abm-specialist": AgentConfig(
+        name="ABM Specialist", role="gtm-abm-specialist",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    "gtm-content-marketer": AgentConfig(
+        name="Content Marketer", role="gtm-content-marketer",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    "gtm-demand-gen": AgentConfig(
+        name="Demand Generation Specialist", role="gtm-demand-gen",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    "gtm-analytics": AgentConfig(
+        name="RevOps Analytics Specialist", role="gtm-analytics",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    "gtm-revenue-analyst": AgentConfig(
+        name="Revenue Analyst", role="gtm-revenue-analyst",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    # --- GTM Partners & Channels ---
+    "gtm-partner-manager": AgentConfig(
+        name="Partner Manager", role="gtm-partner-manager",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-partner-enablement": AgentConfig(
+        name="Partner Enablement Specialist", role="gtm-partner-enablement",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-alliance-ops": AgentConfig(
+        name="Alliance Operations Specialist", role="gtm-alliance-ops",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-channel-marketer": AgentConfig(
+        name="Channel Marketer", role="gtm-channel-marketer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- GTM Customer Success & Retention ---
+    "gtm-csm-lead": AgentConfig(
+        name="CSM Lead", role="gtm-csm-lead",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-onboarding-specialist": AgentConfig(
+        name="Onboarding Specialist", role="gtm-onboarding-specialist",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-renewals-manager": AgentConfig(
+        name="Renewals Manager", role="gtm-renewals-manager",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- GTM Operations & Infrastructure ---
+    "gtm-data-ops": AgentConfig(
+        name="RevOps Data Operations Specialist", role="gtm-data-ops",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "gtm-systems-admin": AgentConfig(
+        name="RevOps Systems Administrator", role="gtm-systems-admin",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    # --- External Perspectives ---
+    "vc-app-investor": AgentConfig(
+        name="VC App-Layer Investor", role="vc-app-investor",
+        model="openai/gpt-4o", temperature=0.6,
+    ),
+    "vc-infra-investor": AgentConfig(
+        name="VC Infra-Layer Investor", role="vc-infra-investor",
+        model="gemini/gemini-2.0-flash", temperature=0.6,
+    ),
+    "brand-essence": AgentConfig(
+        name="Brand Essence Analyst", role="brand-essence",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
     # --- Airport 5G Decision-Maker Simulation Agents ---
     "airport-cio": AgentConfig(
-        name="Airport CIO",
-        role="airport-cio",
-        model="claude-opus-4-6",
-        temperature=0.6,
-        max_tokens=8192,
+        name="Airport CIO", role="airport-cio",
+        model="claude-opus-4-6", temperature=0.6,
     ),
     "airport-cro": AgentConfig(
-        name="Airport CRO",
-        role="airport-cro",
-        model="claude-opus-4-6",
-        temperature=0.6,
-        max_tokens=8192,
+        name="Airport CRO", role="airport-cro",
+        model="claude-opus-4-6", temperature=0.6,
     ),
     "airline-ops-vp": AgentConfig(
-        name="Anchor Airline VP",
-        role="airline-ops-vp",
-        model="claude-opus-4-6",
-        temperature=0.6,
-        max_tokens=8192,
+        name="Anchor Airline VP", role="airline-ops-vp",
+        model="claude-opus-4-6", temperature=0.6,
     ),
     "cargo-ops-director": AgentConfig(
-        name="Cargo Director",
-        role="cargo-ops-director",
-        model="claude-opus-4-6",
-        temperature=0.6,
-        max_tokens=8192,
+        name="Cargo Director", role="cargo-ops-director",
+        model="claude-opus-4-6", temperature=0.6,
     ),
     "concessions-tech-lead": AgentConfig(
-        name="Concessions Tech Lead",
-        role="concessions-tech-lead",
-        model="claude-opus-4-6",
-        temperature=0.6,
-        max_tokens=8192,
+        name="Concessions Tech Lead", role="concessions-tech-lead",
+        model="claude-opus-4-6", temperature=0.6,
     ),
     "att-carrier-rep": AgentConfig(
-        name="AT&T Carrier Rep",
-        role="att-carrier-rep",
-        model="claude-opus-4-6",
-        temperature=0.6,
-        max_tokens=8192,
+        name="AT&T Carrier Rep", role="att-carrier-rep",
+        model="claude-opus-4-6", temperature=0.6,
     ),
 }
 

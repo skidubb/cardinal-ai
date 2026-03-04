@@ -12,25 +12,9 @@ import time
 from typing import Any
 
 from csuite.config import get_settings
+from csuite.memory.provider import get_pinecone_index
 
 logger = logging.getLogger(__name__)
-
-# Lazy-loaded Pinecone index
-_index: Any = None
-
-
-def _get_index() -> Any:
-    """Lazy-load Pinecone index for the learning store."""
-    global _index
-    if _index is None:
-        from pinecone import Pinecone
-
-        settings = get_settings()
-        if not settings.pinecone_api_key or not settings.pinecone_learning_index_host:
-            raise RuntimeError("Pinecone learning index not configured")
-        pc = Pinecone(api_key=settings.pinecone_api_key)
-        _index = pc.Index(host=settings.pinecone_learning_index_host)
-    return _index
 
 
 class MemoryStore:
@@ -57,7 +41,7 @@ class MemoryStore:
         if not self.enabled:
             return False
         try:
-            index = _get_index()
+            index = get_pinecone_index()
             record_id = f"{role}-{int(time.time() * 1000)}"
             record = {
                 "_id": record_id,
@@ -78,7 +62,7 @@ class MemoryStore:
         if not self.enabled:
             return []
         try:
-            index = _get_index()
+            index = get_pinecone_index()
             response = index.search(
                 namespace=role,
                 query={"top_k": min(max(top_k, 1), 10), "inputs": {"text": query}},

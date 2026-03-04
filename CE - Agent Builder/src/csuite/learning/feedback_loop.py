@@ -18,7 +18,8 @@ from typing import Any
 import anthropic
 from pydantic import BaseModel, Field
 
-from csuite.config import get_settings
+from csuite.config import HAIKU_MODEL, get_settings
+from csuite.memory.provider import get_pinecone_index
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ class SelfEvaluator:
         """Score an artifact. Returns ArtifactScore with dimension scores."""
         try:
             result = self.client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model=HAIKU_MODEL,
                 max_tokens=256,
                 temperature=0.0,
                 messages=[{
@@ -119,22 +120,14 @@ class FeedbackStore:
             and settings.pinecone_api_key
             and settings.pinecone_learning_index_host
         )
-        self._index: Any = None
-
-    def _get_index(self) -> Any:
-        if self._index is None:
-            from pinecone import Pinecone
-            settings = get_settings()
-            pc = Pinecone(api_key=settings.pinecone_api_key)
-            self._index = pc.Index(host=settings.pinecone_learning_index_host)  # type: ignore[arg-type]
-        return self._index
+        pass
 
     def store_score(self, score: ArtifactScore, artifact_text: str) -> bool:
         """Store an artifact score with the artifact text as searchable content."""
         if not self.enabled:
             return False
         try:
-            index = self._get_index()
+            index = get_pinecone_index()
             record = {
                 "_id": score.artifact_id,
                 "text": artifact_text[:2000],
@@ -159,7 +152,7 @@ class FeedbackStore:
         if not self.enabled:
             return False
         try:
-            index = self._get_index()
+            index = get_pinecone_index()
             # Update the record's approved field
             index.upsert_records(
                 namespace=self.NAMESPACE,
@@ -177,7 +170,7 @@ class FeedbackStore:
         if not self.enabled:
             return []
         try:
-            index = self._get_index()
+            index = get_pinecone_index()
             response = index.search(
                 namespace=self.NAMESPACE,
                 query={
