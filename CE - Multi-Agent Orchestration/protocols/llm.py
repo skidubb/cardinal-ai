@@ -13,16 +13,82 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 from contextvars import ContextVar
+from typing import Any, Callable, Coroutine
 
 import anthropic
 import litellm
+
+_log = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Retry helper
+# ---------------------------------------------------------------------------
+
+_RETRY_DELAYS = (1.0, 2.0, 4.0)  # seconds before each retry attempt
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    """Return True for transient API errors that warrant a retry."""
+    if isinstance(exc, (
+        anthropic.RateLimitError,
+        anthropic.APIConnectionError,
+    )):
+        return True
+    if isinstance(exc, anthropic.APIStatusError) and exc.status_code >= 500:
+        return True
+    try:
+        import litellm.exceptions as _lx
+        if isinstance(exc, _lx.RateLimitError):
+            return True
+    except (ImportError, AttributeError):
+        pass
+    return False
+
+
+async def _retry_api_call(
+    coro_fn: Callable[..., Coroutine[Any, Any, Any]],
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    """Call ``coro_fn(*args, **kwargs)`` with up to 3 retries on transient errors.
+
+    Backoff schedule: 1 s, 2 s, 4 s — each with up to 0.5 s of random jitter.
+    Logs a WARNING before each retry. Re-raises on non-retryable errors or after
+    all retries are exhausted.
+    """
+    last_exc: BaseException | None = None
+    for attempt, delay in enumerate((*_RETRY_DELAYS, None)):  # 4 total attempts
+        try:
+            return await coro_fn(*args, **kwargs)
+        except BaseException as exc:
+            if not _is_retryable(exc):
+                raise
+            last_exc = exc
+            if delay is None:
+                break  # retries exhausted — fall through to re-raise
+            jitter = random.uniform(0.0, 0.5)
+            wait = delay + jitter
+            _log.warning(
+                "API call failed (attempt %d/4, retrying in %.1fs): %s: %s",
+                attempt + 1,
+                wait,
+                type(exc).__name__,
+                exc,
+            )
+            await asyncio.sleep(wait)
+    raise last_exc  # type: ignore[misc]
+
 
 # Context-propagated event queue for live tool visibility
 _event_queue: ContextVar[asyncio.Queue | None] = ContextVar("_event_queue", default=None)
 
 # Context-propagated no_tools flag — protocol-level tool disable
 _no_tools: ContextVar[bool] = ContextVar("_no_tools", default=False)
+
+# Context-propagated cost tracker — optional, zero overhead when unset
+_cost_tracker: ContextVar[Any] = ContextVar("_cost_tracker", default=None)
 
 
 def set_no_tools(val: bool) -> None:
@@ -39,6 +105,31 @@ def set_event_queue(q: asyncio.Queue) -> None:
 
 def get_event_queue() -> asyncio.Queue | None:
     return _event_queue.get()
+
+
+def set_cost_tracker(tracker: Any) -> None:
+    """Attach a ProtocolCostTracker to the current context. Pass None to clear."""
+    _cost_tracker.set(tracker)
+
+
+def get_cost_tracker() -> Any:
+    """Return the active ProtocolCostTracker, or None if unset."""
+    return _cost_tracker.get()
+
+
+def _record_usage(model: str, response: Any) -> None:
+    """Extract token counts from an API response and forward to the active tracker."""
+    tracker = _cost_tracker.get()
+    if tracker is None:
+        return
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    input_tokens = getattr(usage, "input_tokens", 0) or 0
+    output_tokens = getattr(usage, "output_tokens", 0) or 0
+    # cache_read_input_tokens is Anthropic SDK's attribute name for prompt-cache hits
+    cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+    tracker.track(model, input_tokens, output_tokens, cached_tokens)
 
 
 def _is_anthropic_model(model: str) -> bool:
@@ -101,7 +192,8 @@ async def agent_complete(
         if not effective_no_tools and tools:
             kwargs["tools"] = tools
 
-        response = await litellm.acompletion(**kwargs)
+        response = await _retry_api_call(litellm.acompletion, **kwargs)
+        _record_usage(agent_model, response)
         return response.choices[0].message.content
 
     # Anthropic SDK fallback — orchestrator's model, preserves tracing
@@ -139,7 +231,8 @@ async def agent_complete(
     if effective_tools:
         create_kwargs["tools"] = effective_tools
 
-    response = await anthropic_client.messages.create(**create_kwargs)
+    response = await _retry_api_call(anthropic_client.messages.create, **create_kwargs)
+    _record_usage(fallback_model, response)
 
     # If no tools or no tool_use in response, return text directly
     if not effective_tools or response.stop_reason != "tool_use":
@@ -193,10 +286,11 @@ async def agent_complete(
 
         loop_messages.append({"role": "user", "content": tool_results})
 
-        response = await anthropic_client.messages.create(**{
-            **create_kwargs,
-            "messages": loop_messages,
-        })
+        response = await _retry_api_call(
+            anthropic_client.messages.create,
+            **{**create_kwargs, "messages": loop_messages},
+        )
+        _record_usage(fallback_model, response)
 
         if response.stop_reason != "tool_use":
             break

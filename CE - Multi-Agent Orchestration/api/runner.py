@@ -21,7 +21,8 @@ from sqlmodel import Session
 from api.database import engine
 from api.models import AgentOutput, Run, RunStep
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
-from protocols.llm import set_event_queue, set_no_tools
+from protocols.cost_tracker import ProtocolCostTracker
+from protocols.llm import set_cost_tracker, set_event_queue, set_no_tools
 
 
 # ── Protocol → orchestrator class mapping ────────────────────────────────────
@@ -173,6 +174,10 @@ async def run_protocol_stream(
 
         yield _sse_event("stage", {"message": "Running protocol..."})
 
+        # Set up cost tracker for this run
+        cost_tracker = ProtocolCostTracker()
+        set_cost_tracker(cost_tracker)
+
         # Set up event queue for live tool visibility
         queue: asyncio.Queue = asyncio.Queue()
         set_event_queue(queue)
@@ -258,11 +263,16 @@ async def run_protocol_stream(
                     ))
                 session.commit()
 
+        cost_summary = cost_tracker.summary()
         yield _sse_event("run_complete", {
             "run_id": run_id,
             "elapsed_seconds": round(elapsed, 1),
             "status": "completed",
+            "cost": cost_summary,
         })
+
+        # Clear tracker from context
+        set_cost_tracker(None)
 
     except Exception as e:
         with Session(engine) as session:
@@ -273,6 +283,7 @@ async def run_protocol_stream(
                 session.add(run)
                 session.commit()
 
+        set_cost_tracker(None)
         yield _sse_event("error", {"message": str(e), "traceback": traceback.format_exc()})
         yield _sse_event("run_complete", {"run_id": run_id, "status": "failed"})
 
@@ -333,7 +344,9 @@ async def run_pipeline_stream(
 
             orchestrator = OrchestratorClass(**kwargs)
 
-            # Set up event queue and tool controls for this step
+            # Set up cost tracker, event queue and tool controls for this step
+            step_tracker = ProtocolCostTracker()
+            set_cost_tracker(step_tracker)
             pip_queue: asyncio.Queue = asyncio.Queue()
             set_event_queue(pip_queue)
             set_no_tools(step.get("no_tools", False))
@@ -380,7 +393,12 @@ async def run_pipeline_stream(
                     session.add(rs)
                     session.commit()
 
-            yield _sse_event("step_complete", {"step": i, "protocol_key": protocol_key})
+            set_cost_tracker(None)
+            yield _sse_event("step_complete", {
+                "step": i,
+                "protocol_key": protocol_key,
+                "cost": step_tracker.summary(),
+            })
 
         # Mark run complete
         with Session(engine) as session:
