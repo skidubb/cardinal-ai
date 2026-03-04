@@ -270,6 +270,8 @@ class VickreyOrchestrator:
         if not bids:
             return 0.0
         counts = Counter(b.selected_option for b in bids)
+        if not counts:
+            return 0.0
         max_count = counts.most_common(1)[0][1]
         # Consensus = fraction of agents that chose the most popular option
         return max_count / len(bids)

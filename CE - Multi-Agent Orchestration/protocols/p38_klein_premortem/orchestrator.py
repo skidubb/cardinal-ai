@@ -118,7 +118,7 @@ class PreMortemOrchestrator:
                 "content": FAILURE_EXTRACTION_PROMPT.format(all_narratives=all_narratives),
             }],
         )
-        return parse_json_object(response.content[0].text)
+        return parse_json_object(extract_text(response))
 
     async def _synthesize_mitigations(
         self,

@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
-from protocols.llm import parse_json_object
+from protocols.llm import extract_text, parse_json_object
 
 from .prompts import CLASSIFICATION_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -53,7 +53,7 @@ class KantRouterOrchestrator:
             }],
         )
 
-        data = parse_json_object(response.content[0].text)
+        data = parse_json_object(extract_text(response))
         result.problem_type = data.get("problem_type", "")
         result.modality = data.get("modality", "")
         result.modality_reasoning = data.get("modality_reasoning", "")

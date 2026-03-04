@@ -179,6 +179,9 @@ class EcocyclePlanningOrchestrator:
                 continue
 
             counter = Counter(votes)
+            if not counter:
+                contested.append(initiative)
+                continue
             top_stage, top_count = counter.most_common(1)[0]
             if top_count > len(votes) / 2:
                 consensus[initiative] = top_stage

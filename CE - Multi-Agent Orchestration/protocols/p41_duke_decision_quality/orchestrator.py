@@ -120,7 +120,7 @@ class DecisionQualityOrchestrator:
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        return response.content[0].text
+        return extract_text(response)
 
 
 

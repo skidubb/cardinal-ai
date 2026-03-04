@@ -86,7 +86,7 @@ class PMIOrchestrator:
                 "content": PROPOSITION_FRAMING_PROMPT.format(question=question),
             }],
         )
-        return response.content[0].text.strip()
+        return extract_text(response).strip()
 
     async def _enumerate(self, proposition: str) -> tuple[str, str, str]:
         """Phase 2: Three frame agents enumerate in parallel."""

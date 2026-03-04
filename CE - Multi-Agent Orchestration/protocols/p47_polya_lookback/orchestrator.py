@@ -136,6 +136,6 @@ class LookBackOrchestrator:
                 ),
             }],
         )
-        return response.content[0].text.strip()
+        return extract_text(response).strip()
 
 

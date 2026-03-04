@@ -44,7 +44,9 @@ async def auth_middleware(request: Request, call_next):
     if SKIP_AUTH or request.method == "OPTIONS":
         return await call_next(request)
     key = request.headers.get("X-API-Key", "")
-    if not API_KEY or key != API_KEY:
+    if not API_KEY:
+        return JSONResponse(status_code=500, content={"detail": "API_KEY not configured but auth is enabled. Set API_KEY or SKIP_AUTH=true."})
+    if key != API_KEY:
         return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
     return await call_next(request)
 

@@ -123,7 +123,7 @@ class IncubationOrchestrator:
                 ),
             }],
         )
-        return response.content[0].text.strip()
+        return extract_text(response).strip()
 
     async def _free_associate(self, tension: str) -> str:
         """Phase 3: Clean agent free-associates with no context. Temperature=1.0."""

@@ -45,7 +45,11 @@ def print_result(result: ACHResult) -> None:
     for cell in result.matrix:
         key = (cell.evidence_id, cell.hypothesis_id)
         vote_buckets.setdefault(key, []).append(cell.score)
-    aggregated = {k: Counter(v).most_common(1)[0][0] for k, v in vote_buckets.items()}
+    aggregated = {
+        k: Counter(v).most_common(1)[0][0]
+        for k, v in vote_buckets.items()
+        if v
+    }
 
     h_ids = [h.id for h in result.hypotheses]
     header = f"{'Evidence':<30} | " + " | ".join(f"{hid:^5}" for hid in h_ids)

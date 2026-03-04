@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from protocols.llm import parse_json_array
+from protocols.llm import extract_text, parse_json_array
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -111,7 +111,7 @@ class ConstraintExtractor:
                 ),
             }],
         )
-        data = parse_json_array(response.content[0].text)
+        data = parse_json_array(extract_text(response))
         return [
             Constraint(
                 source_role=item.get("source_role", role_name),

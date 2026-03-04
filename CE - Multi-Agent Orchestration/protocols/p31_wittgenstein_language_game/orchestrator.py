@@ -88,7 +88,7 @@ class LanguageGameOrchestrator:
                 ),
             }],
         )
-        data = parse_json_object(response.content[0].text)
+        data = parse_json_object(extract_text(response))
         # Extract just domain strings
         assignments = {}
         for agent in self.agents:

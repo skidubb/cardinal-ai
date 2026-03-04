@@ -188,6 +188,9 @@ class CynefinOrchestrator:
         domain_counts = Counter(v.domain for v in votes)
         total = len(votes)
 
+        if not domain_counts:
+            return "confused", True
+
         # Check for clear majority (> 50%)
         top_domain, top_count = domain_counts.most_common(1)[0]
         if top_count > total / 2:

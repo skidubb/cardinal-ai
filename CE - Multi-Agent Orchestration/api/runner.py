@@ -179,13 +179,14 @@ async def run_protocol_stream(
         set_cost_tracker(cost_tracker)
 
         # Set up event queue for live tool visibility
-        queue: asyncio.Queue = asyncio.Queue()
+        queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
         set_event_queue(queue)
         set_no_tools(no_tools)
         tool_events: list[dict] = []
 
         t0 = time.time()
         orch_task = asyncio.create_task(orchestrator.run(question))
+        orch_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
         # Drain queue live, yielding SSE events as tools fire
         while not orch_task.done():
@@ -347,11 +348,12 @@ async def run_pipeline_stream(
             # Set up cost tracker, event queue and tool controls for this step
             step_tracker = ProtocolCostTracker()
             set_cost_tracker(step_tracker)
-            pip_queue: asyncio.Queue = asyncio.Queue()
+            pip_queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
             set_event_queue(pip_queue)
             set_no_tools(step.get("no_tools", False))
 
             pip_task = asyncio.create_task(orchestrator.run(step_question))
+            pip_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
             while not pip_task.done():
                 try:

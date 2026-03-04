@@ -138,7 +138,7 @@ class BlackSwanOrchestrator:
                 "content": CONFLUENCE_PROMPT.format(threshold_scans=threshold_scans),
             }],
         )
-        return parse_json_array(response.content[0].text)
+        return parse_json_array(extract_text(response))
 
     async def _synthesize(
         self,

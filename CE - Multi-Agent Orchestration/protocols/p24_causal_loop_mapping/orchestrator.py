@@ -252,7 +252,10 @@ class CausalLoopOrchestrator:
         # Majority vote on polarity
         merged: list[CausalLink] = []
         for (from_var, to_var), polarities in buckets.items():
-            winner = Counter(polarities).most_common(1)[0][0]
+            polarity_counter = Counter(polarities)
+            if not polarity_counter:
+                continue
+            winner = polarity_counter.most_common(1)[0][0]
             best_reasoning = reasoning_map[(from_var, to_var)][0]
             merged.append(CausalLink(
                 from_var=from_var,

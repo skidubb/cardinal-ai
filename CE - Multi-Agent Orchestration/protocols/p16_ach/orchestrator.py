@@ -259,6 +259,8 @@ class ACHOrchestrator:
         aggregated: dict[tuple[str, str], str] = {}
         for key, votes in vote_buckets.items():
             counter = Counter(votes)
+            if not counter:
+                continue
             aggregated[key] = counter.most_common(1)[0][0]
 
         # Count inconsistencies per hypothesis
@@ -308,7 +310,10 @@ class ACHOrchestrator:
 
         aggregated: dict[tuple[str, str], str] = {}
         for key, votes in vote_buckets.items():
-            aggregated[key] = Counter(votes).most_common(1)[0][0]
+            vote_counter = Counter(votes)
+            if not vote_counter:
+                continue
+            aggregated[key] = vote_counter.most_common(1)[0][0]
 
         for ev in evidence:
             scores_for_ev = [
@@ -392,7 +397,10 @@ class ACHOrchestrator:
 
         aggregated: dict[tuple[str, str], str] = {}
         for key, votes in vote_buckets.items():
-            aggregated[key] = Counter(votes).most_common(1)[0][0]
+            vote_counter = Counter(votes)
+            if not vote_counter:
+                continue
+            aggregated[key] = vote_counter.most_common(1)[0][0]
 
         h_ids = [h.id for h in hypotheses]
         header = "Evidence | " + " | ".join(h_ids)

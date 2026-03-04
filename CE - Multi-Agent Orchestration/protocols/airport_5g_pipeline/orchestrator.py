@@ -239,7 +239,10 @@ class Airport5GPipelineOrchestrator:
         # Aggregate via majority vote
         aggregated: dict[tuple[str, str], str] = {}
         for key, votes in matrix.items():
-            aggregated[key] = Counter(votes).most_common(1)[0][0]
+            vote_counter = Counter(votes)
+            if not vote_counter:
+                continue
+            aggregated[key] = vote_counter.most_common(1)[0][0]
 
         # Count inconsistencies per hypothesis
         inconsistency_counts: dict[str, int] = {}

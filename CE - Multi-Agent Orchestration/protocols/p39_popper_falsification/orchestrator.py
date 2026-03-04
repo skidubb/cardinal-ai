@@ -107,7 +107,7 @@ class FalsificationOrchestrator:
                 ),
             }],
         )
-        return parse_json_array(response.content[0].text)
+        return parse_json_array(extract_text(response))
 
     async def _search_evidence(
         self, recommendation: str, context: str, conditions: list[dict]
@@ -172,7 +172,7 @@ class FalsificationOrchestrator:
                 ),
             }],
         )
-        data = parse_json_object(response.content[0].text)
+        data = parse_json_object(extract_text(response))
 
         # Update conditions with verdict info
         for verdict_cond in data.get("conditions", []):

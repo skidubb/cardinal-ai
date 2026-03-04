@@ -188,7 +188,7 @@ class AbductionOrchestrator:
                 ),
             }],
         )
-        return parse_json_object(response.content[0].text)
+        return parse_json_object(extract_text(response))
 
     async def _synthesize(self, question: str, cycles: list[dict]) -> str:
         """Produce final briefing across all cycles."""

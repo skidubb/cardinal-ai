@@ -111,7 +111,7 @@ class SixHatsOrchestrator:
                 "content": BLUE_HAT_FRAMING_PROMPT.format(question=question),
             }],
         )
-        return response.content[0].text
+        return extract_text(response)
 
     async def _run_hat(
         self, question: str, prompt_template: str, *, use_thinking: bool

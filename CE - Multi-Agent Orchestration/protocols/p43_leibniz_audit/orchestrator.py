@@ -116,7 +116,7 @@ class AuditChainOrchestrator:
                 ),
             }],
         )
-        text = response.content[0].text
+        text = extract_text(response)
         return parse_json_object(text)
 
 

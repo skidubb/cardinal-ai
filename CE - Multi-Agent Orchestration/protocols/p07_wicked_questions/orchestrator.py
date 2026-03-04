@@ -128,7 +128,7 @@ class WickedQuestionsOrchestrator:
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
             )
-            return response.content[0].text
+            return extract_text(response)
 
         _results = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),

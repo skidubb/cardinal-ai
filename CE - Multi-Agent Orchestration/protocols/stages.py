@@ -128,7 +128,7 @@ def mechanical_stage(
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = response.content[0].text
+        text = extract_text(response)
         content = parse_fn(text) if parse_fn else text
 
         bb.write(
