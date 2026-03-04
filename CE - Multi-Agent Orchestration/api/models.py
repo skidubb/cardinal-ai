@@ -81,6 +81,7 @@ class Run(SQLModel, table=True):
     team_id: Optional[int] = None
     status: str = "pending"
     cost_usd: float = 0.0
+    error_message: Optional[str] = None
     started_at: datetime = Field(default_factory=_now)
     completed_at: Optional[datetime] = None
 

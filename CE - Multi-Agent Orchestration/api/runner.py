@@ -227,6 +227,7 @@ async def run_protocol_stream(
             if run:
                 run.status = "completed"
                 run.completed_at = datetime.now(timezone.utc)
+                run.cost_usd = cost_tracker.total_cost
                 session.add(run)
 
                 # Group tool events by agent key
@@ -276,16 +277,18 @@ async def run_protocol_stream(
         set_cost_tracker(None)
 
     except Exception as e:
+        tb_str = traceback.format_exc()
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
                 run.status = "failed"
                 run.completed_at = datetime.now(timezone.utc)
+                run.error_message = tb_str[:4000]  # truncate to avoid oversized rows
                 session.add(run)
                 session.commit()
 
         set_cost_tracker(None)
-        yield _sse_event("error", {"message": str(e), "traceback": traceback.format_exc()})
+        yield _sse_event("error", {"message": str(e), "traceback": tb_str})
         yield _sse_event("run_complete", {"run_id": run_id, "status": "failed"})
 
 
@@ -309,6 +312,7 @@ async def run_pipeline_stream(
             session.commit()
 
     prev_output = ""
+    pipeline_total_cost = 0.0
 
     try:
         for i, step in enumerate(steps):
@@ -392,9 +396,11 @@ async def run_pipeline_stream(
                 if rs:
                     rs.status = "completed"
                     rs.completed_at = datetime.now(timezone.utc)
+                    rs.cost_usd = step_tracker.total_cost
                     session.add(rs)
                     session.commit()
 
+            pipeline_total_cost += step_tracker.total_cost
             set_cost_tracker(None)
             yield _sse_event("step_complete", {
                 "step": i,
@@ -408,21 +414,24 @@ async def run_pipeline_stream(
             if run:
                 run.status = "completed"
                 run.completed_at = datetime.now(timezone.utc)
+                run.cost_usd = pipeline_total_cost
                 session.add(run)
                 session.commit()
 
         yield _sse_event("run_complete", {"run_id": run_id, "status": "completed"})
 
     except Exception as e:
+        tb_str = traceback.format_exc()
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
                 run.status = "failed"
                 run.completed_at = datetime.now(timezone.utc)
+                run.error_message = tb_str[:4000]
                 session.add(run)
                 session.commit()
 
-        yield _sse_event("error", {"message": str(e), "traceback": traceback.format_exc()})
+        yield _sse_event("error", {"message": str(e), "traceback": tb_str})
         yield _sse_event("run_complete", {"run_id": run_id, "status": "failed"})
 
 

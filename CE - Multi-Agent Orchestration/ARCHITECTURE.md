@@ -203,7 +203,7 @@ The `--mode` flag (or `AGENT_MODE` env var) controls what `build_agents()` retur
 | File | Role |
 |------|------|
 | `api/server.py` | FastAPI app, CORS, auth middleware, router registration |
-| `api/runner.py` | Protocol/pipeline execution, SSE streaming, DB persistence |
+| `api/runner.py` | Protocol/pipeline execution, SSE streaming, DB persistence (API runs only; CLI runs do not persist) |
 | `api/models.py` | SQLModel ORM: Agent, Team, Pipeline, PipelineStep, Run, RunStep, AgentOutput |
 | `api/routers/agents.py` | Agent CRUD + tools catalog endpoint |
 | `api/routers/protocols.py` | Protocol manifest list |
@@ -217,3 +217,56 @@ The `--mode` flag (or `AGENT_MODE` env var) controls what `build_agents()` retur
 | `protocols/agent_provider.py` | `AgentBridge`, `build_production_agents()`, mode switching |
 | `protocols/config.py` | Model constants, `COGNITIVE_TIERS`, `STAGE_COGNITIVE_MAP` |
 | `protocols/agents.py` | `BUILTIN_AGENTS` registry (56 agents, 14 categories) |
+
+---
+
+## ProtocolDef Migration Strategy
+
+### Two Parallel Systems
+
+The codebase has two ways to run a protocol:
+
+1. **Standalone orchestrators** (`protocols/pNN_name/orchestrator.py`) — Each protocol has a hand-written async class with a `run()` method that directly calls `agent_complete()`, `client.messages.create()`, and manages its own control flow. These produce typed result dataclasses (e.g., `TRIZResult`, `DebateResult`) with named fields. This is the original architecture and what the CLI and smoke tests exercise today.
+
+2. **ProtocolDef / Blackboard path** (`protocols/pNN_name/protocol_def.py` + `protocols/orchestrator_loop.py`) — A declarative definition: a list of `Stage` objects with trigger conditions and reusable stage executors. The generic `Orchestrator` state machine fires stages against a shared `Blackboard`. Output is the blackboard itself (a bag of topic-keyed entries), not a typed result.
+
+Both exist because the blackboard path is newer and not yet fully integrated. The standalone orchestrators are battle-tested with typed outputs consumed by the API runner, evaluation harness, and CLI `print_result()` functions. The ProtocolDef path is structurally cleaner but lacks the integration surface.
+
+### ProtocolDef Is the Target Architecture
+
+The blackboard/ProtocolDef pattern is the intended future for all protocols:
+- Declarative stage definitions are easier to inspect, test, and compose.
+- The generic `Orchestrator` state machine eliminates duplicated control flow across 48 protocols.
+- Blackboard provides built-in audit trails, resource tracking, and scoped reads.
+- New stage types (compute, scoped parallel, multi-round) can be added once and reused everywhere.
+
+### Migration Blockers
+
+1. **Typed output loss** — Standalone orchestrators return `TRIZResult`, `DebateResult`, etc. with named fields. The blackboard returns a bag of entries. Consumers (API runner, CLI, evals) expect typed results. A `blackboard_to_result()` adapter is needed per protocol, or consumers must learn to read blackboard snapshots.
+
+2. **API runner coupling** — `api/runner.py` discovers orchestrator classes by globbing `orchestrator.py` files and regex-matching class names ending in `Orchestrator`. It calls `orchestrator.run()` and expects the typed result. Switching to the blackboard path requires the runner to detect `protocol_def.py`, instantiate the generic `Orchestrator`, and translate the blackboard snapshot into SSE events.
+
+3. **Agent constructor differences** — Some standalone orchestrators have non-standard constructors (e.g., `p17_red_blue_white` takes `red_agents`, `blue_agents`, `white_agent`). The generic `Orchestrator.run()` takes a flat `agents` list with `agents_filter` on each stage. Protocols with role-partitioned agents need their filter specs and scoping rules correctly mapped.
+
+4. **Config injection** — Standalone orchestrators create their own `AsyncAnthropic` client in `__init__`. The blackboard stages expect `client` passed via `**config`. The runner must supply the client and model config when invoking the generic orchestrator.
+
+### Migration Approach
+
+Incremental, protocol-by-protocol:
+
+1. **Ensure blackboard test coverage** — `tests/test_blackboard_smoke.py` runs every existing `protocol_def.py` through the generic `Orchestrator` with mocked LLM calls. Protocols that fail are marked `xfail` with a reason. This is the baseline.
+
+2. **Add `blackboard_to_result()` adapters** — For each protocol, write a function that reads the final blackboard state and constructs the typed result dataclass. This preserves backward compatibility with existing consumers.
+
+3. **Wire into API runner** — Add a second discovery path in `api/runner.py`: if `protocol_def.py` exists and a `blackboard_to_result()` adapter is registered, prefer the blackboard path. Fall back to the standalone orchestrator otherwise.
+
+4. **Equivalence tests** — For each migrated protocol, add a test that runs both paths on the same input and asserts the typed result fields match.
+
+5. **Retire standalone orchestrators** — Once a protocol passes equivalence tests and the API runner uses the blackboard path, the standalone `orchestrator.py` can be deleted or marked deprecated.
+
+### Timeline
+
+Migration begins after:
+- The blackboard path has parametric smoke test coverage (`test_blackboard_smoke.py` passing, not just xfail).
+- The API runner has been updated to support both discovery paths.
+- At least one protocol (e.g., `p03_parallel_synthesis` or `p06_triz`) has a working end-to-end blackboard-to-result adapter with equivalence tests.

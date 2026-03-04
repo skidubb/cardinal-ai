@@ -10,6 +10,8 @@ The **Coordination Lab** is Cardinal Element's multi-agent research program. It 
 
 Every protocol is a standalone Python module. Only dependency: `anthropic` (see `requirements.txt`).
 
+> **Note:** CLI runs (`python -m protocols.*.run`) are for quick testing and do not persist results, costs, or errors to the database. Only API-triggered runs (via `api/runner.py`) get full DB persistence including cost tracking, agent outputs, and error details.
+
 ```bash
 # Run any protocol
 python -m protocols.p06_triz.run -q "Should we expand into Europe?" -a ceo cfo cto
