@@ -64,6 +64,11 @@ class AgentBridge:
         except KeyError:
             return default
 
+    @property
+    def tool_calls(self) -> list[dict]:
+        """Tool calls from the last chat() invocation."""
+        return getattr(self._sdk, "tool_calls", [])
+
     async def chat(self, message: str) -> str:
         """Forward to the real SdkAgent with tools, memory, and learning."""
         return await self._sdk.chat(message)
