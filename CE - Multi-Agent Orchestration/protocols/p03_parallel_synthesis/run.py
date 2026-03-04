@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from datetime import datetime, timezone
 
 from .orchestrator import SynthesisOrchestrator
 from protocols.agents import build_agents
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
+from protocols.langfuse_tracing import get_trace_id
 
 
 def print_result(result):
@@ -106,8 +108,24 @@ def main():
             trace=args.trace,
             trace_path=args.trace_path,
         )
+        started_at = datetime.now(timezone.utc)
         result = asyncio.run(orchestrator.run(args.question))
         print_result(result)
+
+        # Persist to Postgres (no-op if unavailable)
+        try:
+            from protocols.persistence import persist_run
+            asyncio.run(persist_run(
+                protocol_key="p03_parallel_synthesis",
+                question=args.question,
+                agent_keys=[a["name"] for a in agents],
+                result=result,
+                trace_id=get_trace_id(),
+                source="cli",
+                started_at=started_at,
+            ))
+        except Exception:
+            pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from protocols.llm import agent_complete, extract_text, parse_json_array, filter_exceptions
 from protocols.tracing import make_client
+from protocols.langfuse_tracing import trace_protocol
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     DEDUPLICATION_PROMPT,
@@ -79,6 +80,7 @@ class TRIZOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = make_client(protocol_id="p06_triz", trace=trace, trace_path=Path(trace_path) if trace_path else None)
 
+    @trace_protocol("p06_triz")
     async def run(self, question: str) -> TRIZResult:
         """Execute the full TRIZ Inversion protocol."""
         result = TRIZResult(question=question)

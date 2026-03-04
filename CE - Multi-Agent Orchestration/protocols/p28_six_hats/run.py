@@ -17,10 +17,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from datetime import datetime, timezone
 
 from .orchestrator import SixHatsOrchestrator
 from protocols.agents import build_agents
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
+from protocols.langfuse_tracing import get_trace_id
 
 HAT_LABELS = {
     "white": "WHITE HAT (Facts)",
@@ -116,6 +118,7 @@ def main():
     )
 
     print(f"Running Six Hats with {len(agents)} agents: {', '.join(a['name'] for a in agents)}")
+    started_at = datetime.now(timezone.utc)
     result = asyncio.run(orchestrator.run(args.question))
 
     if args.output_json:
@@ -123,6 +126,21 @@ def main():
         print(json.dumps(asdict(result), indent=2))
     else:
         print_result(result)
+
+    # Persist to Postgres (no-op if unavailable)
+    try:
+        from protocols.persistence import persist_run
+        asyncio.run(persist_run(
+            protocol_key="p28_six_hats",
+            question=args.question,
+            agent_keys=[a["name"] for a in agents],
+            result=result,
+            trace_id=get_trace_id(),
+            source="cli",
+            started_at=started_at,
+        ))
+    except Exception:
+        pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

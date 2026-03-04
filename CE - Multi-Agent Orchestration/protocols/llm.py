@@ -117,11 +117,11 @@ def get_cost_tracker() -> Any:
     return _cost_tracker.get()
 
 
-def _record_usage(model: str, response: Any) -> None:
-    """Extract token counts from an API response and forward to the active tracker."""
-    tracker = _cost_tracker.get()
-    if tracker is None:
-        return
+def _record_usage(model: str, response: Any, agent_name: str | None = None) -> None:
+    """Extract token counts from an API response and forward to the active tracker.
+
+    Also records a Langfuse generation span if tracing is active.
+    """
     usage = getattr(response, "usage", None)
     if usage is None:
         return
@@ -129,7 +129,17 @@ def _record_usage(model: str, response: Any) -> None:
     output_tokens = getattr(usage, "output_tokens", 0) or 0
     # cache_read_input_tokens is Anthropic SDK's attribute name for prompt-cache hits
     cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
-    tracker.track(model, input_tokens, output_tokens, cached_tokens)
+
+    tracker = _cost_tracker.get()
+    if tracker is not None:
+        tracker.track(model, input_tokens, output_tokens, cached_tokens)
+
+    # Langfuse generation span (no-op if not configured)
+    try:
+        from protocols.langfuse_tracing import record_generation
+        record_generation(model, input_tokens, output_tokens, cached_tokens, agent_name)
+    except ImportError:
+        pass
 
 
 def _is_anthropic_model(model: str) -> bool:
@@ -193,7 +203,7 @@ async def agent_complete(
             kwargs["tools"] = tools
 
         response = await _retry_api_call(litellm.acompletion, **kwargs)
-        _record_usage(agent_model, response)
+        _record_usage(agent_model, response, agent_name=agent.get("name"))
         return response.choices[0].message.content
 
     # Anthropic SDK fallback — orchestrator's model, preserves tracing
@@ -232,7 +242,7 @@ async def agent_complete(
         create_kwargs["tools"] = effective_tools
 
     response = await _retry_api_call(anthropic_client.messages.create, **create_kwargs)
-    _record_usage(fallback_model, response)
+    _record_usage(fallback_model, response, agent_name=agent.get("name"))
 
     # If no tools or no tool_use in response, return text directly
     if not effective_tools or response.stop_reason != "tool_use":
@@ -290,7 +300,7 @@ async def agent_complete(
             anthropic_client.messages.create,
             **{**create_kwargs, "messages": loop_messages},
         )
-        _record_usage(fallback_model, response)
+        _record_usage(fallback_model, response, agent_name=agent.get("name"))
 
         if response.stop_reason != "tool_use":
             break

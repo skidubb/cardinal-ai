@@ -1,6 +1,10 @@
 anthropic>=0.83.0
 litellm>=1.40.0
+langfuse>=2.0.0
 pyyaml>=6.0
+
+# Observability data layer (local package)
+ce-db @ file:../ce-db
 
 # Only needed for scripts/ingest_papers.py:
 PyMuPDF>=1.25.0

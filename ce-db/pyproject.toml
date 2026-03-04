@@ -3,21 +3,17 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ce-evals"
+name = "ce-db"
 version = "0.1.0"
-description = "LLM-as-a-Judge evaluation toolkit for multi-agent protocols"
+description = "Shared database layer for Cardinal Element platform"
 requires-python = ">=3.11"
 dependencies = [
-    "anthropic>=0.83.0",
-    "openai>=1.0",
-    "google-genai>=1.0",
-    "pydantic>=2.0",
-    "pydantic-settings>=2.0",
-    "pyyaml>=6.0",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
 ]
 
 [project.optional-dependencies]
-db = ["ce-db @ file:../ce-db"]
 dev = ["pytest>=8.0", "pytest-asyncio"]
 
 [tool.setuptools.packages.find]

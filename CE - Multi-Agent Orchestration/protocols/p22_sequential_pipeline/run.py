@@ -7,9 +7,11 @@ Usage:
 import argparse
 import asyncio
 import time
+from datetime import datetime, timezone
 
 from .orchestrator import SequentialPipelineOrchestrator, SequentialPipelineResult
 from protocols.agents import BUILTIN_AGENTS, build_agents
+from protocols.langfuse_tracing import get_trace_id
 
 
 def print_result(result: SequentialPipelineResult, elapsed: float) -> None:
@@ -109,11 +111,27 @@ def main():
         max_thinking_tokens=args.thinking_tokens,
     )
 
+    started_at = datetime.now(timezone.utc)
     start = time.time()
     result = asyncio.run(orchestrator.run(args.question, agents))
     elapsed = time.time() - start
 
     print_result(result, elapsed)
+
+    # Persist to Postgres (no-op if unavailable)
+    try:
+        from protocols.persistence import persist_run
+        asyncio.run(persist_run(
+            protocol_key="p22_sequential_pipeline",
+            question=args.question,
+            agent_keys=[a["name"] for a in agents],
+            result=result,
+            trace_id=get_trace_id(),
+            source="cli",
+            started_at=started_at,
+        ))
+    except Exception:
+        pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

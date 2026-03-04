@@ -53,13 +53,46 @@ class EvalRunner:
         responses = {name: cr.output_text for name, cr in results.items()}
         judgment, per_judge = self.judge.evaluate(responses, question=question_text)
 
-        return EvalSuite(
+        suite = EvalSuite(
             question_id=question_id,
             question_text=question_text,
             candidates=results,
             judgment=judgment,
             per_judge_results=per_judge,
         )
+
+        # Persist to Postgres (no-op if ce-db unavailable)
+        self._persist_eval(suite)
+
+        return suite
+
+    def _persist_eval(self, suite: EvalSuite, run_id: str | None = None) -> None:
+        """Persist evaluation results to Postgres via ce-db. Best-effort."""
+        try:
+            import asyncio
+            from ce_db import get_session, EvalRun as DbEvalRun
+
+            judgment = suite.judgment
+            if not judgment:
+                return
+
+            async def _write():
+                async with get_session() as session:
+                    session.add(DbEvalRun(
+                        run_id=run_id,
+                        rubric_name=self.rubric.name if hasattr(self.rubric, "name") else "unknown",
+                        judge_backend=judgment.judge_model,
+                        aggregate_score=sum(
+                            sum(dims.values()) / max(len(dims), 1)
+                            for dims in judgment.scores.values()
+                        ) / max(len(judgment.scores), 1) if judgment.scores else 0.0,
+                        scores_json=judgment.scores,
+                        question_text=suite.question_text[:2000],
+                    ))
+
+            asyncio.run(_write())
+        except Exception as e:
+            logger.debug("Eval persistence skipped: %s", e)
 
     def run_batch(
         self,

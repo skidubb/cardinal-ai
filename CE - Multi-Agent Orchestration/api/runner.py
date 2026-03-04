@@ -185,6 +185,7 @@ async def run_protocol_stream(
         tool_events: list[dict] = []
 
         t0 = time.time()
+        t0_dt = datetime.now(timezone.utc)
         orch_task = asyncio.create_task(orchestrator.run(question))
         orch_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
@@ -266,6 +267,25 @@ async def run_protocol_stream(
                 session.commit()
 
         cost_summary = cost_tracker.summary()
+
+        # Persist to Postgres (alongside SQLite)
+        try:
+            from protocols.persistence import persist_run
+            from protocols.langfuse_tracing import get_trace_id
+            await persist_run(
+                protocol_key=protocol_key,
+                question=question,
+                agent_keys=agent_keys,
+                result=result,
+                cost_tracker=cost_tracker,
+                trace_id=get_trace_id(),
+                source="api",
+                started_at=t0_dt,
+            )
+        except Exception as pg_err:
+            import logging
+            logging.getLogger(__name__).warning("Postgres persist failed: %s", pg_err)
+
         yield _sse_event("run_complete", {
             "run_id": run_id,
             "elapsed_seconds": round(elapsed, 1),

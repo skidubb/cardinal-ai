@@ -32,5 +32,8 @@ agents/
 orchestrations/
 evals/
 
+# Docker
+pgdata/
+
 # Node artifacts
 node_modules/
