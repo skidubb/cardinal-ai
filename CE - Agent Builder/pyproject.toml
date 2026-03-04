@@ -13,7 +13,7 @@ authors = [
     { name = "Scott Ewalt" }
 ]
 dependencies = [
-    "anthropic>=0.40.0",
+    "anthropic>=0.83.0",
 
     "click>=8.1.0",
     "rich>=13.0.0",
