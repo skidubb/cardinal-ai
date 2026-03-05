@@ -36,7 +36,9 @@ try:
     from langfuse import Langfuse
 
     if os.environ.get("LANGFUSE_SECRET_KEY"):
-        _langfuse_client = Langfuse()
+        # Support both LANGFUSE_HOST and LANGFUSE_BASE_URL
+        host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL")
+        _langfuse_client = Langfuse(host=host) if host else Langfuse()
         _langfuse_available = True
         _log.info("Langfuse tracing enabled")
     else:

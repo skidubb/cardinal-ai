@@ -15,18 +15,23 @@ services:
       timeout: 3s
       retries: 5
 
-  langfuse:
-    image: langfuse/langfuse:2
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://ce:ce_local@postgres:5432/ce_platform
-      NEXTAUTH_SECRET: changeme-in-production
-      NEXTAUTH_URL: http://localhost:3000
-      TELEMETRY_ENABLED: "false"
-    ports:
-      - "3000:3000"
+  # Langfuse: using Langfuse Cloud (us.cloud.langfuse.com) instead of self-hosted.
+  # Set LANGFUSE_SECRET_KEY, LANGFUSE_PUBLIC_KEY, LANGFUSE_BASE_URL in your .env.
+  # To self-host instead, uncomment below:
+  # langfuse:
+  #   image: langfuse/langfuse:2
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     DATABASE_URL: postgresql://ce:ce_local@postgres:5432/ce_platform
+  #     NEXTAUTH_SECRET: changeme-in-production
+  #     NEXTAUTH_URL: http://localhost:3000
+  #     SALT: changeme
+  #     ENCRYPTION_KEY: changeme-generate-with-openssl-rand-hex-32
+  #     TELEMETRY_ENABLED: "false"
+  #   ports:
+  #     - "3000:3000"
 
 volumes:
   pgdata:

@@ -127,8 +127,8 @@ async def persist_run(
         _log.debug("ce-db not installed — skipping persistence")
         return None
 
-    now = datetime.now(timezone.utc)
-    start = started_at or now
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    start = (started_at.replace(tzinfo=None) if started_at and started_at.tzinfo else started_at) or now
 
     # Cost data
     total_cost = 0.0
