@@ -10,7 +10,7 @@ The **Coordination Lab** is Cardinal Element's multi-agent research program. It 
 
 Every protocol is a standalone Python module. Only dependency: `anthropic` (see `requirements.txt`).
 
-> **Note:** CLI runs (`python -m protocols.*.run`) are for quick testing and do not persist results, costs, or errors to the database. Only API-triggered runs (via `api/runner.py`) get full DB persistence including cost tracking, agent outputs, and error details.
+> **Note:** All CLI runs now persist results to Postgres and create Langfuse traces automatically (best-effort — silently no-ops if unavailable). API-triggered runs (via `api/runner.py`) additionally persist cost tracking, agent outputs, and error details.
 
 ```bash
 # Run any protocol
@@ -86,6 +86,22 @@ P1 (Single Agent) and P2 (Single + Context) are trivial single-call patterns wit
 When creating or editing Mermaid diagrams in `protocol-diagrams/`:
 - `([Text]):::agent` — Agent nodes | `[Text]:::stage` — Processing stages | `{Text}:::decision` — Decision gates
 - Category colors: Meta `#607D8B` | Baselines `#4A90D9` | Liberating Structures `#9B59B6` | Intelligence `#E74C3C` | Game Theory `#F39C12` | Org Theory `#1ABC9C` | Systems `#2ECC71` | Design `#E91E63`
+
+## Observability
+
+All 50 protocols have built-in observability via two layers:
+
+**Langfuse tracing** (`protocols/langfuse_tracing.py`): Every orchestrator's `run()` method is decorated with `@trace_protocol("p{NN}_name")`, which creates a root span in Langfuse Cloud. LLM calls within a trace are recorded as child spans via `record_generation()`. Requires `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_BASE_URL` in `.env`. Uses Langfuse SDK v3 API.
+
+**Postgres persistence** (`protocols/persistence.py`): Every CLI `run.py` calls `persist_run()` after execution, writing the run metadata, result JSON, and Langfuse trace_id to the `runs` table. Agent-level outputs are extracted where the result format supports it. Uses `ce-db` package with async SQLAlchemy + asyncpg. Default connection: `postgresql+asyncpg://ce:ce_local@localhost:5432/ce_platform` (Docker Compose).
+
+**Infrastructure**: `docker-compose.yml` runs Postgres. Langfuse uses Langfuse Cloud (`us.cloud.langfuse.com`) — self-hosted config is commented out in docker-compose.yml.
+
+```bash
+# Check runs in Postgres
+docker exec ce-agents-postgres-1 psql -U ce -d ce_platform \
+  -c "SELECT protocol_key, status, langfuse_trace_id, started_at FROM runs ORDER BY created_at;"
+```
 
 ## Important Context
 

@@ -77,6 +77,8 @@ Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async
 
 Shared agent registry: `protocols/agents.py` — 56 agents across 14 categories, supports `@category` group syntax.
 
+**Observability**: All 50 protocols have Langfuse tracing (`@trace_protocol` decorator) and Postgres persistence (`persist_run` in every `run.py`). Requires `LANGFUSE_SECRET_KEY`/`LANGFUSE_PUBLIC_KEY`/`LANGFUSE_BASE_URL` in `.env` for tracing; Postgres via `docker-compose up -d postgres`. Both degrade gracefully if unavailable.
+
 ### CE - Evals
 
 Library-only (no CLI). Core in `src/ce_evals/core/` — `judge.py` + `judge_backends.py` (Claude/GPT-4/Gemini), `rubric.py`, `runner.py`, `cost.py`. Import and use programmatically.
