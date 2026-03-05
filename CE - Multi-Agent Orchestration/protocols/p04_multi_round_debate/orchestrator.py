@@ -9,6 +9,7 @@ import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
@@ -76,6 +77,7 @@ class DebateOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = make_client(protocol_id="p04_multi_round_debate", trace=trace, trace_path=Path(trace_path) if trace_path else None)
 
+    @trace_protocol("p04_multi_round_debate")
     async def run(self, question: str) -> DebateResult:
         """Execute the full multi-round debate protocol."""
         result = DebateResult(question=question)

@@ -9,6 +9,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -57,6 +58,7 @@ class SixHatsOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p28_six_hats")
     async def run(self, question: str) -> SixHatsResult:
         """Execute the full Six Thinking Hats protocol."""
         result = SixHatsResult(question=question)

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 from protocols.tracing import make_client
@@ -96,6 +97,7 @@ class ACHOrchestrator:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p16_ach")
     async def run(self, question: str) -> ACHResult:
         timings: dict[str, float] = {}
 

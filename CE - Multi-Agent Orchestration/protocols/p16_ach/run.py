@@ -234,7 +234,7 @@ def main() -> None:
             question=args.question,
             agent_keys=[a["name"] for a in agents],
             result=result,
-            trace_id=get_trace_id(),
+            trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
             source="cli",
             started_at=started_at,
         ))

@@ -4,6 +4,8 @@ Provides decorators and context management for instrumenting protocol
 orchestrators and agent calls with Langfuse spans. Gracefully degrades
 to no-ops when Langfuse is not configured (LANGFUSE_SECRET_KEY not set).
 
+Compatible with Langfuse SDK v3 (start_span / start_observation API).
+
 Usage:
     from protocols.langfuse_tracing import trace_protocol, get_trace_id
 
@@ -18,8 +20,6 @@ from __future__ import annotations
 import functools
 import logging
 import os
-import time
-from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any
 
@@ -36,7 +36,6 @@ try:
     from langfuse import Langfuse
 
     if os.environ.get("LANGFUSE_SECRET_KEY"):
-        # Support both LANGFUSE_HOST and LANGFUSE_BASE_URL
         host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL")
         _langfuse_client = Langfuse(host=host) if host else Langfuse()
         _langfuse_available = True
@@ -51,6 +50,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 _current_trace_id: ContextVar[str | None] = ContextVar("_lf_trace_id", default=None)
+_current_root_span: ContextVar[Any] = ContextVar("_lf_root_span", default=None)
 _current_protocol: ContextVar[str | None] = ContextVar("_lf_protocol", default=None)
 
 
@@ -70,7 +70,7 @@ def get_trace_id() -> str | None:
 def trace_protocol(protocol_key: str):
     """Decorator for orchestrator ``run()`` methods.
 
-    Creates a top-level Langfuse trace, sets context vars so that
+    Creates a top-level Langfuse span (v3 API), sets context vars so that
     ``record_generation()`` calls from ``llm.py`` attach as child spans.
     """
     def decorator(fn):
@@ -79,28 +79,38 @@ def trace_protocol(protocol_key: str):
 
         @functools.wraps(fn)
         async def wrapper(*args, **kwargs):
-            trace = _langfuse_client.trace(
+            root = _langfuse_client.start_span(
                 name=protocol_key,
                 metadata={"protocol_key": protocol_key},
             )
-            tok_id = _current_trace_id.set(trace.id)
+            trace_id = root.trace_id
+            tok_id = _current_trace_id.set(trace_id)
+            tok_root = _current_root_span.set(root)
             tok_proto = _current_protocol.set(protocol_key)
             try:
                 result = await fn(*args, **kwargs)
-                trace.update(
+                # Stash trace_id on result so callers can retrieve it
+                # after the context var is reset
+                try:
+                    result._langfuse_trace_id = trace_id
+                except (AttributeError, TypeError):
+                    pass
+                root.update(
                     output=str(result)[:2000],
                     metadata={"protocol_key": protocol_key, "status": "completed"},
                 )
                 return result
             except Exception as e:
-                trace.update(
+                root.update(
                     level="ERROR",
                     status_message=str(e)[:500],
                     metadata={"protocol_key": protocol_key, "status": "failed"},
                 )
                 raise
             finally:
+                root.end()
                 _current_trace_id.reset(tok_id)
+                _current_root_span.reset(tok_root)
                 _current_protocol.reset(tok_proto)
                 _langfuse_client.flush()
 
@@ -127,19 +137,19 @@ def record_generation(
     if not trace_id:
         return
     name = f"llm:{agent_name}" if agent_name else f"llm:{model}"
-    _langfuse_client.generation(
-        trace_id=trace_id,
+    metadata = {"cached_tokens": cached_tokens}
+    if latency_ms:
+        metadata["latency_ms"] = latency_ms
+    gen = _langfuse_client.start_span(
         name=name,
-        model=model,
-        usage={
-            "input": input_tokens,
-            "output": output_tokens,
-        },
-        metadata={
-            "cached_tokens": cached_tokens,
-            "latency_ms": latency_ms,
-        } if latency_ms else {"cached_tokens": cached_tokens},
+        trace_context={"trace_id": trace_id},
+        metadata=metadata,
     )
+    gen.update(
+        output=f"model={model} in={input_tokens} out={output_tokens}",
+        metadata={**metadata, "model": model, "input_tokens": input_tokens, "output_tokens": output_tokens},
+    )
+    gen.end()
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +163,11 @@ def create_span(name: str, metadata: dict | None = None) -> Any:
     trace_id = _current_trace_id.get()
     if not trace_id:
         return None
-    return _langfuse_client.span(trace_id=trace_id, name=name, metadata=metadata or {})
+    return _langfuse_client.start_span(
+        name=name,
+        trace_context={"trace_id": trace_id},
+        metadata=metadata or {},
+    )
 
 
 def end_span(span: Any, output: str | None = None, error: str | None = None) -> None:
@@ -166,7 +180,9 @@ def end_span(span: Any, output: str | None = None, error: str | None = None) -> 
     if error:
         kwargs["level"] = "ERROR"
         kwargs["status_message"] = error[:500]
-    span.end(**kwargs)
+    if kwargs:
+        span.update(**kwargs)
+    span.end()
 
 
 def flush() -> None:
