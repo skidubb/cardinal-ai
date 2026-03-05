@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -67,6 +68,7 @@ class CrazyEightsOrchestrator:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p26_crazy_eights")
     async def run(self, question: str) -> CrazyEightsResult:
         timings: dict[str, float] = {}
 

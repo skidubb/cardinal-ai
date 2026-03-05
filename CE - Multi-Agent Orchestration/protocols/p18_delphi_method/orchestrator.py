@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 
@@ -90,6 +91,7 @@ class DelphiOrchestrator:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p18_delphi_method")
     async def run(self, question: str) -> DelphiResult:
         timings: dict[str, float] = {}
         rounds: list[RoundResult] = []

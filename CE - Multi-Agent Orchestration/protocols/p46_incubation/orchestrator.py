@@ -10,6 +10,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -50,6 +51,7 @@ class IncubationOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p46_incubation")
     async def run(self, question: str, prior_analysis: str = "") -> IncubationResult:
         """Execute the full Incubation protocol."""
         result = IncubationResult(question=question)

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object
 
 from .prompts import CLASSIFICATION_PROMPT
@@ -39,6 +40,7 @@ class KantRouterOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p44_kant_pre_router")
     async def run(self, question: str) -> KantRouterResult:
         """Classify the question and recommend a protocol."""
         result = KantRouterResult(question=question)

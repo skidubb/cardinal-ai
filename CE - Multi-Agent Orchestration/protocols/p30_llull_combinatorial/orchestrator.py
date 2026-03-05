@@ -9,6 +9,7 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_array
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -49,6 +50,7 @@ class CombinatorialOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p30_llull_combinatorial")
     async def run(self, question: str) -> CombinatorialResult:
         """Execute the full Llull Combinatorial protocol."""
         result = CombinatorialResult(question=question)

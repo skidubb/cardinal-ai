@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -233,6 +234,7 @@ class TroikaOrchestrator:
     # Main orchestration
     # ------------------------------------------------------------------
 
+    @trace_protocol("p09_troika_consulting")
     async def run(self, question: str) -> TroikaResult:
         t0 = time.time()
         model_calls: dict[str, int] = {}

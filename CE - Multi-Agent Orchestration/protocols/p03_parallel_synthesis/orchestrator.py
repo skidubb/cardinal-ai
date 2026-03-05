@@ -9,6 +9,7 @@ import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import agent_complete, extract_text, filter_exceptions
 from protocols.tracing import make_client
 from .prompts import SYNTHESIS_SYSTEM_PROMPT
@@ -56,6 +57,7 @@ class SynthesisOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = make_client(protocol_id="p03_parallel_synthesis", trace=trace, trace_path=Path(trace_path) if trace_path else None)
 
+    @trace_protocol("p03_parallel_synthesis")
     async def run(self, question: str) -> SynthesisResult:
         """Execute the full Parallel Synthesis protocol."""
         result = SynthesisResult(question=question)

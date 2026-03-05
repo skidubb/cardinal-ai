@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object
 
 from .prompts import ASSESSMENT_PROMPT, PROCESS_EVALUATION_PROMPT
@@ -48,6 +49,7 @@ class DecisionQualityOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p41_duke_decision_quality")
     async def run(
         self,
         recommendation: str,

@@ -18,6 +18,7 @@ from typing import Any
 from dotenv import load_dotenv
 load_dotenv()
 
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.tracing import make_client
@@ -98,6 +99,7 @@ class Airport5GPipelineOrchestrator:
             trace_path=Path(trace_path) if trace_path else None,
         )
 
+    @trace_protocol("airport_5g_pipeline")
     async def run(self, question: str) -> PipelineResult:
         """Execute the full 4-stage pipeline."""
         t0 = time.time()

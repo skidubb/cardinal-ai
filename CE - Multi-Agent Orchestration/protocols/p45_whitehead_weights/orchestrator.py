@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text
 
 from .prompts import RECOMMEND_SYNTHESIS_PROMPT
@@ -134,6 +135,7 @@ class WhiteheadOrchestrator:
             synthesis=synthesis,
         )
 
+    @trace_protocol("p45_whitehead_weights")
     async def run(self, question: str) -> WeightResult:
         """CLI compatibility — interpret question as a recommend query.
 

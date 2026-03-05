@@ -9,6 +9,7 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_array, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -43,6 +44,7 @@ class AuditChainOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p43_leibniz_audit")
     async def run(
         self, recommendation: str, reasoning: str
     ) -> AuditChainResult:

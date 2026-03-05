@@ -10,6 +10,7 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL, BALANCED_MODEL
 from protocols.llm import extract_text, parse_json_array, filter_exceptions
 
@@ -61,6 +62,7 @@ class WickedQuestionsOrchestrator:
         self.orchestration_model = orchestration_model
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p07_wicked_questions")
     async def run(self, topic: str) -> WickedQuestionsResult:
         """Execute the full Wicked Questions protocol."""
         result = WickedQuestionsResult(topic=topic)

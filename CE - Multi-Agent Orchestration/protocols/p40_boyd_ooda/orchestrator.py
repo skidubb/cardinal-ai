@@ -11,6 +11,7 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -59,6 +60,7 @@ class OODAOrchestrator:
         self.num_cycles = num_cycles
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p40_boyd_ooda")
     async def run(self, question: str) -> OODAResult:
         """Execute the full Boyd OODA Rapid Cycle protocol."""
         result = OODAResult(question=question)

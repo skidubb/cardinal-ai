@@ -11,6 +11,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_array, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -58,6 +59,7 @@ class EvaporationCloudOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p33_evaporation_cloud")
     async def run(self, question: str) -> EvaporationCloudResult:
         """Execute the full Evaporation Cloud protocol."""
         result = EvaporationCloudResult(question=question)

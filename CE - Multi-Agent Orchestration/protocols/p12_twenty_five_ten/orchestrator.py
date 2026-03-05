@@ -15,6 +15,7 @@ import random
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from .prompts import IDEA_GENERATION_PROMPT, SCORING_PROMPT, SYNTHESIS_PROMPT
@@ -64,6 +65,7 @@ class TwentyFiveTenOrchestrator:
         self.scoring_rounds = scoring_rounds
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p12_twenty_five_ten")
     async def run(self, challenge: str) -> TwentyFiveTenResult:
         """Execute the full 25/10 protocol."""
         result = TwentyFiveTenResult(

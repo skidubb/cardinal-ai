@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -57,6 +58,7 @@ class TetlockOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p32_tetlock_forecast")
     async def run(self, question: str) -> ForecastResult:
         """Execute the full Tetlock Calibrated Forecast protocol."""
         result = ForecastResult(question=question)

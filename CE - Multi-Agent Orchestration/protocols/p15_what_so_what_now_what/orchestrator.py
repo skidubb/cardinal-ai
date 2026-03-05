@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -87,6 +88,7 @@ class WhatSoWhatNowWhatOrchestrator:
     # Main orchestration
     # ------------------------------------------------------------------
 
+    @trace_protocol("p15_what_so_what_now_what")
     async def run(self, question: str) -> WhatSoWhatNowWhatResult:
         timings: dict[str, float] = {}
         model_calls: dict[str, int] = {}

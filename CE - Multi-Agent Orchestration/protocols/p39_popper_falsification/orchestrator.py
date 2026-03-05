@@ -11,6 +11,7 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_array, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -48,6 +49,7 @@ class FalsificationOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p39_popper_falsification")
     async def run(self, recommendation: str, question: str = "") -> FalsificationResult:
         """Execute the full Popper Falsification Gate."""
         result = FalsificationResult(recommendation=recommendation)

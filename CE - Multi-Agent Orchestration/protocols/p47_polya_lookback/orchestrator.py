@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -43,6 +44,7 @@ class LookBackOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p47_polya_lookback")
     async def run(
         self, question: str, analysis: str, protocol_used: str
     ) -> LookBackResult:

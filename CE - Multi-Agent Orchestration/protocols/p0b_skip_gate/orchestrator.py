@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -66,6 +67,7 @@ class SkipGate:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p0b_skip_gate")
     async def run(self, question: str) -> SkipGateResult:
         timings: dict[str, float] = {}
 

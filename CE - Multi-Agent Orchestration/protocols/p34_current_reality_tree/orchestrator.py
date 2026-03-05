@@ -9,6 +9,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -48,6 +49,7 @@ class CRTOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p34_current_reality_tree")
     async def run(self, question: str) -> CRTResult:
         """Execute the full Current Reality Tree protocol."""
         result = CRTResult(question=question)

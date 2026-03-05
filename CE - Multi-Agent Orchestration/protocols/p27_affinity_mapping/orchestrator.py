@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -66,6 +67,7 @@ class AffinityMappingOrchestrator:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p27_affinity_mapping")
     async def run(self, question: str) -> AffinityMappingResult:
         timings: dict[str, float] = {}
 

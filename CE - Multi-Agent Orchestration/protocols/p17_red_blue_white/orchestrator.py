@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import agent_complete, parse_json_object, filter_exceptions
 
 from protocols.scoping import filter_context_for_agent, tag_context
@@ -99,6 +100,7 @@ class RedBlueWhiteOrchestrator:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p17_red_blue_white")
     async def run(self, question: str, plan: str) -> RedBlueWhiteResult:
         timings: dict[str, float] = {}
 

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -114,6 +115,7 @@ class OneTwoFourAllOrchestrator:
     # Main orchestration
     # ------------------------------------------------------------------
 
+    @trace_protocol("p14_one_two_four_all")
     async def run(self, question: str) -> OneTwoFourAllResult:
         t0 = time.time()
         model_calls: dict[str, int] = {}

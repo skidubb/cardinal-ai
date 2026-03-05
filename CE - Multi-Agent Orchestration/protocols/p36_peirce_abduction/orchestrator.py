@@ -10,6 +10,7 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -50,6 +51,7 @@ class AbductionOrchestrator:
         self.max_cycles = max_cycles
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p36_peirce_abduction")
     async def run(self, question: str) -> AbductionResult:
         """Execute the Peirce Abduction Cycle."""
         result = AbductionResult(question=question)

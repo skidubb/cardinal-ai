@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -78,6 +79,7 @@ class VickreyOrchestrator:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p19_vickrey_auction")
     async def run(self, question: str, options: list[str]) -> VickreyResult:
         timings: dict[str, float] = {}
 

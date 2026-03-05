@@ -10,6 +10,7 @@ import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
@@ -77,6 +78,7 @@ class NegotiationOrchestrator:
         self.constraint_store = ConstraintStore()
         self.extractor = ConstraintExtractor(model=orchestration_model)
 
+    @trace_protocol("p05_constraint_negotiation")
     async def run(self, question: str) -> NegotiationResult:
         """Execute the full constraint negotiation protocol."""
         result = NegotiationResult(question=question)

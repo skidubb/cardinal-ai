@@ -9,6 +9,7 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -48,6 +49,7 @@ class SatisficingOrchestrator:
         self.max_attempts = max_attempts
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p35_satisficing")
     async def run(self, question: str) -> SatisficingResult:
         """Execute the full Simon Satisficing protocol."""
         result = SatisficingResult(question=question)

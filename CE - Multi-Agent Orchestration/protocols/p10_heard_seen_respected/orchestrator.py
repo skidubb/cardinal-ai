@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -141,6 +142,7 @@ class HSROrchestrator:
     # Main orchestration
     # ------------------------------------------------------------------
 
+    @trace_protocol("p10_heard_seen_respected")
     async def run(self, question: str) -> HSRResult:
         t0 = time.time()
         model_calls: dict[str, int] = {}

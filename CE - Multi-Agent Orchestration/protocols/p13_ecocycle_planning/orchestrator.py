@@ -13,6 +13,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -80,6 +81,7 @@ class EcocyclePlanningOrchestrator:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p13_ecocycle_planning")
     async def run(self, question: str, initiatives: list[str]) -> EcocycleResult:
         timings: dict[str, float] = {}
 

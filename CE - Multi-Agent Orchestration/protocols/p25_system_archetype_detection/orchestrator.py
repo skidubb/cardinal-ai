@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -80,6 +81,7 @@ class ArchetypeDetector:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p25_system_archetype_detection")
     async def run(self, question: str) -> ArchetypeResult:
         timings: dict[str, float] = {}
 

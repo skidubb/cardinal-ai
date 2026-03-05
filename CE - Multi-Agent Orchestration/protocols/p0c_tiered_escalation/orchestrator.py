@@ -11,6 +11,7 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -90,6 +91,7 @@ class TieredEscalation:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p0c_tiered_escalation")
     async def run(self, question: str) -> EscalationResult:
         timings: dict[str, float] = {}
         tier_results: list[TierResult] = []

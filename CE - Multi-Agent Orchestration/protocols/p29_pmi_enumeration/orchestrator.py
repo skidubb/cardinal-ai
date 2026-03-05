@@ -10,6 +10,7 @@ import asyncio
 from dataclasses import dataclass
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -55,6 +56,7 @@ class PMIOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p29_pmi_enumeration")
     async def run(self, question: str) -> PMIResult:
         """Execute the full PMI Enumeration protocol."""
         result = PMIResult(question=question)

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object
 
 from .prompts import CLASSIFICATION_PROMPT
@@ -39,6 +40,7 @@ class SquareOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p42_aristotle_square")
     async def run(self, position_a: str, position_b: str) -> SquareResult:
         """Classify the relationship between two positions."""
         result = SquareResult(position_a=position_a, position_b=position_b)

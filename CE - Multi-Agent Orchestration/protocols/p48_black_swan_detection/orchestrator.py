@@ -12,6 +12,7 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, filter_exceptions, parse_json_array
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -53,6 +54,7 @@ class BlackSwanOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p48_black_swan_detection")
     async def run(self, question: str) -> BlackSwanResult:
         """Execute the five-layer Black Swan Detection protocol."""
         result = BlackSwanResult(question=question)

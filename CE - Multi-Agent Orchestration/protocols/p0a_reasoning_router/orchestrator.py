@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object
 
 from protocols.registry import build_routing_prompt_section
@@ -74,6 +75,7 @@ class ReasoningRouter:
     # Public entry point
     # ------------------------------------------------------------------
 
+    @trace_protocol("p0a_reasoning_router")
     async def run(self, question: str) -> RouterResult:
         timings: dict[str, float] = {}
 

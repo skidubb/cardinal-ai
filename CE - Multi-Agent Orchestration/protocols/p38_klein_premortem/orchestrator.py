@@ -11,6 +11,7 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import extract_text, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -49,6 +50,7 @@ class PreMortemOrchestrator:
         self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
+    @trace_protocol("p38_klein_premortem")
     async def run(self, question: str, time_horizon: str = "18 months") -> PreMortemResult:
         """Execute the full Klein Pre-Mortem protocol."""
         result = PreMortemResult(question=question, time_horizon=time_horizon)

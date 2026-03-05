@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
+from protocols.langfuse_tracing import trace_protocol
 from protocols.llm import agent_complete, extract_text
 
 from .prompts import FINAL_SYNTHESIS_PROMPT, QUALITY_GATE_PROMPT, STAGE_PROMPT
@@ -149,6 +150,7 @@ class SequentialPipelineOrchestrator:
             anthropic_client=self.client,
         )
 
+    @trace_protocol("p22_sequential_pipeline")
     async def run(
         self, question: str, agents: list[dict]
     ) -> SequentialPipelineResult:
