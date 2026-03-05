@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from protocols.langfuse_tracing import get_trace_id
+from datetime import datetime, timezone
 import json
 
 from .orchestrator import OODAOrchestrator
@@ -120,6 +122,7 @@ def main():
 
     print(f"Running Boyd OODA Rapid Cycle with {len(agents)} agents: {', '.join(a['name'] for a in agents)}")
     print(f"Cycles: {args.cycles}")
+    started_at = datetime.now(timezone.utc)
     result = asyncio.run(orchestrator.run(args.question))
 
     if args.json:
@@ -131,6 +134,20 @@ def main():
         }, indent=2))
     else:
         print_result(result)
+    # Persist to Postgres (no-op if unavailable)
+    try:
+        from protocols.persistence import persist_run
+        asyncio.run(persist_run(
+            protocol_key="p40_boyd_ooda",
+            question=args.question,
+            agent_keys=[a['name'] for a in agents],
+            result=result,
+            trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
+            source="cli",
+            started_at=started_at,
+        ))
+    except Exception:
+        pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

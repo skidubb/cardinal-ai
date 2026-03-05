@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from protocols.langfuse_tracing import get_trace_id
+from datetime import datetime, timezone
 import json
 
 from .orchestrator import EvaporationCloudOrchestrator
@@ -119,8 +121,23 @@ def main():
     )
 
     print(f"Running Evaporation Cloud with {len(agents)} agents: {', '.join(a['name'] for a in agents)}")
+    started_at = datetime.now(timezone.utc)
     result = asyncio.run(orchestrator.run(args.question))
     print_result(result, as_json=args.json)
+    # Persist to Postgres (no-op if unavailable)
+    try:
+        from protocols.persistence import persist_run
+        asyncio.run(persist_run(
+            protocol_key="p33_evaporation_cloud",
+            question=args.question,
+            agent_keys=[a['name'] for a in agents],
+            result=result,
+            trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
+            source="cli",
+            started_at=started_at,
+        ))
+    except Exception:
+        pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

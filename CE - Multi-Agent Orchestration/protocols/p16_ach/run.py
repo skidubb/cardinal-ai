@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
+from protocols.langfuse_tracing import get_trace_id
 from datetime import datetime, timezone
+import json
 
 from .orchestrator import ACHOrchestrator, ACHResult
 from protocols.agents import BUILTIN_AGENTS, build_agents
-from protocols.langfuse_tracing import get_trace_id
 
 
 def print_result(result: ACHResult) -> None:
@@ -47,11 +47,7 @@ def print_result(result: ACHResult) -> None:
     for cell in result.matrix:
         key = (cell.evidence_id, cell.hypothesis_id)
         vote_buckets.setdefault(key, []).append(cell.score)
-    aggregated = {
-        k: Counter(v).most_common(1)[0][0]
-        for k, v in vote_buckets.items()
-        if v
-    }
+    aggregated = {k: Counter(v).most_common(1)[0][0] for k, v in vote_buckets.items()}
 
     h_ids = [h.id for h in result.hypotheses]
     header = f"{'Evidence':<30} | " + " | ".join(f"{hid:^5}" for hid in h_ids)
@@ -225,14 +221,13 @@ def main() -> None:
         print(json.dumps(output, indent=2))
     else:
         print_result(result)
-
     # Persist to Postgres (no-op if unavailable)
     try:
         from protocols.persistence import persist_run
         asyncio.run(persist_run(
             protocol_key="p16_ach",
             question=args.question,
-            agent_keys=[a["name"] for a in agents],
+            agent_keys=[a['name'] for a in agents],
             result=result,
             trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
             source="cli",

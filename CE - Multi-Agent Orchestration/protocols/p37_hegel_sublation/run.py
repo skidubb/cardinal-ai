@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from protocols.langfuse_tracing import get_trace_id
+from datetime import datetime, timezone
 import json
 
 
@@ -121,6 +123,7 @@ def main():
     )
 
     print("Running Hegel Sublation Synthesis (Thesis -> Antithesis -> Aufheben)")
+    started_at = datetime.now(timezone.utc)
     result = asyncio.run(orchestrator.run(
         question=args.question,
         position_a=args.position_a,
@@ -131,6 +134,20 @@ def main():
         print_json(result)
     else:
         print_result(result)
+    # Persist to Postgres (no-op if unavailable)
+    try:
+        from protocols.persistence import persist_run
+        asyncio.run(persist_run(
+            protocol_key="p37_hegel_sublation",
+            question=args.question,
+            agent_keys=[],
+            result=result,
+            trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
+            source="cli",
+            started_at=started_at,
+        ))
+    except Exception:
+        pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

@@ -6,12 +6,12 @@ Usage:
 
 import argparse
 import asyncio
-import time
+from protocols.langfuse_tracing import get_trace_id
 from datetime import datetime, timezone
+import time
 
 from .orchestrator import SequentialPipelineOrchestrator, SequentialPipelineResult
 from protocols.agents import BUILTIN_AGENTS, build_agents
-from protocols.langfuse_tracing import get_trace_id
 
 
 def print_result(result: SequentialPipelineResult, elapsed: float) -> None:
@@ -111,20 +111,19 @@ def main():
         max_thinking_tokens=args.thinking_tokens,
     )
 
-    started_at = datetime.now(timezone.utc)
     start = time.time()
+    started_at = datetime.now(timezone.utc)
     result = asyncio.run(orchestrator.run(args.question, agents))
     elapsed = time.time() - start
 
     print_result(result, elapsed)
-
     # Persist to Postgres (no-op if unavailable)
     try:
         from protocols.persistence import persist_run
         asyncio.run(persist_run(
             protocol_key="p22_sequential_pipeline",
             question=args.question,
-            agent_keys=[a["name"] for a in agents],
+            agent_keys=[a['name'] for a in agents],
             result=result,
             trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
             source="cli",

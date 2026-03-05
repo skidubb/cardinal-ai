@@ -16,13 +16,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
+from protocols.langfuse_tracing import get_trace_id
 from datetime import datetime, timezone
+import json
 
 from .orchestrator import SixHatsOrchestrator
 from protocols.agents import build_agents
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
-from protocols.langfuse_tracing import get_trace_id
 
 HAT_LABELS = {
     "white": "WHITE HAT (Facts)",
@@ -126,14 +126,13 @@ def main():
         print(json.dumps(asdict(result), indent=2))
     else:
         print_result(result)
-
     # Persist to Postgres (no-op if unavailable)
     try:
         from protocols.persistence import persist_run
         asyncio.run(persist_run(
             protocol_key="p28_six_hats",
             question=args.question,
-            agent_keys=[a["name"] for a in agents],
+            agent_keys=[a['name'] for a in agents],
             result=result,
             trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
             source="cli",

@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from protocols.langfuse_tracing import get_trace_id
+from datetime import datetime, timezone
 import json
 import sys
 
@@ -196,7 +198,6 @@ def main() -> None:
             "orchestration_model": getattr(args, 'orchestration_model', getattr(args, 'thinking_model', None)),
             "thinking_budget": getattr(args, 'thinking_budget', 10000),
         }
-        agents = red_agents + blue_agents + [white_agent]
         orch = Orchestrator()
         bb = asyncio.run(orch.run(P17_DEF, args.question, agents, **config))
 
@@ -219,6 +220,7 @@ def main() -> None:
         trace_path=args.trace_path,
     )
 
+    started_at = datetime.now(timezone.utc)
     result = asyncio.run(orchestrator.run(args.question, args.plan))
 
     if args.json:
@@ -254,6 +256,20 @@ def main() -> None:
         print(json.dumps(output, indent=2))
     else:
         print_result(result)
+    # Persist to Postgres (no-op if unavailable)
+    try:
+        from protocols.persistence import persist_run
+        asyncio.run(persist_run(
+            protocol_key="p17_red_blue_white",
+            question=args.question,
+            agent_keys=[a['name'] for a in agents],
+            result=result,
+            trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
+            source="cli",
+            started_at=started_at,
+        ))
+    except Exception:
+        pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

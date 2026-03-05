@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from protocols.langfuse_tracing import get_trace_id
+from datetime import datetime, timezone
 import json
 
 from .orchestrator import SquareOrchestrator
@@ -81,6 +83,7 @@ def main():
         thinking_budget=args.thinking_budget,
     )
 
+    started_at = datetime.now(timezone.utc)
     result = asyncio.run(orchestrator.run(args.position_a, args.position_b))
 
     if args.json_output:
@@ -94,6 +97,20 @@ def main():
         }, indent=2))
     else:
         print_result(result)
+    # Persist to Postgres (no-op if unavailable)
+    try:
+        from protocols.persistence import persist_run
+        asyncio.run(persist_run(
+            protocol_key="p42_aristotle_square",
+            question=args.position_a,
+            agent_keys=[],
+            result=result,
+            trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
+            source="cli",
+            started_at=started_at,
+        ))
+    except Exception:
+        pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

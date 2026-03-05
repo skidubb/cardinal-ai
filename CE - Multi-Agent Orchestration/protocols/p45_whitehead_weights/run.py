@@ -16,7 +16,9 @@ import argparse
 import asyncio
 import json
 
+from datetime import datetime, timezone
 from .orchestrator import WhiteheadOrchestrator
+from protocols.langfuse_tracing import get_trace_id
 
 
 def print_result(result, as_json=False):
@@ -126,6 +128,7 @@ def main():
         print(f"\nResources: {bb.resource_signals()}")
         return
 
+    started_at = datetime.now(timezone.utc)
     if args.command == "record":
         if not 1.0 <= args.score <= 5.0:
             parser.error("Score must be between 1.0 and 5.0")
@@ -142,6 +145,21 @@ def main():
         ))
 
     print_result(result, as_json=args.json)
+
+    # Persist to Postgres (no-op if unavailable)
+    try:
+        from protocols.persistence import persist_run
+        asyncio.run(persist_run(
+            protocol_key="p45_whitehead_weights",
+            question=args.command,
+            agent_keys=[],
+            result=result,
+            trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
+            source="cli",
+            started_at=started_at,
+        ))
+    except Exception:
+        pass  # persistence is best-effort for CLI
 
 
 if __name__ == "__main__":

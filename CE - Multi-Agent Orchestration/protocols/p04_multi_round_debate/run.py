@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from protocols.langfuse_tracing import get_trace_id
 from datetime import datetime, timezone
 
 from .orchestrator import DebateOrchestrator
 from protocols.agents import build_agents
 from protocols.config import THINKING_MODEL
-from protocols.langfuse_tracing import get_trace_id
 
 
 def print_result(result):
@@ -103,14 +103,13 @@ def main():
     started_at = datetime.now(timezone.utc)
     result = asyncio.run(orchestrator.run(args.question))
     print_result(result)
-
     # Persist to Postgres (no-op if unavailable)
     try:
         from protocols.persistence import persist_run
         asyncio.run(persist_run(
             protocol_key="p04_multi_round_debate",
             question=args.question,
-            agent_keys=[a["name"] for a in agents],
+            agent_keys=[a['name'] for a in agents],
             result=result,
             trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
             source="cli",
