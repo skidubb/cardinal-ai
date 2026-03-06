@@ -17,6 +17,18 @@ from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
 
+def _parse_telemetry_warnings(error_message: str | None) -> list[dict]:
+    if not error_message:
+        return []
+    try:
+        payload = json.loads(error_message)
+    except Exception:
+        return []
+    if isinstance(payload, list) and all(isinstance(item, dict) for item in payload):
+        return payload
+    return []
+
+
 # ── Request schemas ──────────────────────────────────────────────────────────
 
 class ProtocolRunRequest(BaseModel):
@@ -69,6 +81,8 @@ def list_runs(
             "team_id": r.team_id,
             "status": r.status,
             "cost_usd": r.cost_usd,
+            "error_message": r.error_message,
+            "telemetry_warnings": _parse_telemetry_warnings(r.error_message),
             "started_at": r.started_at.isoformat() if r.started_at else None,
             "completed_at": r.completed_at.isoformat() if r.completed_at else None,
         }
@@ -98,6 +112,8 @@ def get_run(run_id: int, session: Session = Depends(get_session)) -> dict:
         "team_id": run.team_id,
         "status": run.status,
         "cost_usd": run.cost_usd,
+        "error_message": run.error_message,
+        "telemetry_warnings": _parse_telemetry_warnings(run.error_message),
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "completed_at": run.completed_at.isoformat() if run.completed_at else None,
         "steps": [

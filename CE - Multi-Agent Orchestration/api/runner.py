@@ -20,9 +20,12 @@ from sqlmodel import Session
 
 from api.database import engine
 from api.models import AgentOutput, Run, RunStep
-from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
+from protocols.config import ORCHESTRATION_MODEL, THINKING_MODEL
 from protocols.cost_tracker import ProtocolCostTracker
+from protocols.langfuse_tracing import get_trace_id, is_enabled as langfuse_is_enabled
 from protocols.llm import set_cost_tracker, set_event_queue, set_no_tools
+from protocols.persistence import PersistOutcome, persist_run
+from protocols.run_envelope import StepEnvelope, TelemetryWarning, build_run_envelope
 
 
 # ── Protocol → orchestrator class mapping ────────────────────────────────────
@@ -129,6 +132,64 @@ def _sse_event(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
+def _merge_cost_summaries(cost_summaries: list[dict[str, Any]]) -> dict[str, Any]:
+    merged: dict[str, Any] = {
+        "total_usd": 0.0,
+        "calls": 0,
+        "by_model": {},
+        "by_agent": {},
+    }
+
+    for summary in cost_summaries:
+        merged["total_usd"] += float(summary.get("total_usd", 0.0) or 0.0)
+        merged["calls"] += int(summary.get("calls", 0) or 0)
+
+        for model, model_stats in summary.get("by_model", {}).items():
+            cur = merged["by_model"].setdefault(
+                model,
+                {
+                    "calls": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "cached_tokens": 0,
+                    "cost_usd": 0.0,
+                },
+            )
+            cur["calls"] += int(model_stats.get("calls", 0) or 0)
+            cur["input_tokens"] += int(model_stats.get("input_tokens", 0) or 0)
+            cur["output_tokens"] += int(model_stats.get("output_tokens", 0) or 0)
+            cur["cached_tokens"] += int(model_stats.get("cached_tokens", 0) or 0)
+            cur["cost_usd"] += float(model_stats.get("cost_usd", 0.0) or 0.0)
+
+        for agent, agent_stats in summary.get("by_agent", {}).items():
+            cur = merged["by_agent"].setdefault(
+                agent,
+                {
+                    "calls": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "cached_tokens": 0,
+                    "cost_usd": 0.0,
+                    "primary_model": agent_stats.get("primary_model", ""),
+                    "by_model": {},
+                },
+            )
+            cur["calls"] += int(agent_stats.get("calls", 0) or 0)
+            cur["input_tokens"] += int(agent_stats.get("input_tokens", 0) or 0)
+            cur["output_tokens"] += int(agent_stats.get("output_tokens", 0) or 0)
+            cur["cached_tokens"] += int(agent_stats.get("cached_tokens", 0) or 0)
+            cur["cost_usd"] += float(agent_stats.get("cost_usd", 0.0) or 0.0)
+            if not cur.get("primary_model"):
+                cur["primary_model"] = agent_stats.get("primary_model", "")
+
+    merged["total_usd"] = round(merged["total_usd"], 6)
+    for stats in merged["by_model"].values():
+        stats["cost_usd"] = round(stats["cost_usd"], 6)
+    for stats in merged["by_agent"].values():
+        stats["cost_usd"] = round(stats["cost_usd"], 6)
+    return merged
+
+
 # ── Single protocol run ─────────────────────────────────────────────────────
 
 async def run_protocol_stream(
@@ -152,6 +213,8 @@ async def run_protocol_stream(
             run.status = "running"
             session.add(run)
             session.commit()
+
+    started_at = datetime.now(timezone.utc)
 
     try:
         OrchestratorClass = _load_orchestrator_class(protocol_key)
@@ -185,7 +248,6 @@ async def run_protocol_stream(
         tool_events: list[dict] = []
 
         t0 = time.time()
-        t0_dt = datetime.now(timezone.utc)
         orch_task = asyncio.create_task(orchestrator.run(question))
         orch_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
@@ -211,16 +273,39 @@ async def run_protocol_stream(
             tool_events.append(evt)
             yield _sse_event(evt["event"], evt)
 
-        # Extract outputs from result dataclass
-        outputs = _extract_outputs(result, agent_keys)
+        cost_summary = cost_tracker.summary()
+        run_warnings: list[TelemetryWarning | dict[str, Any]] = []
+        if not langfuse_is_enabled():
+            run_warnings.append(
+                TelemetryWarning(
+                    code="langfuse_disabled",
+                    message="Langfuse tracing is disabled for this run.",
+                    component="langfuse",
+                    recoverable=True,
+                )
+            )
 
-        for output in outputs:
-            yield _sse_event("agent_output", output)
+        envelope = build_run_envelope(
+            protocol_key=protocol_key,
+            question=question,
+            agent_keys=agent_keys,
+            result=result,
+            source="api",
+            status="completed",
+            started_at=started_at,
+            completed_at=datetime.now(timezone.utc),
+            trace_id=get_trace_id(),
+            run_id=run_id,
+            cost_summary=cost_summary,
+            tool_events=tool_events,
+            warnings=run_warnings,
+        )
 
-        # Extract synthesis
-        synthesis = _extract_synthesis(result)
-        if synthesis:
-            yield _sse_event("synthesis", {"text": synthesis})
+        for output in envelope.agent_outputs:
+            yield _sse_event("agent_output", output.as_sse_payload())
+
+        if envelope.result_summary:
+            yield _sse_event("synthesis", {"text": envelope.result_summary})
 
         # Persist outputs
         with Session(engine) as session:
@@ -229,68 +314,77 @@ async def run_protocol_stream(
                 run.status = "completed"
                 run.completed_at = datetime.now(timezone.utc)
                 run.cost_usd = cost_tracker.total_cost
+                if envelope.telemetry_degraded:
+                    warning_json = json.dumps([w.as_dict() for w in envelope.warnings])[:4000]
+                    run.error_message = warning_json
                 session.add(run)
 
-                # Group tool events by agent key
-                tool_events_by_agent: dict[str, list] = {}
-                for te in tool_events:
-                    aname = te.get("agent_name", "")
-                    tool_events_by_agent.setdefault(aname, []).append({
-                        "name": te.get("tool_name", ""),
-                        "input_summary": te.get("tool_input", "")[:200] if te.get("event") == "tool_call" else None,
-                        "result_preview": te.get("result_preview", "")[:200] if te.get("event") == "tool_result" else None,
-                        "elapsed_ms": te.get("elapsed_ms"),
-                        "event": te.get("event"),
-                    })
-
-                for out in outputs:
-                    agent_key = out.get("agent_key", "")
-                    agent_name = out.get("agent_name", "")
-                    # Match tool events to agent by name
-                    matched_tools = tool_events_by_agent.get(agent_name, [])
-                    agent_out = AgentOutput(
-                        run_id=run_id,
-                        agent_key=agent_key,
-                        model=thinking_model,
-                        output_text=out.get("text", ""),
-                        tool_calls_json=json.dumps(matched_tools) if matched_tools else "[]",
+                for out in envelope.agent_outputs:
+                    session.add(
+                        AgentOutput(
+                            run_id=run_id,
+                            agent_key=out.agent_key,
+                            model=out.model or thinking_model,
+                            output_text=out.text,
+                            tool_calls_json=json.dumps(out.tool_calls) if out.tool_calls else "[]",
+                            input_tokens=out.input_tokens,
+                            output_tokens=out.output_tokens,
+                            cost_usd=out.cost_usd,
+                            started_at=out.started_at,
+                            completed_at=out.completed_at,
+                        )
                     )
-                    session.add(agent_out)
 
-                if synthesis:
-                    session.add(AgentOutput(
-                        run_id=run_id,
-                        agent_key="_synthesis",
-                        model=thinking_model,
-                        output_text=synthesis,
-                    ))
+                if envelope.result_summary:
+                    session.add(
+                        AgentOutput(
+                            run_id=run_id,
+                            agent_key="_synthesis",
+                            model=thinking_model,
+                            output_text=envelope.result_summary,
+                        )
+                    )
                 session.commit()
 
-        cost_summary = cost_tracker.summary()
-
-        # Persist to Postgres (alongside SQLite)
+        # Persist to Postgres (alongside SQLite) with explicit outcome reporting.
+        persist_outcome = PersistOutcome()
         try:
-            from protocols.persistence import persist_run
-            from protocols.langfuse_tracing import get_trace_id
-            await persist_run(
+            persist_outcome = await persist_run(
                 protocol_key=protocol_key,
                 question=question,
                 agent_keys=agent_keys,
                 result=result,
-                cost_tracker=cost_tracker,
-                trace_id=get_trace_id(),
                 source="api",
-                started_at=t0_dt,
+                started_at=started_at,
+                envelope=envelope,
             )
         except Exception as pg_err:
-            import logging
-            logging.getLogger(__name__).warning("Postgres persist failed: %s", pg_err)
+            persist_outcome.warnings.append(
+                {
+                    "code": "postgres_persist_exception",
+                    "message": f"Postgres persist raised exception: {pg_err}",
+                    "component": "postgres_persistence",
+                    "recoverable": True,
+                }
+            )
+
+        if persist_outcome.telemetry_degraded:
+            for warning in persist_outcome.warnings:
+                envelope.add_warning(warning)
+            with Session(engine) as session:
+                run = session.get(Run, run_id)
+                if run and run.status == "completed":
+                    run.error_message = json.dumps([w.as_dict() for w in envelope.warnings])[:4000]
+                    session.add(run)
+                    session.commit()
 
         yield _sse_event("run_complete", {
             "run_id": run_id,
             "elapsed_seconds": round(elapsed, 1),
             "status": "completed",
             "cost": cost_summary,
+            "telemetry_degraded": envelope.telemetry_degraded,
+            "warnings": [w.as_dict() for w in envelope.warnings],
         })
 
         # Clear tracker from context
@@ -298,6 +392,7 @@ async def run_protocol_stream(
 
     except Exception as e:
         tb_str = traceback.format_exc()
+        run_warnings: list[dict[str, Any]] = []
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
@@ -307,9 +402,38 @@ async def run_protocol_stream(
                 session.add(run)
                 session.commit()
 
+        try:
+            outcome = await persist_run(
+                protocol_key=protocol_key,
+                question=question,
+                agent_keys=agent_keys,
+                result={"error": str(e)},
+                source="api",
+                started_at=started_at,
+                error=tb_str,
+            )
+            run_warnings.extend(outcome.warnings)
+        except Exception as pg_err:
+            run_warnings.append(
+                {
+                    "code": "postgres_persist_exception",
+                    "message": f"Postgres failure persist raised exception: {pg_err}",
+                    "component": "postgres_persistence",
+                    "recoverable": True,
+                }
+            )
+
         set_cost_tracker(None)
         yield _sse_event("error", {"message": str(e), "traceback": tb_str})
-        yield _sse_event("run_complete", {"run_id": run_id, "status": "failed"})
+        yield _sse_event(
+            "run_complete",
+            {
+                "run_id": run_id,
+                "status": "failed",
+                "telemetry_degraded": len(run_warnings) > 0,
+                "warnings": run_warnings,
+            },
+        )
 
 
 # ── Pipeline run ─────────────────────────────────────────────────────────────
@@ -333,6 +457,19 @@ async def run_pipeline_stream(
 
     prev_output = ""
     pipeline_total_cost = 0.0
+    pipeline_started_at = datetime.now(timezone.utc)
+    step_envelopes: list[StepEnvelope] = []
+    step_cost_summaries: list[dict[str, Any]] = []
+    run_warnings: list[TelemetryWarning | dict[str, Any]] = []
+    if not langfuse_is_enabled():
+        run_warnings.append(
+            TelemetryWarning(
+                code="langfuse_disabled",
+                message="Langfuse tracing is disabled for this pipeline run.",
+                component="langfuse",
+                recoverable=True,
+            )
+        )
 
     try:
         for i, step in enumerate(steps):
@@ -376,6 +513,8 @@ async def run_pipeline_stream(
             set_event_queue(pip_queue)
             set_no_tools(step.get("no_tools", False))
 
+            step_started_at = datetime.now(timezone.utc)
+            step_tool_events: list[dict[str, Any]] = []
             pip_task = asyncio.create_task(orchestrator.run(step_question))
             pip_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
@@ -384,6 +523,7 @@ async def run_pipeline_stream(
                     evt = await asyncio.wait_for(pip_queue.get(), timeout=0.1)
                     if evt is None:
                         break
+                    step_tool_events.append(evt)
                     yield _sse_event(evt["event"], {**evt, "step": i})
                 except asyncio.TimeoutError:
                     continue
@@ -395,20 +535,33 @@ async def run_pipeline_stream(
                 evt = pip_queue.get_nowait()
                 if evt is None:
                     break
+                step_tool_events.append(evt)
                 yield _sse_event(evt["event"], {**evt, "step": i})
 
-            outputs = _extract_outputs(result, agent_keys)
-            synthesis = _extract_synthesis(result)
+            step_cost_summary = step_tracker.summary()
+            step_cost_summaries.append(step_cost_summary)
+            step_env = build_run_envelope(
+                protocol_key=protocol_key,
+                question=step_question,
+                agent_keys=agent_keys,
+                result=result,
+                source="api",
+                status="completed",
+                started_at=step_started_at,
+                completed_at=datetime.now(timezone.utc),
+                cost_summary=step_cost_summary,
+                tool_events=step_tool_events,
+            )
 
-            for output in outputs:
-                yield _sse_event("agent_output", {**output, "step": i})
+            for output in step_env.agent_outputs:
+                yield _sse_event("agent_output", {**output.as_sse_payload(), "step": i})
 
-            if synthesis:
-                yield _sse_event("synthesis", {"text": synthesis, "step": i})
+            if step_env.result_summary:
+                yield _sse_event("synthesis", {"text": step_env.result_summary, "step": i})
 
             # Pass output forward
             if step.get("output_passthrough", True):
-                prev_output = synthesis or (outputs[-1]["text"] if outputs else "")
+                prev_output = step_env.result_summary or (step_env.agent_outputs[-1].text if step_env.agent_outputs else "")
 
             # Update step record
             with Session(engine) as session:
@@ -421,11 +574,24 @@ async def run_pipeline_stream(
                     session.commit()
 
             pipeline_total_cost += step_tracker.total_cost
+            step_envelopes.append(
+                StepEnvelope(
+                    step_order=i,
+                    protocol_key=protocol_key,
+                    status="completed",
+                    question=step_question,
+                    synthesis=step_env.result_summary,
+                    cost=step_cost_summary,
+                    agent_outputs=step_env.agent_outputs,
+                    started_at=step_started_at,
+                    completed_at=datetime.now(timezone.utc),
+                )
+            )
             set_cost_tracker(None)
             yield _sse_event("step_complete", {
                 "step": i,
                 "protocol_key": protocol_key,
-                "cost": step_tracker.summary(),
+                "cost": step_cost_summary,
             })
 
         # Mark run complete
@@ -435,10 +601,76 @@ async def run_pipeline_stream(
                 run.status = "completed"
                 run.completed_at = datetime.now(timezone.utc)
                 run.cost_usd = pipeline_total_cost
+                if run_warnings:
+                    warning_payload = [
+                        w.as_dict() if hasattr(w, "as_dict") else w
+                        for w in run_warnings
+                    ]
+                    run.error_message = json.dumps(warning_payload)[:4000]
                 session.add(run)
                 session.commit()
 
-        yield _sse_event("run_complete", {"run_id": run_id, "status": "completed"})
+        pipeline_cost_summary = _merge_cost_summaries(step_cost_summaries)
+        pipeline_result = {
+            "steps": [s.as_dict() for s in step_envelopes],
+            "final_output": prev_output,
+        }
+        pipeline_envelope = build_run_envelope(
+            protocol_key="pipeline",
+            question=question,
+            agent_keys=agent_keys,
+            result=pipeline_result,
+            source="api",
+            status="completed",
+            started_at=pipeline_started_at,
+            completed_at=datetime.now(timezone.utc),
+            run_id=run_id,
+            cost_summary=pipeline_cost_summary,
+            steps=step_envelopes,
+            warnings=run_warnings,
+        )
+        if not pipeline_envelope.result_summary and prev_output:
+            pipeline_envelope.result_summary = prev_output[:2000]
+
+        try:
+            persist_outcome = await persist_run(
+                protocol_key="pipeline",
+                question=question,
+                agent_keys=agent_keys,
+                result=pipeline_result,
+                source="api",
+                started_at=pipeline_started_at,
+                envelope=pipeline_envelope,
+            )
+            if persist_outcome.telemetry_degraded:
+                for warning in persist_outcome.warnings:
+                    pipeline_envelope.add_warning(warning)
+                with Session(engine) as session:
+                    run = session.get(Run, run_id)
+                    if run:
+                        run.error_message = json.dumps([w.as_dict() for w in pipeline_envelope.warnings])[:4000]
+                        session.add(run)
+                        session.commit()
+        except Exception as pg_err:
+            pipeline_envelope.add_warning(
+                {
+                    "code": "postgres_persist_exception",
+                    "message": f"Postgres persist raised exception: {pg_err}",
+                    "component": "postgres_persistence",
+                    "recoverable": True,
+                }
+            )
+
+        yield _sse_event(
+            "run_complete",
+            {
+                "run_id": run_id,
+                "status": "completed",
+                "cost": pipeline_cost_summary,
+                "telemetry_degraded": pipeline_envelope.telemetry_degraded,
+                "warnings": [w.as_dict() for w in pipeline_envelope.warnings],
+            },
+        )
 
     except Exception as e:
         tb_str = traceback.format_exc()
@@ -451,93 +683,36 @@ async def run_pipeline_stream(
                 session.add(run)
                 session.commit()
 
+        set_cost_tracker(None)
+        run_error_warnings: list[dict[str, Any]] = []
+        try:
+            outcome = await persist_run(
+                protocol_key="pipeline",
+                question=question,
+                agent_keys=agent_keys,
+                result={"error": str(e)},
+                source="api",
+                started_at=pipeline_started_at,
+                error=tb_str,
+            )
+            run_error_warnings.extend(outcome.warnings)
+        except Exception as pg_err:
+            run_error_warnings.append(
+                {
+                    "code": "postgres_persist_exception",
+                    "message": f"Postgres failure persist raised exception: {pg_err}",
+                    "component": "postgres_persistence",
+                    "recoverable": True,
+                }
+            )
+
         yield _sse_event("error", {"message": str(e), "traceback": tb_str})
-        yield _sse_event("run_complete", {"run_id": run_id, "status": "failed"})
-
-
-# ── Result extraction helpers ────────────────────────────────────────────────
-
-def _extract_outputs(result: Any, agent_keys: list[str]) -> list[dict]:
-    """Extract per-agent outputs from a protocol result dataclass."""
-    outputs = []
-
-    # Common patterns across protocol results:
-    # .perspectives (P3 SynthesisResult)
-    if hasattr(result, "perspectives"):
-        for p in result.perspectives:
-            outputs.append({
-                "agent_key": _name_to_key(p.name, agent_keys),
-                "agent_name": p.name,
-                "text": p.response if hasattr(p, "response") else str(p),
-            })
-        return outputs
-
-    # .rounds (P4 DebateResult — list of Round objects with .responses)
-    if hasattr(result, "rounds") and isinstance(result.rounds, list):
-        for ri, rnd in enumerate(result.rounds):
-            if hasattr(rnd, "responses"):
-                for resp in rnd.responses:
-                    outputs.append({
-                        "agent_key": _name_to_key(resp.name if hasattr(resp, "name") else "", agent_keys),
-                        "agent_name": resp.name if hasattr(resp, "name") else f"Agent (round {ri+1})",
-                        "text": resp.response if hasattr(resp, "response") else str(resp),
-                        "round": ri + 1,
-                    })
-        return outputs
-
-    # .stages (P6 TRIZ-style — list of stage objects)
-    if hasattr(result, "stages"):
-        for stage in result.stages:
-            stage_name = stage.name if hasattr(stage, "name") else "stage"
-            text = stage.output if hasattr(stage, "output") else str(stage)
-            outputs.append({
-                "agent_key": "_stage",
-                "agent_name": stage_name,
-                "text": text,
-            })
-        return outputs
-
-    # .agent_outputs / .responses — generic list of agent responses
-    for attr in ("agent_outputs", "responses", "agent_responses"):
-        val = getattr(result, attr, None)
-        if val and isinstance(val, list):
-            for item in val:
-                if isinstance(item, dict):
-                    outputs.append({
-                        "agent_key": item.get("agent_key", ""),
-                        "agent_name": item.get("name", item.get("agent_name", "")),
-                        "text": item.get("text", item.get("response", str(item))),
-                    })
-                elif hasattr(item, "name"):
-                    outputs.append({
-                        "agent_key": _name_to_key(item.name, agent_keys),
-                        "agent_name": item.name,
-                        "text": item.response if hasattr(item, "response") else str(item),
-                    })
-            return outputs
-
-    # Fallback: just serialize the whole result
-    outputs.append({
-        "agent_key": "_result",
-        "agent_name": "Result",
-        "text": str(result),
-    })
-    return outputs
-
-
-def _extract_synthesis(result: Any) -> str:
-    """Extract the synthesis/final output from a protocol result."""
-    for attr in ("synthesis", "final_synthesis", "final_output", "recommendation", "summary", "conclusion"):
-        val = getattr(result, attr, None)
-        if val and isinstance(val, str):
-            return val
-    return ""
-
-
-def _name_to_key(name: str, agent_keys: list[str]) -> str:
-    """Best-effort match an agent name back to its key."""
-    name_lower = name.lower().replace(" ", "-")
-    for key in agent_keys:
-        if key in name_lower or name_lower in key:
-            return key
-    return name_lower
+        yield _sse_event(
+            "run_complete",
+            {
+                "run_id": run_id,
+                "status": "failed",
+                "telemetry_degraded": len(run_error_warnings) > 0,
+                "warnings": run_error_warnings,
+            },
+        )

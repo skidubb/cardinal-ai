@@ -116,6 +116,8 @@ export interface Run {
   team_id: number | null
   status: 'pending' | 'running' | 'completed' | 'failed'
   cost_usd: number
+  error_message?: string | null
+  telemetry_warnings?: Array<Record<string, unknown>>
   started_at: string
   completed_at: string | null
 }

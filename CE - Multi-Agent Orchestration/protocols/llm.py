@@ -131,8 +131,26 @@ def _record_usage(model: str, response: Any, agent_name: str | None = None) -> N
     cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
 
     tracker = _cost_tracker.get()
+    if tracker is None:
+        # Lazy default tracker gives CLI parity without per-runner wiring.
+        try:
+            from protocols.cost_tracker import ProtocolCostTracker
+            tracker = ProtocolCostTracker()
+            _cost_tracker.set(tracker)
+        except Exception:
+            tracker = None
     if tracker is not None:
-        tracker.track(model, input_tokens, output_tokens, cached_tokens)
+        try:
+            tracker.track(
+                model,
+                input_tokens,
+                output_tokens,
+                cached_tokens,
+                agent_name=agent_name,
+            )
+        except TypeError:
+            # Backward compatibility for custom trackers.
+            tracker.track(model, input_tokens, output_tokens, cached_tokens)
 
     # Langfuse generation span (no-op if not configured)
     try:
