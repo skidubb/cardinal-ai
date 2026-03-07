@@ -62,7 +62,14 @@ _current_trace_id: ContextVar[str | None] = ContextVar("_lf_trace_id", default=N
 _current_root_span: ContextVar[Any] = ContextVar("_lf_root_span", default=None)
 _current_protocol: ContextVar[str | None] = ContextVar("_lf_protocol", default=None)
 _current_session_id: ContextVar[str | None] = ContextVar("_lf_session_id", default=None)
-_current_user_id: ContextVar[str | None] = ContextVar("_lf_user_id", default=None)
+
+# Auto-detect user from env or system for CLI runs
+_default_user: str | None = (
+    os.environ.get("LANGFUSE_USER_ID")
+    or os.environ.get("USER")
+    or os.environ.get("USERNAME")
+)
+_current_user_id: ContextVar[str | None] = ContextVar("_lf_user_id", default=_default_user)
 
 
 # ---------------------------------------------------------------------------
