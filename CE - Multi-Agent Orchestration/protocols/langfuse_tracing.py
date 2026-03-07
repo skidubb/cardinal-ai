@@ -128,45 +128,47 @@ def trace_protocol(protocol_key: str):
                 f"env:{os.getenv('ENV', 'dev')}",
                 f"mode:{os.getenv('AGENT_MODE', 'production')}",
             ]
-            span_kwargs: dict[str, Any] = {
-                "name": protocol_key,
-                "metadata": {"protocol_key": protocol_key},
-                "tags": tags,
-            }
-            session_id = _current_session_id.get()
-            if session_id:
-                span_kwargs["session_id"] = session_id
-            root = _langfuse_client.start_span(**span_kwargs)
-            trace_id = root.trace_id
-            tok_id = _current_trace_id.set(trace_id)
-            tok_root = _current_root_span.set(root)
-            tok_proto = _current_protocol.set(protocol_key)
-            try:
-                result = await fn(*args, **kwargs)
-                # Stash trace_id on result so callers can retrieve it
-                # after the context var is reset
+            # start_as_current_span is a sync context manager that sets up
+            # Langfuse's internal context. Tags/session are trace-level
+            # attributes applied via update_current_trace.
+            with _langfuse_client.start_as_current_span(
+                name=protocol_key,
+                metadata={"protocol_key": protocol_key},
+            ) as root:
+                trace_id = root.trace_id
+                # Apply trace-level attributes (tags, session_id)
+                trace_update: dict[str, Any] = {"name": protocol_key, "tags": tags}
+                session_id = _current_session_id.get()
+                if session_id:
+                    trace_update["session_id"] = session_id
+                _langfuse_client.update_current_trace(**trace_update)
+
+                tok_id = _current_trace_id.set(trace_id)
+                tok_root = _current_root_span.set(root)
+                tok_proto = _current_protocol.set(protocol_key)
                 try:
-                    result._langfuse_trace_id = trace_id
-                except (AttributeError, TypeError):
-                    pass
-                root.update(
-                    output=str(result)[:2000],
-                    metadata={"protocol_key": protocol_key, "status": "completed"},
-                )
-                return result
-            except Exception as e:
-                root.update(
-                    level="ERROR",
-                    status_message=str(e)[:500],
-                    metadata={"protocol_key": protocol_key, "status": "failed"},
-                )
-                raise
-            finally:
-                root.end()
-                _current_trace_id.reset(tok_id)
-                _current_root_span.reset(tok_root)
-                _current_protocol.reset(tok_proto)
-                _langfuse_client.flush()
+                    result = await fn(*args, **kwargs)
+                    try:
+                        result._langfuse_trace_id = trace_id
+                    except (AttributeError, TypeError):
+                        pass
+                    root.update(
+                        output=str(result)[:2000],
+                        metadata={"protocol_key": protocol_key, "status": "completed"},
+                    )
+                    return result
+                except Exception as e:
+                    root.update(
+                        level="ERROR",
+                        status_message=str(e)[:500],
+                        metadata={"protocol_key": protocol_key, "status": "failed"},
+                    )
+                    raise
+                finally:
+                    _current_trace_id.reset(tok_id)
+                    _current_root_span.reset(tok_root)
+                    _current_protocol.reset(tok_proto)
+                    _langfuse_client.flush()
 
         return wrapper
     return decorator
@@ -201,31 +203,31 @@ def record_generation(
     if latency_ms:
         metadata["latency_ms"] = latency_ms
 
-    usage = {
+    usage_details: dict[str, Any] = {
         "input": input_tokens,
         "output": output_tokens,
     }
     if cached_tokens:
-        usage["input_cached"] = cached_tokens
+        usage_details["input_cached"] = cached_tokens
+
+    cost_details: dict[str, float] | None = None
+    if cost_usd is not None:
+        cost_details = {"total": cost_usd}
 
     try:
-        gen = _langfuse_client.start_generation(
+        gen = _langfuse_client.start_observation(
+            as_type="generation",
             name=name,
-            trace_id=trace_id,
+            trace_context={"trace_id": trace_id},
             model=model,
-            usage=usage,
+            usage_details=usage_details,
+            cost_details=cost_details,
             metadata=metadata,
         )
-        update_kwargs: dict[str, Any] = {
-            "output": f"model={model} in={input_tokens} out={output_tokens}",
-        }
-        if cost_usd is not None:
-            update_kwargs["usage"] = {**usage, "total_cost": cost_usd}
-        gen.update(**update_kwargs)
+        gen.update(output=f"model={model} in={input_tokens} out={output_tokens}")
         gen.end()
     except Exception as e:
-        # Fall back to span if generation API not available
-        _log.debug("start_generation failed, falling back to span: %s", e)
+        _log.debug("start_observation(generation) failed, falling back to span: %s", e)
         gen = _langfuse_client.start_span(
             name=name,
             trace_context={"trace_id": trace_id},
@@ -285,7 +287,7 @@ def score_trace(
     if not tid:
         return
     try:
-        _langfuse_client.score(
+        _langfuse_client.create_score(
             trace_id=tid,
             name=name,
             value=value,
