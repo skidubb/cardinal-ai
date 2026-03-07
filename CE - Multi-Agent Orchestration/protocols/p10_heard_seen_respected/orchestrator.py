@@ -7,8 +7,8 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -70,7 +70,8 @@ class HSROrchestrator:
 
     async def _generate_narrative(self, agent: AgentSpec, question: str) -> str:
         """Phase 1: Agent writes experiential narrative from their perspective."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
@@ -81,6 +82,7 @@ class HSROrchestrator:
             messages=[
                 {"role": "user", "content": STAKEHOLDER_NARRATIVE_PROMPT.format(question=question)},
             ],
+            agent_name=agent.name,
         )
         return extract_text(response)
 
@@ -93,13 +95,15 @@ class HSROrchestrator:
             narrator_name=narrator_name,
             narrative=narrative,
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=8_000,
             system=reflector.system_prompt,
             messages=[
                 {"role": "user", "content": prompt},
             ],
+            agent_name=reflector.name,
         )
         return extract_text(response)
 
@@ -109,7 +113,8 @@ class HSROrchestrator:
             question=question,
             narratives_and_reflections=narratives_and_reflections,
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
@@ -119,6 +124,7 @@ class HSROrchestrator:
             messages=[
                 {"role": "user", "content": prompt},
             ],
+            agent_name="bridge_synthesis",
         )
         return extract_text(response)
 
@@ -153,10 +159,16 @@ class HSROrchestrator:
 
         # --- Phase 1: Share — narrative generation (parallel, Opus) ---
         t_phase1 = time.time()
-        narrative_tasks = [self._generate_narrative(a, question) for a in self.agents]
-        narrative_texts = await asyncio.gather(*narrative_tasks, return_exceptions=True)
-        narrative_texts = filter_exceptions(narrative_texts, label="p10_heard_seen_respected")
-        _count(self.thinking_model, len(self.agents))
+        span = create_span("stage:narrative_generation", {"agent_count": len(self.agents)})
+        try:
+            narrative_tasks = [self._generate_narrative(a, question) for a in self.agents]
+            narrative_texts = await asyncio.gather(*narrative_tasks, return_exceptions=True)
+            narrative_texts = filter_exceptions(narrative_texts, label="p10_heard_seen_respected")
+            _count(self.thinking_model, len(self.agents))
+            end_span(span, output=f"{len(narrative_texts)} narratives generated")
+        except Exception:
+            end_span(span, error="narrative_generation failed")
+            raise
         timings["phase1_share"] = round(time.time() - t_phase1, 2)
 
         narratives: dict[str, str] = {}
@@ -166,18 +178,23 @@ class HSROrchestrator:
         # --- Phase 2: Reflect — paired reflections (parallel, Haiku) ---
         t_phase2 = time.time()
         reflection_pairs = self._build_reflection_pairs(self.agents)
+        span = create_span("stage:paired_reflections", {"pair_count": len(reflection_pairs)})
+        try:
+            reflect_tasks = []
+            reflect_meta = []
+            for reflector, narrator in reflection_pairs:
+                reflect_tasks.append(
+                    self._reflect_back(reflector, narrator.name, narratives[narrator.name], question)
+                )
+                reflect_meta.append({"reflector": reflector.name, "reflected_on": narrator.name})
 
-        reflect_tasks = []
-        reflect_meta = []
-        for reflector, narrator in reflection_pairs:
-            reflect_tasks.append(
-                self._reflect_back(reflector, narrator.name, narratives[narrator.name], question)
-            )
-            reflect_meta.append({"reflector": reflector.name, "reflected_on": narrator.name})
-
-        reflect_texts = await asyncio.gather(*reflect_tasks, return_exceptions=True)
-        reflect_texts = filter_exceptions(reflect_texts, label="p10_heard_seen_respected")
-        _count(self.orchestration_model, len(reflection_pairs))
+            reflect_texts = await asyncio.gather(*reflect_tasks, return_exceptions=True)
+            reflect_texts = filter_exceptions(reflect_texts, label="p10_heard_seen_respected")
+            _count(self.orchestration_model, len(reflection_pairs))
+            end_span(span, output=f"{len(reflect_texts)} reflections completed")
+        except Exception:
+            end_span(span, error="paired_reflections failed")
+            raise
         timings["phase2_reflect"] = round(time.time() - t_phase2, 2)
 
         reflections: list[dict[str, str]] = []
@@ -190,21 +207,26 @@ class HSROrchestrator:
 
         # --- Phase 3: Bridge — synthesis (Opus) ---
         t_phase3 = time.time()
+        span = create_span("stage:bridge_synthesis", {})
+        try:
+            # Build the combined block for the synthesis prompt
+            blocks = []
+            for agent in self.agents:
+                block = f"### {agent.name}'s Narrative\n{narratives[agent.name]}"
+                # Find reflections OF this agent
+                for r in reflections:
+                    if r["reflected_on"] == agent.name:
+                        block += f"\n\n**{r['reflector']}'s Reflection of {agent.name}:**\n{r['reflection']}"
+                blocks.append(block)
 
-        # Build the combined block for the synthesis prompt
-        blocks = []
-        for agent in self.agents:
-            block = f"### {agent.name}'s Narrative\n{narratives[agent.name]}"
-            # Find reflections OF this agent
-            for r in reflections:
-                if r["reflected_on"] == agent.name:
-                    block += f"\n\n**{r['reflector']}'s Reflection of {agent.name}:**\n{r['reflection']}"
-            blocks.append(block)
+            narratives_and_reflections = "\n\n---\n\n".join(blocks)
 
-        narratives_and_reflections = "\n\n---\n\n".join(blocks)
-
-        bridge_text = await self._bridge_synthesis(question, narratives_and_reflections)
-        _count(self.thinking_model)
+            bridge_text = await self._bridge_synthesis(question, narratives_and_reflections)
+            _count(self.thinking_model)
+            end_span(span, output="bridge synthesis completed")
+        except Exception:
+            end_span(span, error="bridge_synthesis failed")
+            raise
         timings["phase3_bridge"] = round(time.time() - t_phase3, 2)
 
         # Parse bridge output into sections

@@ -11,8 +11,8 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -97,51 +97,81 @@ class MinSpecsOrchestrator:
 
         # Phase 1 — Generate Specs (parallel, Opus with thinking)
         t0 = time.time()
-        raw_specs = await self._generate_specs(question)
+        span = create_span("stage:generate_specs", {"agent_count": len(self.agents)})
+        try:
+            raw_specs = await self._generate_specs(question)
+            end_span(span, output=f"{len(raw_specs)} raw specs")
+        except Exception:
+            end_span(span, error="generate_specs failed")
+            raise
         timings["phase1_generate"] = round(time.time() - t0, 2)
 
         # Phase 2 — Union & Deduplicate (Haiku)
         t0 = time.time()
-        all_specs = await self._deduplicate(question, raw_specs)
+        span = create_span("stage:deduplicate", {"raw_spec_count": len(raw_specs)})
+        try:
+            all_specs = await self._deduplicate(question, raw_specs)
+            end_span(span, output=f"{len(all_specs)} deduplicated specs")
+        except Exception:
+            end_span(span, error="deduplicate failed")
+            raise
         timings["phase2_dedup"] = round(time.time() - t0, 2)
 
         # Phase 3 — Elimination Test (parallel per spec, Haiku)
         t0 = time.time()
-        verdicts = await self._elimination_test(question, all_specs)
-        must_haves: list[Spec] = []
-        eliminated: list[Spec] = []
-        borderlines: list[Spec] = []
-        for spec in all_specs:
-            v = next((v for v in verdicts if v.spec_id == spec.id), None)
-            if v is None or v.verdict == "MUST_HAVE":
-                must_haves.append(spec)
-            elif v.verdict == "REMOVABLE":
-                eliminated.append(spec)
-            else:
-                borderlines.append(spec)
+        span = create_span("stage:elimination_test", {"spec_count": len(all_specs)})
+        try:
+            verdicts = await self._elimination_test(question, all_specs)
+            must_haves: list[Spec] = []
+            eliminated: list[Spec] = []
+            borderlines: list[Spec] = []
+            for spec in all_specs:
+                v = next((v for v in verdicts if v.spec_id == spec.id), None)
+                if v is None or v.verdict == "MUST_HAVE":
+                    must_haves.append(spec)
+                elif v.verdict == "REMOVABLE":
+                    eliminated.append(spec)
+                else:
+                    borderlines.append(spec)
+            end_span(span, output=f"{len(must_haves)} must-have, {len(eliminated)} eliminated, {len(borderlines)} borderline")
+        except Exception:
+            end_span(span, error="elimination_test failed")
+            raise
         timings["phase3_eliminate"] = round(time.time() - t0, 2)
 
         # Phase 4 — Borderline Vote (parallel per spec x agent, Haiku)
         t0 = time.time()
         all_votes: list[BorderlineVote] = []
-        if borderlines:
-            all_votes = await self._borderline_vote(question, borderlines, must_haves)
-            # Tally votes per spec — majority wins
-            for spec in borderlines:
-                spec_votes = [v for v in all_votes if v.spec_id == spec.id]
-                keeps = sum(1 for v in spec_votes if v.vote == "KEEP")
-                removes = sum(1 for v in spec_votes if v.vote == "REMOVE")
-                if keeps >= removes:
-                    must_haves.append(spec)
-                else:
-                    eliminated.append(spec)
+        span = create_span("stage:borderline_vote", {"borderline_count": len(borderlines), "agent_count": len(self.agents)})
+        try:
+            if borderlines:
+                all_votes = await self._borderline_vote(question, borderlines, must_haves)
+                # Tally votes per spec — majority wins
+                for spec in borderlines:
+                    spec_votes = [v for v in all_votes if v.spec_id == spec.id]
+                    keeps = sum(1 for v in spec_votes if v.vote == "KEEP")
+                    removes = sum(1 for v in spec_votes if v.vote == "REMOVE")
+                    if keeps >= removes:
+                        must_haves.append(spec)
+                    else:
+                        eliminated.append(spec)
+            end_span(span, output=f"{len(all_votes)} votes cast")
+        except Exception:
+            end_span(span, error="borderline_vote failed")
+            raise
         timings["phase4_vote"] = round(time.time() - t0, 2)
 
         # Phase 5 — Final Synthesis (Opus with thinking)
         t0 = time.time()
-        synthesis = await self._final_synthesis(
-            question, all_specs, must_haves, eliminated, all_votes,
-        )
+        span = create_span("stage:synthesis", {"must_have_count": len(must_haves), "eliminated_count": len(eliminated)})
+        try:
+            synthesis = await self._final_synthesis(
+                question, all_specs, must_haves, eliminated, all_votes,
+            )
+            end_span(span, output=f"synthesis {len(synthesis)} chars")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
         timings["phase5_synthesis"] = round(time.time() - t0, 2)
 
         return MinSpecsResult(
@@ -168,7 +198,8 @@ class MinSpecsOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={
@@ -177,6 +208,7 @@ class MinSpecsOrchestrator:
                 },
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             parsed = parse_json_object(extract_text(resp))
             return parsed.get("specs", [])
@@ -198,10 +230,12 @@ class MinSpecsOrchestrator:
             question=question,
             all_specs_block=specs_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="dedup",
         )
         parsed = parse_json_object(extract_text(resp))
         return [
@@ -224,10 +258,12 @@ class MinSpecsOrchestrator:
                 spec_id=spec.id,
                 spec_description=spec.description,
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.orchestration_model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name="elimination_test",
             )
             parsed = parse_json_object(extract_text(resp))
             return EliminationVerdict(
@@ -270,10 +306,12 @@ class MinSpecsOrchestrator:
                 spec_description=spec.description,
                 must_have_block=must_have_block,
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.orchestration_model,
                 max_tokens=512,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             parsed = parse_json_object(extract_text(resp))
             return BorderlineVote(
@@ -339,7 +377,8 @@ class MinSpecsOrchestrator:
             borderline_block=borderline_block,
         )
 
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
@@ -347,6 +386,7 @@ class MinSpecsOrchestrator:
                 "budget_tokens": self.thinking_budget,
             },
             messages=[{"role": "user", "content": prompt}],
+            agent_name="synthesis",
         )
         return extract_text(resp)
 

@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -73,30 +73,55 @@ class CrazyEightsOrchestrator:
         timings: dict[str, float] = {}
 
         # Phase 1 — Rapid Generation (Opus, parallel, low max_tokens)
-        t0 = time.time()
-        raw_ideas = await self._rapid_generation(question)
-        timings["phase1_generate"] = time.time() - t0
+        span = create_span("stage:rapid_generation", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            raw_ideas = await self._rapid_generation(question)
+            timings["phase1_generate"] = time.time() - t0
+            total_gen = sum(len(v) for v in raw_ideas.values())
+            end_span(span, output=f"{total_gen} ideas from {len(raw_ideas)} agents")
+        except Exception:
+            end_span(span, error="rapid_generation failed")
+            raise
 
         # Flatten all ideas
         all_ideas = [idea for ideas in raw_ideas.values() for idea in ideas]
         total_ideas = len(all_ideas)
 
         # Phase 2 — Cluster (Haiku)
-        t0 = time.time()
-        clusters = await self._cluster(question, all_ideas, total_ideas)
-        timings["phase2_cluster"] = time.time() - t0
+        span = create_span("stage:cluster", {"total_ideas": total_ideas})
+        try:
+            t0 = time.time()
+            clusters = await self._cluster(question, all_ideas, total_ideas)
+            timings["phase2_cluster"] = time.time() - t0
+            end_span(span, output=f"{len(clusters)} clusters")
+        except Exception:
+            end_span(span, error="cluster failed")
+            raise
 
         # Phase 3 — Dot Vote (Haiku, parallel)
-        t0 = time.time()
-        vote_tally, top_ideas = await self._dot_vote(question, raw_ideas, clusters)
-        timings["phase3_vote"] = time.time() - t0
+        span = create_span("stage:dot_vote", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            vote_tally, top_ideas = await self._dot_vote(question, raw_ideas, clusters)
+            timings["phase3_vote"] = time.time() - t0
+            end_span(span, output=f"{len(top_ideas)} top ideas from {len(vote_tally)} voted")
+        except Exception:
+            end_span(span, error="dot_vote failed")
+            raise
 
         # Phase 4 — Develop Top Concepts (Opus)
-        t0 = time.time()
-        developed_concepts = await self._develop_concepts(
-            question, top_ideas, total_ideas,
-        )
-        timings["phase4_develop"] = time.time() - t0
+        span = create_span("stage:develop_concepts", {"top_idea_count": len(top_ideas)})
+        try:
+            t0 = time.time()
+            developed_concepts = await self._develop_concepts(
+                question, top_ideas, total_ideas,
+            )
+            timings["phase4_develop"] = time.time() - t0
+            end_span(span, output=f"{len(developed_concepts)} developed concepts")
+        except Exception:
+            end_span(span, error="develop_concepts failed")
+            raise
 
         return CrazyEightsResult(
             question=question,
@@ -122,10 +147,12 @@ class CrazyEightsOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             parsed = parse_json_object(extract_text(resp))
             ideas = parsed.get("ideas", [])
@@ -150,10 +177,12 @@ class CrazyEightsOrchestrator:
             total_ideas=total_ideas,
             ideas_block=ideas_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="cluster",
         )
         parsed = parse_json_object(extract_text(resp))
         return parsed.get("clusters", [])
@@ -186,10 +215,12 @@ class CrazyEightsOrchestrator:
                 clusters_block=clusters_block,
                 own_ideas_block=own_ideas_block,
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.orchestration_model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             parsed = parse_json_object(extract_text(resp))
             votes = parsed.get("votes", [])
@@ -244,10 +275,12 @@ class CrazyEightsOrchestrator:
             total_ideas=total_ideas,
             top_ideas_block=top_ideas_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="develop_concepts",
         )
         parsed = parse_json_object(extract_text(resp))
         return parsed.get("developed_concepts", [])

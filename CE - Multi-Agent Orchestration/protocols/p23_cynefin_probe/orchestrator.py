@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
 from protocols.llm import agent_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -108,27 +108,51 @@ class CynefinOrchestrator:
 
         # Phase 1 — Domain Classification (parallel, Opus)
         t0 = time.time()
-        domain_votes = await self._classify_domain(question)
+        span = create_span("stage:domain_classification", {"agent_count": len(self.agents)})
+        try:
+            domain_votes = await self._classify_domain(question)
+            end_span(span, output=f"{len(domain_votes)} votes")
+        except Exception:
+            end_span(span, error="domain_classification failed")
+            raise
         timings["phase1_classify"] = time.time() - t0
 
         # Phase 2 — Consensus
         t0 = time.time()
-        consensus_domain, was_contested = await self._resolve_consensus(
-            question, domain_votes,
-        )
+        span = create_span("stage:consensus", {})
+        try:
+            consensus_domain, was_contested = await self._resolve_consensus(
+                question, domain_votes,
+            )
+            end_span(span, output=f"domain={consensus_domain} contested={was_contested}")
+        except Exception:
+            end_span(span, error="consensus failed")
+            raise
         timings["phase2_consensus"] = time.time() - t0
 
         # Phase 3 — Domain-Appropriate Response (parallel)
         t0 = time.time()
-        domain_responses = await self._domain_response(question, consensus_domain)
+        span = create_span("stage:domain_response", {"domain": consensus_domain, "agent_count": len(self.agents)})
+        try:
+            domain_responses = await self._domain_response(question, consensus_domain)
+            end_span(span, output=f"{len(domain_responses)} responses")
+        except Exception:
+            end_span(span, error="domain_response failed")
+            raise
         timings["phase3_response"] = time.time() - t0
 
         # Phase 4 — Synthesis (Opus)
         t0 = time.time()
-        action_plan = await self._synthesize(
-            question, consensus_domain, was_contested,
-            domain_votes, domain_responses,
-        )
+        span = create_span("stage:synthesis", {})
+        try:
+            action_plan = await self._synthesize(
+                question, consensus_domain, was_contested,
+                domain_votes, domain_responses,
+            )
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
         timings["phase4_synthesis"] = time.time() - t0
 
         return CynefinResult(

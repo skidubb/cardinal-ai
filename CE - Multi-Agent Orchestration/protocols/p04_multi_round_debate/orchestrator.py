@@ -9,8 +9,9 @@ import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, filter_exceptions
+from protocols.synthesis import SynthesisEngine
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
 from protocols.tracing import make_client
@@ -57,6 +58,7 @@ class DebateOrchestrator:
         thinking_budget: int = 10_000,
         trace: bool = False,
         trace_path: str | None = None,
+        synthesis_engine: SynthesisEngine | None = None,
     ):
         """
         Args:
@@ -66,6 +68,7 @@ class DebateOrchestrator:
             thinking_budget: Token budget for extended thinking on Opus calls.
             trace: Enable JSONL execution tracing.
             trace_path: Explicit path for trace file (overrides auto-generated).
+            synthesis_engine: Optional SynthesisEngine instance.
         """
         if not agents:
             raise ValueError("At least one agent is required")
@@ -76,6 +79,9 @@ class DebateOrchestrator:
         self.thinking_model = thinking_model
         self.thinking_budget = thinking_budget
         self.client = make_client(protocol_id="p04_multi_round_debate", trace=trace, trace_path=Path(trace_path) if trace_path else None)
+        self._synth = synthesis_engine or SynthesisEngine(
+            self.client, thinking_model, thinking_budget, use_agent=True
+        )
 
     @trace_protocol("p04_multi_round_debate")
     async def run(self, question: str) -> DebateResult:
@@ -93,9 +99,15 @@ class DebateOrchestrator:
                 round_type = "rebuttal"
                 print(f"Round {round_num}/{self.num_rounds}: Rebuttals...")
 
-            arguments = await self._run_round(
-                question, round_num, round_type, result.rounds
-            )
+            span = create_span(f"stage:round_{round_num}_{round_type}", {"round_number": round_num, "round_type": round_type, "agent_count": len(self.agents)})
+            try:
+                arguments = await self._run_round(
+                    question, round_num, round_type, result.rounds
+                )
+                end_span(span, output=f"{len(arguments)} arguments")
+            except Exception:
+                end_span(span, error=f"round_{round_num}_{round_type} failed")
+                raise
             result.rounds.append(
                 DebateRound(
                     round_number=round_num,
@@ -106,7 +118,13 @@ class DebateOrchestrator:
 
         # Synthesis
         print("Synthesizing debate...")
-        result.synthesis = await self._synthesize(question, result.rounds)
+        span = create_span("stage:synthesis", {"round_count": len(result.rounds)})
+        try:
+            result.synthesis = await self._synthesize(question, result.rounds)
+            end_span(span, output=f"synthesis {len(result.synthesis)} chars")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
@@ -138,12 +156,14 @@ class DebateOrchestrator:
                     prior_arguments=scoped_args,
                 )
 
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return DebateArgument(
                 name=agent["name"],
@@ -164,19 +184,14 @@ class DebateOrchestrator:
     ) -> str:
         """Synthesize the full debate transcript."""
         transcript = format_prior_arguments(rounds)
-        response = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-            system="You are a strategic synthesizer producing actionable conclusions from structured debates.",
-            messages=[{
-                "role": "user",
-                "content": SYNTHESIS_PROMPT.format(
-                    question=question, transcript=transcript
-                ),
-            }],
+        prompt = SYNTHESIS_PROMPT.format(
+            question=question, transcript=transcript
         )
-        return extract_text(response)
+        return await self._synth.synthesize(
+            protocol_prompt=prompt,
+            question=question,
+            system_prompt="You are a strategic synthesizer producing actionable conclusions from structured debates.",
+        )
 
 
 

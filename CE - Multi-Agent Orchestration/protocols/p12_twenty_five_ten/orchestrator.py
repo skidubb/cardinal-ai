@@ -15,8 +15,8 @@ import random
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from .prompts import IDEA_GENERATION_PROMPT, SCORING_PROMPT, SYNTHESIS_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -75,15 +75,27 @@ class TwentyFiveTenOrchestrator:
 
         # Phase 1: Each agent generates one bold idea
         print("Phase 1: Generating idea cards...")
-        ideas = await self._generate_ideas(challenge)
-        result.ideas = ideas
+        span = create_span("stage:idea_generation", {"agent_count": len(self.agents)})
+        try:
+            ideas = await self._generate_ideas(challenge)
+            result.ideas = ideas
+            end_span(span, output=f"{len(ideas)} ideas generated")
+        except Exception:
+            end_span(span, error="idea_generation failed")
+            raise
 
         # Phase 2: Blind cross-scoring over N rounds
         # Each round, each agent scores one random idea they haven't scored yet
         # and didn't author
         print(f"Phase 2: Blind scoring ({self.scoring_rounds} rounds)...")
-        await self._score_ideas(challenge, ideas)
-        result.total_scores_cast = sum(len(idea.scores) for idea in ideas)
+        span = create_span("stage:blind_scoring", {"rounds": self.scoring_rounds, "idea_count": len(ideas)})
+        try:
+            await self._score_ideas(challenge, ideas)
+            result.total_scores_cast = sum(len(idea.scores) for idea in ideas)
+            end_span(span, output=f"{result.total_scores_cast} scores cast")
+        except Exception:
+            end_span(span, error="blind_scoring failed")
+            raise
 
         # Compute averages and rank
         self._compute_rankings(ideas)
@@ -95,7 +107,13 @@ class TwentyFiveTenOrchestrator:
 
         # Phase 3: Synthesize
         print("Phase 3: Synthesizing results...")
-        result.synthesis = await self._synthesize(challenge, ideas)
+        span = create_span("stage:synthesis", {"idea_count": len(ideas)})
+        try:
+            result.synthesis = await self._synthesize(challenge, ideas)
+            end_span(span, output="synthesis completed")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
@@ -104,11 +122,13 @@ class TwentyFiveTenOrchestrator:
         prompt = IDEA_GENERATION_PROMPT.format(question=challenge)
 
         async def gen_idea(idx: int, agent: dict) -> IdeaCard:
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=1024,
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             text = extract_text(response)
             return _parse_idea_card(idx, agent["name"], text)
@@ -161,7 +181,8 @@ class TwentyFiveTenOrchestrator:
         """Score a single idea card (anonymized)."""
         # Anonymize the card
         card_text = f"TITLE: {idea.title}\nIDEA: {idea.idea}\nBOLD BECAUSE: {idea.bold_because}"
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=256,
             system=agent["system_prompt"],
@@ -171,6 +192,7 @@ class TwentyFiveTenOrchestrator:
                     question=challenge, idea_card=card_text
                 ),
             }],
+            agent_name=agent["name"],
         )
         text = extract_text(response)
         try:
@@ -229,7 +251,8 @@ class TwentyFiveTenOrchestrator:
             ],
             indent=2,
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=4096,
             messages=[{
@@ -238,6 +261,7 @@ class TwentyFiveTenOrchestrator:
                     question=challenge, ranked_results=ranked
                 ),
             }],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_object, filter_exceptions
 
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -98,11 +98,17 @@ class DelphiOrchestrator:
         converged = False
 
         # Round 1 — Independent Estimates
-        t0 = time.time()
-        estimates = await self._initial_estimates(question)
-        round_result = self._compute_stats(1, estimates)
-        rounds.append(round_result)
-        timings["round_1_estimates"] = time.time() - t0
+        span = create_span("stage:initial_estimates", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            estimates = await self._initial_estimates(question)
+            round_result = self._compute_stats(1, estimates)
+            rounds.append(round_result)
+            timings["round_1_estimates"] = time.time() - t0
+            end_span(span, output=f"{len(estimates)} estimates, median={round_result.median}")
+        except Exception:
+            end_span(span, error="initial_estimates failed")
+            raise
 
         # Check convergence after round 1
         converged = self._check_convergence(round_result)
@@ -112,23 +118,34 @@ class DelphiOrchestrator:
             if converged:
                 break
 
-            t0 = time.time()
-            estimates = await self._revision_estimates(
-                question, rnd, rounds[-1],
-            )
-            round_result = self._compute_stats(rnd, estimates)
-            rounds.append(round_result)
-            timings[f"round_{rnd}_estimates"] = time.time() - t0
-
-            converged = self._check_convergence(round_result)
+            span = create_span(f"stage:revision_round_{rnd}", {"agent_count": len(self.agents)})
+            try:
+                t0 = time.time()
+                estimates = await self._revision_estimates(
+                    question, rnd, rounds[-1],
+                )
+                round_result = self._compute_stats(rnd, estimates)
+                rounds.append(round_result)
+                timings[f"round_{rnd}_estimates"] = time.time() - t0
+                converged = self._check_convergence(round_result)
+                end_span(span, output=f"median={round_result.median}, converged={converged}")
+            except Exception:
+                end_span(span, error=f"revision_round_{rnd} failed")
+                raise
 
         # Final synthesis (Haiku)
-        t0 = time.time()
-        last_round = rounds[-1]
-        reasoning_summary = await self._synthesize(
-            question, rounds, converged,
-        )
-        timings["synthesis"] = time.time() - t0
+        span = create_span("stage:synthesis", {"rounds_used": len(rounds)})
+        try:
+            t0 = time.time()
+            last_round = rounds[-1]
+            reasoning_summary = await self._synthesize(
+                question, rounds, converged,
+            )
+            timings["synthesis"] = time.time() - t0
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return DelphiResult(
             question=question,
@@ -307,10 +324,12 @@ class DelphiOrchestrator:
             spread=last_round.spread,
         )
 
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="synthesis",
         )
         return parse_json_object(extract_text(resp))
 

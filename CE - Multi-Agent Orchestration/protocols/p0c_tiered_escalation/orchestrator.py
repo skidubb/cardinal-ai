@@ -11,8 +11,8 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -98,7 +98,13 @@ class TieredEscalation:
 
         # Tier 1 — Single agent fast response
         t0 = time.time()
-        tier1 = await self._tier1(question)
+        span = create_span("stage:tier1_fast_response", {})
+        try:
+            tier1 = await self._tier1(question)
+            end_span(span, output=f"confidence={tier1.confidence}")
+        except Exception:
+            end_span(span, error="tier1 failed")
+            raise
         timings["tier1"] = time.time() - t0
         tier_results.append(tier1)
 
@@ -115,7 +121,13 @@ class TieredEscalation:
 
         # Tier 2 — Multi-agent parallel + synthesis
         t0 = time.time()
-        tier2, agent_responses = await self._tier2(question)
+        span = create_span("stage:tier2_multi_agent", {"agent_count": len(self.agents)})
+        try:
+            tier2, agent_responses = await self._tier2(question)
+            end_span(span, output=f"confidence={tier2.confidence}")
+        except Exception:
+            end_span(span, error="tier2 failed")
+            raise
         timings["tier2"] = time.time() - t0
         tier_results.append(tier2)
 
@@ -132,9 +144,15 @@ class TieredEscalation:
 
         # Tier 3 — Debate + oversight
         t0 = time.time()
-        tier3, flagged, flag_reason = await self._tier3(
-            question, tier1, tier2, agent_responses,
-        )
+        span = create_span("stage:tier3_debate_oversight", {"agent_count": len(self.agents)})
+        try:
+            tier3, flagged, flag_reason = await self._tier3(
+                question, tier1, tier2, agent_responses,
+            )
+            end_span(span, output=f"flagged={flagged}")
+        except Exception:
+            end_span(span, error="tier3 failed")
+            raise
         timings["tier3"] = time.time() - t0
         tier_results.append(tier3)
 
@@ -155,10 +173,12 @@ class TieredEscalation:
     async def _tier1(self, question: str) -> TierResult:
         # Get response from single agent (Opus)
         prompt = TIER1_AGENT_PROMPT.format(question=question)
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="tier1_agent",
         )
         response_text = extract_text(resp)
 
@@ -166,10 +186,12 @@ class TieredEscalation:
         conf_prompt = TIER1_CONFIDENCE_PROMPT.format(
             question=question, response=response_text,
         )
-        conf_resp = await self.client.messages.create(
+        conf_resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=256,
             messages=[{"role": "user", "content": conf_prompt}],
+            agent_name="tier1_confidence",
         )
         conf = parse_json_object(extract_text(conf_resp))
 
@@ -194,10 +216,12 @@ class TieredEscalation:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=4096,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return agent["name"], extract_text(resp)
 
@@ -212,10 +236,12 @@ class TieredEscalation:
         synth_prompt = TIER2_SYNTHESIS_PROMPT.format(
             question=question, responses_block=responses_block,
         )
-        synth_resp = await self.client.messages.create(
+        synth_resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": synth_prompt}],
+            agent_name="tier2_synthesis",
         )
         synth = parse_json_object(extract_text(synth_resp))
 
@@ -255,10 +281,12 @@ class TieredEscalation:
                 synthesis=tier2.response,
                 other_responses_block=others,
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return agent["name"], extract_text(resp)
 
@@ -279,10 +307,12 @@ class TieredEscalation:
             tier2_synthesis=tier2.response,
             rebuttals_block=rebuttals_block,
         )
-        oversight_resp = await self.client.messages.create(
+        oversight_resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": oversight_prompt}],
+            agent_name="tier3_oversight",
         )
         oversight = parse_json_object(extract_text(oversight_resp))
 

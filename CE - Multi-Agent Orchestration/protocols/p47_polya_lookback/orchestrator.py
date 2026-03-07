@@ -8,8 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -57,25 +57,43 @@ class LookBackOrchestrator:
 
         # Phase 1: Method Analysis
         print("Phase 1: Method Analysis...")
-        result.method_analysis = await self._method_analysis(
-            question, analysis, protocol_used
-        )
+        span = create_span("stage:method_analysis", {})
+        try:
+            result.method_analysis = await self._method_analysis(
+                question, analysis, protocol_used
+            )
+            end_span(span, output="method analysis complete")
+        except Exception:
+            end_span(span, error="method_analysis failed")
+            raise
 
         # Phase 2: Generalization
         print("Phase 2: Generalization...")
-        result.generalization = await self._generalization(
-            question, protocol_used, result.method_analysis
-        )
+        span = create_span("stage:generalization", {})
+        try:
+            result.generalization = await self._generalization(
+                question, protocol_used, result.method_analysis
+            )
+            end_span(span, output="generalization complete")
+        except Exception:
+            end_span(span, error="generalization failed")
+            raise
 
         # Phase 3: Meta-Synthesis — extract routing rule
         print("Phase 3: Meta-Synthesis...")
-        full_reflection = (
-            f"METHOD ANALYSIS:\n{result.method_analysis}\n\n"
-            f"GENERALIZATION:\n{result.generalization}"
-        )
-        result.routing_rule = await self._meta_synthesis(
-            protocol_used, full_reflection
-        )
+        span = create_span("stage:meta_synthesis", {})
+        try:
+            full_reflection = (
+                f"METHOD ANALYSIS:\n{result.method_analysis}\n\n"
+                f"GENERALIZATION:\n{result.generalization}"
+            )
+            result.routing_rule = await self._meta_synthesis(
+                protocol_used, full_reflection
+            )
+            end_span(span, output="routing rule extracted")
+        except Exception:
+            end_span(span, error="meta_synthesis failed")
+            raise
 
         result.synthesis = (
             f"## Method Analysis\n\n{result.method_analysis}\n\n"
@@ -89,7 +107,8 @@ class LookBackOrchestrator:
         self, question: str, analysis: str, protocol_used: str
     ) -> str:
         """Phase 1: Evaluate protocol fit, efficiency, and surprises."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -101,6 +120,7 @@ class LookBackOrchestrator:
                     protocol_used=protocol_used,
                 ),
             }],
+            agent_name="method_analysis",
         )
         return extract_text(response)
 
@@ -108,7 +128,8 @@ class LookBackOrchestrator:
         self, question: str, protocol_used: str, method_analysis: str
     ) -> str:
         """Phase 2: Identify transferable insights and routing rules."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -120,6 +141,7 @@ class LookBackOrchestrator:
                     method_analysis=method_analysis,
                 ),
             }],
+            agent_name="generalization",
         )
         return extract_text(response)
 
@@ -127,7 +149,8 @@ class LookBackOrchestrator:
         self, protocol_used: str, reflection: str
     ) -> str:
         """Phase 3: Distill into a concise routing rule."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{
@@ -137,6 +160,7 @@ class LookBackOrchestrator:
                     reflection=reflection,
                 ),
             }],
+            agent_name="meta_synthesis",
         )
         return extract_text(response).strip()
 

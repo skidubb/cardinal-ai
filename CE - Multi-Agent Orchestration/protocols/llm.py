@@ -155,9 +155,36 @@ def _record_usage(model: str, response: Any, agent_name: str | None = None) -> N
     # Langfuse generation span (no-op if not configured)
     try:
         from protocols.langfuse_tracing import record_generation
-        record_generation(model, input_tokens, output_tokens, cached_tokens, agent_name)
+        from protocols.cost_tracker import _compute_cost
+        call_cost = _compute_cost(model, input_tokens, output_tokens, cached_tokens)
+        record_generation(model, input_tokens, output_tokens, cached_tokens, agent_name, cost_usd=call_cost)
     except ImportError:
         pass
+
+
+async def llm_complete(
+    client: anthropic.AsyncAnthropic,
+    *,
+    agent_name: str | None = None,
+    **kwargs,
+) -> Any:
+    """Wrapper around client.messages.create with automatic usage tracking.
+
+    Forwards all kwargs to client.messages.create(), adds retry logic,
+    and records token usage to the cost tracker and Langfuse.
+
+    Use for orchestration-level calls (dedup, ranking, synthesis) that
+    don't go through agent_complete().
+
+    Args:
+        client: Anthropic async client instance.
+        agent_name: Label for cost/trace attribution (e.g. "dedup", "synthesis").
+        **kwargs: Passed directly to client.messages.create().
+    """
+    response = await _retry_api_call(client.messages.create, **kwargs)
+    model = kwargs.get("model", "unknown")
+    _record_usage(model, response, agent_name=agent_name)
+    return response
 
 
 def _is_anthropic_model(model: str) -> bool:

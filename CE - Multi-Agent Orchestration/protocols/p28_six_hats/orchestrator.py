@@ -9,8 +9,8 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -65,53 +65,97 @@ class SixHatsOrchestrator:
 
         # Phase 1: Blue Hat — Frame
         print("Phase 1: Blue Hat — Framing the question...")
-        result.framing = await self._blue_hat_frame(question)
+        span = create_span("stage:blue_hat_framing", {"agent_count": len(self.agents)})
+        try:
+            result.framing = await self._blue_hat_frame(question)
+            end_span(span, output="framing complete")
+        except Exception:
+            end_span(span, error="blue_hat_framing failed")
+            raise
 
         # Phase 2: White Hat — Facts
         print("Phase 2: White Hat — Facts only...")
-        result.hat_outputs["white"] = await self._run_hat(
-            question, WHITE_HAT_PROMPT, use_thinking=True
-        )
+        span = create_span("stage:white_hat", {"agent_count": len(self.agents)})
+        try:
+            result.hat_outputs["white"] = await self._run_hat(
+                question, WHITE_HAT_PROMPT, use_thinking=True
+            )
+            end_span(span, output=f"{len(result.hat_outputs['white'])} agent responses")
+        except Exception:
+            end_span(span, error="white_hat failed")
+            raise
 
         # Phase 3: Red Hat — Emotions (no thinking, short responses)
         print("Phase 3: Red Hat — Emotional reactions...")
-        result.hat_outputs["red"] = await self._run_hat(
-            question, RED_HAT_PROMPT, use_thinking=False
-        )
+        span = create_span("stage:red_hat", {"agent_count": len(self.agents)})
+        try:
+            result.hat_outputs["red"] = await self._run_hat(
+                question, RED_HAT_PROMPT, use_thinking=False
+            )
+            end_span(span, output=f"{len(result.hat_outputs['red'])} agent responses")
+        except Exception:
+            end_span(span, error="red_hat failed")
+            raise
 
         # Phase 4: Black Hat — Caution
         print("Phase 4: Black Hat — Risks and caution...")
-        result.hat_outputs["black"] = await self._run_hat(
-            question, BLACK_HAT_PROMPT, use_thinking=True
-        )
+        span = create_span("stage:black_hat", {"agent_count": len(self.agents)})
+        try:
+            result.hat_outputs["black"] = await self._run_hat(
+                question, BLACK_HAT_PROMPT, use_thinking=True
+            )
+            end_span(span, output=f"{len(result.hat_outputs['black'])} agent responses")
+        except Exception:
+            end_span(span, error="black_hat failed")
+            raise
 
         # Phase 5: Yellow Hat — Optimism
         print("Phase 5: Yellow Hat — Benefits and opportunities...")
-        result.hat_outputs["yellow"] = await self._run_hat(
-            question, YELLOW_HAT_PROMPT, use_thinking=True
-        )
+        span = create_span("stage:yellow_hat", {"agent_count": len(self.agents)})
+        try:
+            result.hat_outputs["yellow"] = await self._run_hat(
+                question, YELLOW_HAT_PROMPT, use_thinking=True
+            )
+            end_span(span, output=f"{len(result.hat_outputs['yellow'])} agent responses")
+        except Exception:
+            end_span(span, error="yellow_hat failed")
+            raise
 
         # Phase 6: Green Hat — Creativity
         print("Phase 6: Green Hat — Creative alternatives...")
-        result.hat_outputs["green"] = await self._run_hat(
-            question, GREEN_HAT_PROMPT, use_thinking=True
-        )
+        span = create_span("stage:green_hat", {"agent_count": len(self.agents)})
+        try:
+            result.hat_outputs["green"] = await self._run_hat(
+                question, GREEN_HAT_PROMPT, use_thinking=True
+            )
+            end_span(span, output=f"{len(result.hat_outputs['green'])} agent responses")
+        except Exception:
+            end_span(span, error="green_hat failed")
+            raise
 
         # Phase 7: Blue Hat — Synthesis
         print("Phase 7: Blue Hat — Synthesizing all perspectives...")
-        result.synthesis = await self._blue_hat_synthesize(question, result.hat_outputs)
+        span = create_span("stage:blue_hat_synthesis", {"hat_count": len(result.hat_outputs)})
+        try:
+            result.synthesis = await self._blue_hat_synthesize(question, result.hat_outputs)
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="blue_hat_synthesis failed")
+            raise
 
         return result
 
     async def _blue_hat_frame(self, question: str) -> str:
         """Phase 1: Blue Hat framing (orchestrator only, Haiku)."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=1024,
             messages=[{
                 "role": "user",
                 "content": BLUE_HAT_FRAMING_PROMPT.format(question=question),
             }],
+            agent_name="blue_hat_framing",
         )
         return extract_text(response)
 
@@ -127,17 +171,21 @@ class SixHatsOrchestrator:
         async def query_agent(agent: dict) -> tuple[str, str]:
             messages = [{"role": "user", "content": prompt}]
             if use_thinking:
-                response = await self.client.messages.create(
+                response = await llm_complete(
+                    self.client,
                     model=self.thinking_model,
                     max_tokens=self.thinking_budget + 4096,
                     thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                     messages=messages,
+                    agent_name=agent["name"],
                 )
             else:
-                response = await self.client.messages.create(
+                response = await llm_complete(
+                    self.client,
                     model=self.thinking_model,
                     max_tokens=512,
                     messages=messages,
+                    agent_name=agent["name"],
                 )
             return agent["name"], extract_text(response)
 
@@ -159,7 +207,8 @@ class SixHatsOrchestrator:
                 f"--- {name} ---\n{text}" for name, text in outputs.items()
             )
 
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -174,6 +223,7 @@ class SixHatsOrchestrator:
                     green_hat_outputs=format_hat("green"),
                 ),
             }],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object
 
 from protocols.registry import build_routing_prompt_section
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -81,17 +81,35 @@ class ReasoningRouter:
 
         # Phase 1 — Feature Extraction (Haiku)
         t0 = time.time()
-        features = await self._extract_features(question)
+        span = create_span("stage:feature_extraction", {})
+        try:
+            features = await self._extract_features(question)
+            end_span(span, output="features extracted")
+        except Exception:
+            end_span(span, error="feature_extraction failed")
+            raise
         timings["phase1_features"] = time.time() - t0
 
         # Phase 2 — Problem Type Classification (Haiku)
         t0 = time.time()
-        classification = await self._classify_problem_type(question, features)
+        span = create_span("stage:problem_type_classification", {})
+        try:
+            classification = await self._classify_problem_type(question, features)
+            end_span(span, output=f"type={classification.get('problem_type', 'unknown')}")
+        except Exception:
+            end_span(span, error="problem_type_classification failed")
+            raise
         timings["phase2_classify"] = time.time() - t0
 
         # Phase 3 — Protocol Selection (Haiku)
         t0 = time.time()
-        routing = await self._select_protocol(question, features, classification)
+        span = create_span("stage:protocol_selection", {})
+        try:
+            routing = await self._select_protocol(question, features, classification)
+            end_span(span, output=f"recommended={routing.get('recommended_protocol', 'unknown')}")
+        except Exception:
+            end_span(span, error="protocol_selection failed")
+            raise
         timings["phase3_select"] = time.time() - t0
 
         # Phase 4 — Assemble result
@@ -125,10 +143,12 @@ class ReasoningRouter:
 
     async def _extract_features(self, question: str) -> dict[str, Any]:
         prompt = FEATURE_EXTRACTION_PROMPT.format(question=question)
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="feature_extraction",
         )
         return parse_json_object(extract_text(resp))
 
@@ -143,10 +163,12 @@ class ReasoningRouter:
             question=question,
             features_json=json.dumps(features, indent=2),
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="problem_type_classification",
         )
         return parse_json_object(extract_text(resp))
 
@@ -168,10 +190,12 @@ class ReasoningRouter:
             type_reasoning=classification.get("reasoning", ""),
             protocol_mapping=build_routing_prompt_section(),
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="protocol_selection",
         )
         return parse_json_object(extract_text(resp))
 

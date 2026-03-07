@@ -9,8 +9,8 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -56,7 +56,13 @@ class SatisficingOrchestrator:
 
         # Phase 1: Define "good enough" thresholds
         print("Phase 1: Defining 'good enough' thresholds...")
-        criteria_data = await self._define_thresholds(question)
+        span = create_span("stage:define_thresholds", {})
+        try:
+            criteria_data = await self._define_thresholds(question)
+            end_span(span, output=f"{len(criteria_data.get('criteria', []))} criteria defined")
+        except Exception:
+            end_span(span, error="define_thresholds failed")
+            raise
 
         if not criteria_data.get("suitable", True):
             result.criteria = criteria_data.get("reason", "Problem not suitable for satisficing.")
@@ -73,7 +79,13 @@ class SatisficingOrchestrator:
         rejections: list[dict] = []
         for attempt_num in range(1, self.max_attempts + 1):
             print(f"Phase 2: Generating option (attempt {attempt_num}/{self.max_attempts})...")
-            option_data = await self._generate_option(question, criteria_text, rejections)
+            span = create_span("stage:generate_option", {"attempt": attempt_num})
+            try:
+                option_data = await self._generate_option(question, criteria_text, rejections)
+                end_span(span, output=option_data.get("option_name", "unnamed"))
+            except Exception:
+                end_span(span, error="generate_option failed")
+                raise
 
             option_text = (
                 f"{option_data.get('option_name', 'Unnamed')}: "
@@ -81,9 +93,15 @@ class SatisficingOrchestrator:
             )
 
             print("Phase 3: Evaluating option against thresholds...")
-            eval_data = await self._evaluate_option(question, criteria_text, option_text)
+            span = create_span("stage:evaluate_option", {"attempt": attempt_num})
+            try:
+                eval_data = await self._evaluate_option(question, criteria_text, option_text)
+                accepted = eval_data.get("overall", "REJECT") == "ACCEPT"
+                end_span(span, output=f"{'ACCEPTED' if accepted else 'REJECTED'}")
+            except Exception:
+                end_span(span, error="evaluate_option failed")
+                raise
 
-            accepted = eval_data.get("overall", "REJECT") == "ACCEPT"
             attempt_record = {
                 "option": option_text,
                 "evaluations": json.dumps(eval_data.get("evaluations", []), indent=2),
@@ -111,13 +129,20 @@ class SatisficingOrchestrator:
 
         # Synthesis
         print("Synthesizing final briefing...")
-        result.synthesis = await self._synthesize(question, result)
+        span = create_span("stage:synthesis", {"attempts": result.attempts_count})
+        try:
+            result.synthesis = await self._synthesize(question, result)
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
     async def _define_thresholds(self, question: str) -> dict:
         """Phase 1: Define binary pass/fail criteria."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -125,6 +150,7 @@ class SatisficingOrchestrator:
                 "role": "user",
                 "content": THRESHOLD_PROMPT.format(question=question),
             }],
+            agent_name="threshold_definition",
         )
         return parse_json_object(extract_text(response))
 
@@ -143,7 +169,8 @@ class SatisficingOrchestrator:
         else:
             rejection_context = "This is the first attempt. No prior rejections."
 
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -155,6 +182,7 @@ class SatisficingOrchestrator:
                     rejection_context=rejection_context,
                 ),
             }],
+            agent_name="option_generator",
         )
         return parse_json_object(extract_text(response))
 
@@ -162,7 +190,8 @@ class SatisficingOrchestrator:
         self, question: str, criteria: str, option: str
     ) -> dict:
         """Phase 3: Evaluate option against thresholds."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -174,6 +203,7 @@ class SatisficingOrchestrator:
                     option=option,
                 ),
             }],
+            agent_name="option_evaluator",
         )
         return parse_json_object(extract_text(response))
 
@@ -186,7 +216,8 @@ class SatisficingOrchestrator:
             "total_attempts": result.attempts_count,
         }, indent=2)
 
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -197,6 +228,7 @@ class SatisficingOrchestrator:
                     results=results_text,
                 ),
             }],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

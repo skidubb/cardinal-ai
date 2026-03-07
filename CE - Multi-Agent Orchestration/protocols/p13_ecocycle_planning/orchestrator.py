@@ -13,8 +13,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -87,24 +87,42 @@ class EcocyclePlanningOrchestrator:
 
         # Phase 1 — Assess: each agent assigns lifecycle stages (parallel, Opus)
         t0 = time.time()
-        agent_assessments = await self._assess_initiatives(question, initiatives)
+        span = create_span("stage:assess_initiatives", {"agent_count": len(self.agents), "initiative_count": len(initiatives)})
+        try:
+            agent_assessments = await self._assess_initiatives(question, initiatives)
+            end_span(span, output=f"{len(agent_assessments)} assessments collected")
+        except Exception:
+            end_span(span, error="assess_initiatives failed")
+            raise
         timings["phase1_assess"] = round(time.time() - t0, 2)
 
         # Phase 2 — Consensus: aggregate votes, resolve contested
         t0 = time.time()
-        consensus_stages, contested = self._build_consensus(initiatives, agent_assessments)
-        # Resolve contested initiatives via Haiku
-        if contested:
-            resolutions = await self._resolve_contested(question, contested, agent_assessments)
-            for initiative, stage in resolutions.items():
-                consensus_stages[initiative] = stage
+        span = create_span("stage:consensus_building", {"initiative_count": len(initiatives)})
+        try:
+            consensus_stages, contested = self._build_consensus(initiatives, agent_assessments)
+            # Resolve contested initiatives via Haiku
+            if contested:
+                resolutions = await self._resolve_contested(question, contested, agent_assessments)
+                for initiative, stage in resolutions.items():
+                    consensus_stages[initiative] = stage
+            end_span(span, output=f"{len(contested)} contested resolved")
+        except Exception:
+            end_span(span, error="consensus_building failed")
+            raise
         timings["phase2_consensus"] = round(time.time() - t0, 2)
 
         # Phase 3 — Action Plan: generate stage-appropriate actions (Opus)
         t0 = time.time()
-        action_plans, portfolio_summary = await self._generate_action_plans(
-            question, initiatives, consensus_stages,
-        )
+        span = create_span("stage:action_plan", {"initiative_count": len(initiatives)})
+        try:
+            action_plans, portfolio_summary = await self._generate_action_plans(
+                question, initiatives, consensus_stages,
+            )
+            end_span(span, output=f"{len(action_plans)} action plans generated")
+        except Exception:
+            end_span(span, error="action_plan failed")
+            raise
         timings["phase3_action_plan"] = round(time.time() - t0, 2)
 
         return EcocycleResult(
@@ -135,10 +153,12 @@ class EcocyclePlanningOrchestrator:
                 system_prompt=agent["system_prompt"],
                 initiatives_block=initiatives_block,
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=4096,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             parsed = parse_json_object(extract_text(resp))
             results = []
@@ -214,10 +234,12 @@ class EcocyclePlanningOrchestrator:
                 initiative=initiative,
                 votes_block=votes_block,
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.orchestration_model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name="resolve_contested",
             )
             parsed = parse_json_object(extract_text(resp))
             stage = parsed.get("stage", "renewal").lower().strip()
@@ -248,10 +270,12 @@ class EcocyclePlanningOrchestrator:
             question=question,
             portfolio_block=portfolio_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=8192,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="action_plan",
         )
         parsed = parse_json_object(extract_text(resp))
         action_plans = parsed.get("action_plans", {})

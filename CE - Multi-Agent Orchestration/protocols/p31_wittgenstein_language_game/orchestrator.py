@@ -9,8 +9,8 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -56,29 +56,54 @@ class LanguageGameOrchestrator:
 
         # Phase 1: Assign vocabularies
         print("Phase 1: Assigning vocabularies...")
-        assignments = await self._assign_vocabularies(question)
-        result.vocabulary_assignments = assignments
+        span = create_span("stage:vocabulary_assignment", {"agent_count": len(self.agents)})
+        try:
+            assignments = await self._assign_vocabularies(question)
+            result.vocabulary_assignments = assignments
+            end_span(span, output=f"{len(assignments)} vocabularies assigned")
+        except Exception:
+            end_span(span, error="vocabulary_assignment failed")
+            raise
 
         # Phase 2: Parallel reframing
         print("Phase 2: Reframing in assigned vocabularies...")
-        reframings = await self._reframe(question, assignments)
-        result.reframings = reframings
+        span = create_span("stage:reframing", {"agent_count": len(self.agents)})
+        try:
+            reframings = await self._reframe(question, assignments)
+            result.reframings = reframings
+            end_span(span, output=f"{len(reframings)} reframings generated")
+        except Exception:
+            end_span(span, error="reframing failed")
+            raise
 
         # Phase 3: Identify tractable framing
         print("Phase 3: Ranking reframings by revelation value...")
-        ranking = await self._rank_reframings(question, reframings)
-        result.ranking = ranking
+        span = create_span("stage:ranking", {"reframing_count": len(reframings)})
+        try:
+            ranking = await self._rank_reframings(question, reframings)
+            result.ranking = ranking
+            end_span(span, output="ranking complete")
+        except Exception:
+            end_span(span, error="ranking failed")
+            raise
 
         # Phase 4: Synthesize
         print("Phase 4: Synthesizing insights...")
-        result.synthesis = await self._synthesize(question, assignments, reframings, ranking)
+        span = create_span("stage:synthesis", {})
+        try:
+            result.synthesis = await self._synthesize(question, assignments, reframings, ranking)
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
     async def _assign_vocabularies(self, question: str) -> dict[str, str]:
         """Phase 1: Assign each agent a domain vocabulary."""
         agent_names = ", ".join(a["name"] for a in self.agents)
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=2048,
             messages=[{
@@ -89,6 +114,7 @@ class LanguageGameOrchestrator:
                     agent_names=agent_names,
                 ),
             }],
+            agent_name="vocabulary_assignment",
         )
         data = parse_json_object(extract_text(response))
         # Extract just domain strings
@@ -111,12 +137,14 @@ class LanguageGameOrchestrator:
         async def reframe_agent(agent: dict) -> tuple[str, str]:
             domain = assignments.get(agent["name"], "general systems theory")
             prompt = REFRAME_PROMPT.format(domain=domain, question=question)
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return agent["name"], extract_text(response)
 
@@ -132,7 +160,8 @@ class LanguageGameOrchestrator:
         reframings_text = "\n\n".join(
             f"=== {name} ===\n{text}" for name, text in reframings.items()
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -143,6 +172,7 @@ class LanguageGameOrchestrator:
                     reframings=reframings_text,
                 ),
             }],
+            agent_name="ranking",
         )
         return extract_text(response)
 
@@ -160,7 +190,8 @@ class LanguageGameOrchestrator:
         reframings_text = "\n\n".join(
             f"=== {name} ===\n{text}" for name, text in reframings.items()
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -173,6 +204,7 @@ class LanguageGameOrchestrator:
                     ranking=ranking,
                 ),
             }],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

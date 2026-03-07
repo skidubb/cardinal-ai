@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.tracing import make_client
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -102,34 +102,64 @@ class ACHOrchestrator:
         timings: dict[str, float] = {}
 
         # Phase 1 — Generate Hypotheses
-        t0 = time.time()
-        raw_hypotheses = await self._generate_hypotheses(question)
-        hypotheses = self._deduplicate_hypotheses(raw_hypotheses)
-        timings["phase1_generate"] = time.time() - t0
+        span = create_span("stage:generate_hypotheses", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            raw_hypotheses = await self._generate_hypotheses(question)
+            hypotheses = self._deduplicate_hypotheses(raw_hypotheses)
+            timings["phase1_generate"] = time.time() - t0
+            end_span(span, output=f"{len(hypotheses)} hypotheses")
+        except Exception:
+            end_span(span, error="generate_hypotheses failed")
+            raise
 
         # Phase 2 — List Evidence
-        t0 = time.time()
-        raw_evidence = await self._list_evidence(question, hypotheses)
-        evidence = self._deduplicate_evidence(raw_evidence)
-        timings["phase2_evidence"] = time.time() - t0
+        span = create_span("stage:list_evidence", {"hypothesis_count": len(hypotheses)})
+        try:
+            t0 = time.time()
+            raw_evidence = await self._list_evidence(question, hypotheses)
+            evidence = self._deduplicate_evidence(raw_evidence)
+            timings["phase2_evidence"] = time.time() - t0
+            end_span(span, output=f"{len(evidence)} evidence items")
+        except Exception:
+            end_span(span, error="list_evidence failed")
+            raise
 
         # Phase 3 — Build Matrix (Haiku, parallel per evidence×agent)
-        t0 = time.time()
-        matrix = await self._build_matrix(question, hypotheses, evidence)
-        timings["phase3_matrix"] = time.time() - t0
+        span = create_span("stage:build_matrix", {"hypothesis_count": len(hypotheses), "evidence_count": len(evidence)})
+        try:
+            t0 = time.time()
+            matrix = await self._build_matrix(question, hypotheses, evidence)
+            timings["phase3_matrix"] = time.time() - t0
+            end_span(span, output=f"{len(matrix)} matrix cells")
+        except Exception:
+            end_span(span, error="build_matrix failed")
+            raise
 
         # Phase 4 — Eliminate
-        t0 = time.time()
-        eliminated, surviving = self._eliminate(hypotheses, matrix)
-        timings["phase4_eliminate"] = time.time() - t0
+        span = create_span("stage:eliminate", {})
+        try:
+            t0 = time.time()
+            eliminated, surviving = self._eliminate(hypotheses, matrix)
+            timings["phase4_eliminate"] = time.time() - t0
+            end_span(span, output=f"{len(eliminated)} eliminated, {len(surviving)} surviving")
+        except Exception:
+            end_span(span, error="eliminate failed")
+            raise
 
         # Phase 5 — Sensitivity Analysis + Synthesis
-        t0 = time.time()
-        diagnostic_evidence = self._compute_diagnosticity(evidence, matrix, hypotheses)
-        synthesis = await self._sensitivity_analysis(
-            question, surviving, eliminated, evidence, matrix, diagnostic_evidence,
-        )
-        timings["phase5_synthesis"] = time.time() - t0
+        span = create_span("stage:sensitivity_synthesis", {"surviving_count": len(surviving)})
+        try:
+            t0 = time.time()
+            diagnostic_evidence = self._compute_diagnosticity(evidence, matrix, hypotheses)
+            synthesis = await self._sensitivity_analysis(
+                question, surviving, eliminated, evidence, matrix, diagnostic_evidence,
+            )
+            timings["phase5_synthesis"] = time.time() - t0
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="sensitivity_synthesis failed")
+            raise
 
         return ACHResult(
             question=question,
@@ -215,10 +245,12 @@ class ACHOrchestrator:
                 evidence_description=f"{ev.id}: {ev.description}",
                 hypotheses_block=hyp_block,
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.orchestration_model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name="matrix_scoring",
             )
             parsed = parse_json_object(extract_text(resp))
             cells = []

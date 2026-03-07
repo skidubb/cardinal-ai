@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -71,22 +71,46 @@ class DADOrchestrator:
 
         # Phase 1 — Scout positive deviants (parallel, Opus)
         t0 = time.time()
-        scouted_deviants = await self._scout_deviants(question)
+        span = create_span("stage:scout_deviants", {"agent_count": len(self.agents)})
+        try:
+            scouted_deviants = await self._scout_deviants(question)
+            end_span(span, output=f"{len(scouted_deviants)} deviants scouted")
+        except Exception:
+            end_span(span, error="scout_deviants failed")
+            raise
         timings["phase1_scout"] = round(time.time() - t0, 2)
 
         # Phase 2 — Filter behaviors (parallel, Haiku)
         t0 = time.time()
-        filtered_behaviors = await self._filter_behaviors(question, scouted_deviants)
+        span = create_span("stage:filter_behaviors", {"deviant_count": len(scouted_deviants)})
+        try:
+            filtered_behaviors = await self._filter_behaviors(question, scouted_deviants)
+            end_span(span, output=f"{len(filtered_behaviors)} behaviors passed filter")
+        except Exception:
+            end_span(span, error="filter_behaviors failed")
+            raise
         timings["phase2_filter"] = round(time.time() - t0, 2)
 
         # Phase 3 — Extract transferable practices (Haiku)
         t0 = time.time()
-        extracted_practices = await self._extract_practices(question, filtered_behaviors)
+        span = create_span("stage:extract_practices", {"behavior_count": len(filtered_behaviors)})
+        try:
+            extracted_practices = await self._extract_practices(question, filtered_behaviors)
+            end_span(span, output=f"{len(extracted_practices)} practices extracted")
+        except Exception:
+            end_span(span, error="extract_practices failed")
+            raise
         timings["phase3_extract"] = round(time.time() - t0, 2)
 
         # Phase 4 — Adapt recommendations (Opus)
         t0 = time.time()
-        adapted_recommendations = await self._adapt_recommendations(question, extracted_practices)
+        span = create_span("stage:adapt_recommendations", {"practice_count": len(extracted_practices)})
+        try:
+            adapted_recommendations = await self._adapt_recommendations(question, extracted_practices)
+            end_span(span, output="recommendations adapted")
+        except Exception:
+            end_span(span, error="adapt_recommendations failed")
+            raise
         timings["phase4_adapt"] = round(time.time() - t0, 2)
 
         return DADResult(
@@ -111,7 +135,8 @@ class DADOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={
@@ -120,6 +145,7 @@ class DADOrchestrator:
                 },
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             parsed = parse_json_object(extract_text(resp))
             deviants = parsed.get("deviants", [])
@@ -150,10 +176,12 @@ class DADOrchestrator:
                 behavior=deviant.get("behavior", ""),
                 why_it_works=deviant.get("why_it_works", ""),
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.orchestration_model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name="filter_behavior",
             )
             parsed = parse_json_object(extract_text(resp))
             parsed["source_agent"] = deviant.get("source_agent", "")
@@ -194,10 +222,12 @@ class DADOrchestrator:
             question=question,
             behaviors_block=behaviors_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="extract_practices",
         )
         parsed = parse_json_object(extract_text(resp))
         return parsed.get("practices", [])
@@ -227,7 +257,8 @@ class DADOrchestrator:
             question=question,
             practices_block=practices_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
             thinking={
@@ -235,6 +266,7 @@ class DADOrchestrator:
                 "budget_tokens": self.thinking_budget,
             },
             messages=[{"role": "user", "content": prompt}],
+            agent_name="adapt_recommendations",
         )
         return extract_text(resp)
 

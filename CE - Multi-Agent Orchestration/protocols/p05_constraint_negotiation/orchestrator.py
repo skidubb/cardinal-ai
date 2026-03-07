@@ -10,8 +10,8 @@ import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, filter_exceptions
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
 from protocols.tracing import make_client
@@ -91,9 +91,15 @@ class NegotiationOrchestrator:
                 round_type = "revision"
                 print(f"Round {round_num}/{self.num_rounds}: Revisions...")
 
-            arguments = await self._run_round(
-                question, round_num, round_type, result.rounds
-            )
+            span = create_span(f"stage:round_{round_num}_{round_type}", {"round_number": round_num, "round_type": round_type, "agent_count": len(self.agents)})
+            try:
+                arguments = await self._run_round(
+                    question, round_num, round_type, result.rounds
+                )
+                end_span(span, output=f"{len(arguments)} arguments")
+            except Exception:
+                end_span(span, error=f"round_{round_num}_{round_type} failed")
+                raise
             result.rounds.append(
                 NegotiationRound(
                     round_number=round_num,
@@ -104,22 +110,34 @@ class NegotiationOrchestrator:
 
             # Extract constraints after each round
             print("  Extracting constraints...")
-            extractions = await asyncio.gather(
-                *(
-                    self.extractor.extract(arg.name, arg.content)
-                    for arg in arguments
-                ),
-                return_exceptions=True,
-            )
-            extractions = filter_exceptions(extractions, label="p05_constraint_negotiation")
-            for constraints in extractions:
-                self.constraint_store.add_many(constraints)
+            span = create_span("stage:constraint_extraction", {"round_number": round_num, "argument_count": len(arguments)})
+            try:
+                extractions = await asyncio.gather(
+                    *(
+                        self.extractor.extract(arg.name, arg.content)
+                        for arg in arguments
+                    ),
+                    return_exceptions=True,
+                )
+                extractions = filter_exceptions(extractions, label="p05_constraint_negotiation")
+                for constraints in extractions:
+                    self.constraint_store.add_many(constraints)
+                end_span(span, output=f"{len(extractions)} extractions")
+            except Exception:
+                end_span(span, error="constraint_extraction failed")
+                raise
 
         result.constraints = self.constraint_store
 
         # Synthesis
         print("Synthesizing negotiation outcome...")
-        result.synthesis = await self._synthesize(question, result.rounds)
+        span = create_span("stage:synthesis", {"round_count": len(result.rounds)})
+        try:
+            result.synthesis = await self._synthesize(question, result.rounds)
+            end_span(span, output=f"synthesis {len(result.synthesis)} chars")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
@@ -148,12 +166,14 @@ class NegotiationOrchestrator:
                     prior_arguments=scoped_args,
                 )
 
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return NegotiationArgument(
                 name=agent["name"],
@@ -175,7 +195,8 @@ class NegotiationOrchestrator:
         """Synthesize the full negotiation transcript."""
         transcript = _format_prior_arguments(rounds)
         constraint_table = self.constraint_store.format_for_prompt()
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -188,6 +209,7 @@ class NegotiationOrchestrator:
                     transcript=transcript,
                 ),
             }],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

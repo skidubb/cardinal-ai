@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -73,7 +73,8 @@ class OneTwoFourAllOrchestrator:
 
     async def _solo_ideate(self, agent: AgentSpec, question: str) -> str:
         """Stage 1: single agent generates ideas independently."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
@@ -84,6 +85,7 @@ class OneTwoFourAllOrchestrator:
             messages=[
                 {"role": "user", "content": SOLO_IDEATION_PROMPT.format(question=question)},
             ],
+            agent_name=agent.name,
         )
         return extract_text(response)
 
@@ -94,12 +96,14 @@ class OneTwoFourAllOrchestrator:
             ideas_a=ideas_a,
             ideas_b=ideas_b,
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=8_000,
             messages=[
                 {"role": "user", "content": prompt},
             ],
+            agent_name="merge",
         )
         return extract_text(response)
 
@@ -126,10 +130,16 @@ class OneTwoFourAllOrchestrator:
         lineage: list[MergeRecord] = []
 
         # --- Stage 1: Solo ideation (parallel, Opus) ---
-        solo_tasks = [self._solo_ideate(a, question) for a in self.agents]
-        solo_texts = await asyncio.gather(*solo_tasks, return_exceptions=True)
-        solo_texts = filter_exceptions(solo_texts, label="p14_one_two_four_all")
-        _count(self.thinking_model, len(self.agents))
+        span = create_span("stage:solo_ideation", {"agent_count": len(self.agents)})
+        try:
+            solo_tasks = [self._solo_ideate(a, question) for a in self.agents]
+            solo_texts = await asyncio.gather(*solo_tasks, return_exceptions=True)
+            solo_texts = filter_exceptions(solo_texts, label="p14_one_two_four_all")
+            _count(self.thinking_model, len(self.agents))
+            end_span(span, output=f"{len(solo_texts)} solo outputs")
+        except Exception:
+            end_span(span, error="solo_ideation failed")
+            raise
 
         solo_outputs: dict[str, str] = {}
         tagged: list[dict[str, Any]] = []
@@ -143,15 +153,21 @@ class OneTwoFourAllOrchestrator:
         pairs = self._make_pairs(current)
         carry_forward = current[-1] if len(current) % 2 == 1 else None
 
-        merge_tasks = []
-        pair_meta = []
-        for a, b in pairs:
-            merge_tasks.append(self._merge(question, a["text"], b["text"], PAIR_MERGE_PROMPT))
-            pair_meta.append({"names": a["names"] + b["names"]})
+        span = create_span("stage:pair_merge", {"pair_count": len(pairs)})
+        try:
+            merge_tasks = []
+            pair_meta = []
+            for a, b in pairs:
+                merge_tasks.append(self._merge(question, a["text"], b["text"], PAIR_MERGE_PROMPT))
+                pair_meta.append({"names": a["names"] + b["names"]})
 
-        pair_texts = await asyncio.gather(*merge_tasks, return_exceptions=True)
-        pair_texts = filter_exceptions(pair_texts, label="p14_one_two_four_all")
-        _count(self.orchestration_model, len(pairs))
+            pair_texts = await asyncio.gather(*merge_tasks, return_exceptions=True)
+            pair_texts = filter_exceptions(pair_texts, label="p14_one_two_four_all")
+            _count(self.orchestration_model, len(pairs))
+            end_span(span, output=f"{len(pair_texts)} pair merges completed")
+        except Exception:
+            end_span(span, error="pair_merge failed")
+            raise
 
         next_stage = []
         for meta, text in zip(pair_meta, pair_texts):
@@ -169,15 +185,21 @@ class OneTwoFourAllOrchestrator:
         pairs = self._make_pairs(current)
         carry_forward = current[-1] if len(current) % 2 == 1 else None
 
-        merge_tasks = []
-        quad_meta = []
-        for a, b in pairs:
-            merge_tasks.append(self._merge(question, a["text"], b["text"], QUAD_MERGE_PROMPT))
-            quad_meta.append({"names": a["names"] + b["names"]})
+        span = create_span("stage:quad_merge", {"pair_count": len(pairs)})
+        try:
+            merge_tasks = []
+            quad_meta = []
+            for a, b in pairs:
+                merge_tasks.append(self._merge(question, a["text"], b["text"], QUAD_MERGE_PROMPT))
+                quad_meta.append({"names": a["names"] + b["names"]})
 
-        quad_texts = await asyncio.gather(*merge_tasks, return_exceptions=True)
-        quad_texts = filter_exceptions(quad_texts, label="p14_one_two_four_all")
-        _count(self.orchestration_model, len(pairs))
+            quad_texts = await asyncio.gather(*merge_tasks, return_exceptions=True)
+            quad_texts = filter_exceptions(quad_texts, label="p14_one_two_four_all")
+            _count(self.orchestration_model, len(pairs))
+            end_span(span, output=f"{len(quad_texts)} quad merges completed")
+        except Exception:
+            end_span(span, error="quad_merge failed")
+            raise
 
         final_inputs = []
         for meta, text in zip(quad_meta, quad_texts):
@@ -190,23 +212,31 @@ class OneTwoFourAllOrchestrator:
             final_inputs.append(carry_forward)
 
         # --- Stage 4: Final synthesis (Opus) ---
-        quad_block = "\n\n---\n\n".join(
-            f"**Group ({', '.join(fi['names'])}):**\n{fi['text']}" for fi in final_inputs
-        )
-        prompt = FINAL_SYNTHESIS_PROMPT.format(question=question, quad_outputs=quad_block)
-        response = await self.client.messages.create(
-            model=self.thinking_model,
-            max_tokens=16_000,
-            thinking={
-                "type": "enabled",
-                "budget_tokens": self.thinking_budget,
-            },
-            messages=[
-                {"role": "user", "content": prompt},
-            ],
-        )
-        final_text = extract_text(response)
-        _count(self.thinking_model)
+        span = create_span("stage:final_synthesis", {"input_count": len(final_inputs)})
+        try:
+            quad_block = "\n\n---\n\n".join(
+                f"**Group ({', '.join(fi['names'])}):**\n{fi['text']}" for fi in final_inputs
+            )
+            prompt = FINAL_SYNTHESIS_PROMPT.format(question=question, quad_outputs=quad_block)
+            response = await llm_complete(
+                self.client,
+                model=self.thinking_model,
+                max_tokens=16_000,
+                thinking={
+                    "type": "enabled",
+                    "budget_tokens": self.thinking_budget,
+                },
+                messages=[
+                    {"role": "user", "content": prompt},
+                ],
+                agent_name="final_synthesis",
+            )
+            final_text = extract_text(response)
+            _count(self.thinking_model)
+            end_span(span, output="final synthesis completed")
+        except Exception:
+            end_span(span, error="final_synthesis failed")
+            raise
 
         return OneTwoFourAllResult(
             question=question,

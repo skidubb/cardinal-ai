@@ -10,8 +10,8 @@ import asyncio
 from dataclasses import dataclass
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -63,30 +63,50 @@ class PMIOrchestrator:
 
         # Phase 1: Frame the proposition
         print("Phase 1: Framing the proposition...")
-        result.proposition = await self._frame_proposition(question)
+        span = create_span("stage:proposition_framing", {})
+        try:
+            result.proposition = await self._frame_proposition(question)
+            end_span(span, output="proposition framed")
+        except Exception:
+            end_span(span, error="proposition_framing failed")
+            raise
 
         # Phase 2: Parallel enumeration (Plus, Minus, Interesting)
         print("Phase 2: Parallel enumeration (Plus / Minus / Interesting)...")
-        plus, minus, interesting = await self._enumerate(result.proposition)
-        result.plus_items = plus
-        result.minus_items = minus
-        result.interesting_items = interesting
+        span = create_span("stage:pmi_enumeration", {"frame_count": 3})
+        try:
+            plus, minus, interesting = await self._enumerate(result.proposition)
+            result.plus_items = plus
+            result.minus_items = minus
+            result.interesting_items = interesting
+            end_span(span, output="3 frames enumerated")
+        except Exception:
+            end_span(span, error="pmi_enumeration failed")
+            raise
 
         # Phase 3: Synthesis
         print("Phase 3: Synthesizing...")
-        result.synthesis = await self._synthesize(result)
+        span = create_span("stage:synthesis", {})
+        try:
+            result.synthesis = await self._synthesize(result)
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
     async def _frame_proposition(self, question: str) -> str:
         """Phase 1: Restate the question as a clear proposition."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=512,
             messages=[{
                 "role": "user",
                 "content": PROPOSITION_FRAMING_PROMPT.format(question=question),
             }],
+            agent_name="proposition_framing",
         )
         return extract_text(response).strip()
 
@@ -98,22 +118,27 @@ class PMIOrchestrator:
             INTERESTING_PROMPT.format(proposition=proposition),
         ]
 
-        async def query_frame(prompt: str) -> str:
-            response = await self.client.messages.create(
+        frame_labels = ["plus", "minus", "interesting"]
+
+        async def query_frame(prompt: str, idx: int) -> str:
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=frame_labels[idx],
             )
             return extract_text(response)
 
-        results = await asyncio.gather(*(query_frame(p) for p in prompts), return_exceptions=True)
+        results = await asyncio.gather(*(query_frame(p, i) for i, p in enumerate(prompts)), return_exceptions=True)
         results = filter_exceptions(results, label="p29_pmi_enumeration")
         return results[0], results[1], results[2]
 
     async def _synthesize(self, result: PMIResult) -> str:
         """Phase 3: Synthesize Plus/Minus/Interesting into recommendations."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -126,6 +151,7 @@ class PMIOrchestrator:
                     interesting_items=result.interesting_items,
                 ),
             }],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

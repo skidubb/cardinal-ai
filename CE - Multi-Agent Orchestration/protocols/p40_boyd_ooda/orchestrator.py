@@ -11,8 +11,8 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -72,23 +72,47 @@ class OODAOrchestrator:
 
             # Phase 1: OBSERVE (parallel across agents, compact)
             print("  Observe...")
-            observations = await self._observe(question, prior_context)
-            cycle["observe"] = observations
+            span = create_span("stage:observe", {"cycle": cycle_num, "agent_count": len(self.agents)})
+            try:
+                observations = await self._observe(question, prior_context)
+                cycle["observe"] = observations
+                end_span(span, output=f"cycle {cycle_num} observations collected")
+            except Exception:
+                end_span(span, error="observe failed")
+                raise
 
             # Phase 2: ORIENT (thinking-enabled, the critical step)
             print("  Orient...")
-            model = await self._orient(observations)
-            cycle["orient"] = model
+            span = create_span("stage:orient", {"cycle": cycle_num})
+            try:
+                model = await self._orient(observations)
+                cycle["orient"] = model
+                end_span(span, output=f"cycle {cycle_num} mental model updated")
+            except Exception:
+                end_span(span, error="orient failed")
+                raise
 
             # Phase 3: DECIDE (compact)
             print("  Decide...")
-            decision = await self._decide(model)
-            cycle["decide"] = decision
+            span = create_span("stage:decide", {"cycle": cycle_num})
+            try:
+                decision = await self._decide(model)
+                cycle["decide"] = decision
+                end_span(span, output=f"cycle {cycle_num} decision made")
+            except Exception:
+                end_span(span, error="decide failed")
+                raise
 
             # Phase 4: ACT (project consequences for next cycle)
             print("  Act...")
-            act_output = await self._act(decision, question)
-            cycle["act"] = act_output
+            span = create_span("stage:act", {"cycle": cycle_num})
+            try:
+                act_output = await self._act(decision, question)
+                cycle["act"] = act_output
+                end_span(span, output=f"cycle {cycle_num} consequences projected")
+            except Exception:
+                end_span(span, error="act failed")
+                raise
 
             result.cycles.append(cycle)
 
@@ -103,7 +127,13 @@ class OODAOrchestrator:
 
         # Synthesis across all cycles
         print(f"\nSynthesizing across {self.num_cycles} cycles...")
-        result.synthesis = await self._synthesize(question, result.cycles)
+        span = create_span("stage:synthesis", {"num_cycles": self.num_cycles})
+        try:
+            result.synthesis = await self._synthesize(question, result.cycles)
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
@@ -113,12 +143,14 @@ class OODAOrchestrator:
         compact_budget = 3000
 
         async def query_agent(agent: dict) -> str:
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=compact_budget + 2048,
                 thinking={"type": "enabled", "budget_tokens": compact_budget},
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent.get("name"),
             )
             return f"=== {agent['name']} ===\n{extract_text(response)}"
 
@@ -132,11 +164,13 @@ class OODAOrchestrator:
     async def _orient(self, observations: str) -> str:
         """Phase 2: Orient — update mental model. Thinking-enabled."""
         prompt = ORIENT_PROMPT.format(observations=observations)
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": prompt}],
+            agent_name="orient",
         )
         return extract_text(response)
 
@@ -144,11 +178,13 @@ class OODAOrchestrator:
         """Phase 3: Decide — single best immediate action. Compact."""
         prompt = DECIDE_PROMPT.format(model=model)
         compact_budget = 3000
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=compact_budget + 2048,
             thinking={"type": "enabled", "budget_tokens": compact_budget},
             messages=[{"role": "user", "content": prompt}],
+            agent_name="decide",
         )
         return extract_text(response)
 
@@ -156,11 +192,13 @@ class OODAOrchestrator:
         """Phase 4: Act — project consequences for next cycle."""
         prompt = ACT_PROMPT.format(decision=decision, question=question)
         compact_budget = 3000
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=compact_budget + 2048,
             thinking={"type": "enabled", "budget_tokens": compact_budget},
             messages=[{"role": "user", "content": prompt}],
+            agent_name="act",
         )
         return extract_text(response)
 
@@ -172,11 +210,13 @@ class OODAOrchestrator:
             question=question,
             cycles_json=cycles_json,
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": prompt}],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

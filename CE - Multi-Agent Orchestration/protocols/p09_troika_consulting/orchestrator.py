@@ -6,8 +6,8 @@ import time
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -77,7 +77,8 @@ class TroikaOrchestrator:
 
     async def _client_present(self, agent: AgentSpec, question: str) -> str:
         """Phase 1: Client presents the problem (Opus, extended thinking)."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
@@ -91,6 +92,7 @@ class TroikaOrchestrator:
                     question=question,
                 )},
             ],
+            agent_name=agent.name,
         )
         return extract_text(response)
 
@@ -99,7 +101,8 @@ class TroikaOrchestrator:
         client_name: str, problem_statement: str,
     ) -> str:
         """Phase 2a: First consultant gives initial analysis (Haiku)."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=8_000,
             system=consultant.system_prompt,
@@ -111,6 +114,7 @@ class TroikaOrchestrator:
                     problem_statement=problem_statement,
                 )},
             ],
+            agent_name=consultant.name,
         )
         return extract_text(response)
 
@@ -120,7 +124,8 @@ class TroikaOrchestrator:
         consultant1_name: str, consultant1_response: str,
     ) -> str:
         """Phase 2b: Second consultant responds and builds (Haiku)."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=8_000,
             system=consultant.system_prompt,
@@ -134,6 +139,7 @@ class TroikaOrchestrator:
                     consultant1_response=consultant1_response,
                 )},
             ],
+            agent_name=consultant.name,
         )
         return extract_text(response)
 
@@ -143,7 +149,8 @@ class TroikaOrchestrator:
         consultant2_name: str, consultant2_response: str,
     ) -> str:
         """Phase 2c: Consolidate consultation into clear advice (Haiku)."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=8_000,
             messages=[
@@ -157,6 +164,7 @@ class TroikaOrchestrator:
                     consultant2_response=consultant2_response,
                 )},
             ],
+            agent_name="consolidation",
         )
         return extract_text(response)
 
@@ -166,7 +174,8 @@ class TroikaOrchestrator:
         consultant1_name: str, consultant2_name: str,
     ) -> str:
         """Phase 3: Client reflects on the advice (Opus, extended thinking)."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
@@ -184,6 +193,7 @@ class TroikaOrchestrator:
                     consultant2_name=consultant2_name,
                 )},
             ],
+            agent_name=agent.name,
         )
         return extract_text(response)
 
@@ -253,10 +263,16 @@ class TroikaOrchestrator:
             consultant2 = self.agents[(i + 2) % n]
 
             round_t0 = time.time()
-            troika_round = await self._run_single_round(
-                question, client, consultant1, consultant2,
-            )
-            rounds.append(troika_round)
+            span = create_span(f"stage:round_{i + 1}", {"client": client.name, "consultants": [consultant1.name, consultant2.name]})
+            try:
+                troika_round = await self._run_single_round(
+                    question, client, consultant1, consultant2,
+                )
+                rounds.append(troika_round)
+                end_span(span, output=f"round {i + 1} complete")
+            except Exception:
+                end_span(span, error=f"round_{i + 1} failed")
+                raise
 
             # Per-round: 1 Opus (present) + 3 Haiku (c1, c2, consolidate) + 1 Opus (reflect)
             _count(self.thinking_model, 2)
@@ -267,29 +283,37 @@ class TroikaOrchestrator:
         final_synthesis = ""
         if len(rounds) > 1:
             synth_t0 = time.time()
-            round_summaries = "\n\n---\n\n".join(
-                f"**Round {i + 1} — Client: {r.client_name}, "
-                f"Consultants: {', '.join(r.consultants)}**\n\n"
-                f"**Problem Statement:**\n{r.problem_statement}\n\n"
-                f"**Consolidated Advice:**\n{r.consolidated_advice}\n\n"
-                f"**Client Reflection:**\n{r.client_reflection}"
-                for i, r in enumerate(rounds)
-            )
-            response = await self.client.messages.create(
-                model=self.thinking_model,
-                max_tokens=16_000,
-                thinking={
-                    "type": "enabled",
-                    "budget_tokens": self.thinking_budget,
-                },
-                messages=[
-                    {"role": "user", "content": FINAL_SYNTHESIS_PROMPT.format(
-                        question=question,
-                        round_summaries=round_summaries,
-                    )},
-                ],
-            )
-            final_synthesis = extract_text(response)
+            span = create_span("stage:synthesis", {"round_count": len(rounds)})
+            try:
+                round_summaries = "\n\n---\n\n".join(
+                    f"**Round {i + 1} — Client: {r.client_name}, "
+                    f"Consultants: {', '.join(r.consultants)}**\n\n"
+                    f"**Problem Statement:**\n{r.problem_statement}\n\n"
+                    f"**Consolidated Advice:**\n{r.consolidated_advice}\n\n"
+                    f"**Client Reflection:**\n{r.client_reflection}"
+                    for i, r in enumerate(rounds)
+                )
+                response = await llm_complete(
+                    self.client,
+                    model=self.thinking_model,
+                    max_tokens=16_000,
+                    thinking={
+                        "type": "enabled",
+                        "budget_tokens": self.thinking_budget,
+                    },
+                    messages=[
+                        {"role": "user", "content": FINAL_SYNTHESIS_PROMPT.format(
+                            question=question,
+                            round_summaries=round_summaries,
+                        )},
+                    ],
+                    agent_name="synthesis",
+                )
+                final_synthesis = extract_text(response)
+                end_span(span, output=f"synthesis {len(final_synthesis)} chars")
+            except Exception:
+                end_span(span, error="synthesis failed")
+                raise
             _count(self.thinking_model)
             timings["final_synthesis"] = round(time.time() - synth_t0, 2)
         elif len(rounds) == 1:

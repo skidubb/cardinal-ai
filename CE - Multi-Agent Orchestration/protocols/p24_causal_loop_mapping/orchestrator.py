@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -98,32 +98,62 @@ class CausalLoopOrchestrator:
         timings: dict[str, float] = {}
 
         # Phase 1 — Extract Variables (parallel, Opus)
-        t0 = time.time()
-        raw_variables = await self._extract_variables(question)
-        timings["phase1_extract_variables"] = time.time() - t0
+        span = create_span("stage:extract_variables", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            raw_variables = await self._extract_variables(question)
+            timings["phase1_extract_variables"] = time.time() - t0
+            end_span(span, output=f"{len(raw_variables)} raw variables")
+        except Exception:
+            end_span(span, error="extract_variables failed")
+            raise
 
         # Phase 2 — Deduplicate Variables (Haiku)
-        t0 = time.time()
-        variables = await self._deduplicate_variables(question, raw_variables)
-        timings["phase2_deduplicate"] = time.time() - t0
+        span = create_span("stage:deduplicate_variables", {"raw_count": len(raw_variables)})
+        try:
+            t0 = time.time()
+            variables = await self._deduplicate_variables(question, raw_variables)
+            timings["phase2_deduplicate"] = time.time() - t0
+            end_span(span, output=f"{len(variables)} unique variables")
+        except Exception:
+            end_span(span, error="deduplicate_variables failed")
+            raise
 
         # Phase 3 — Identify Causal Links (parallel, Opus)
-        t0 = time.time()
-        raw_links = await self._identify_links(question, variables)
-        timings["phase3_identify_links"] = time.time() - t0
+        span = create_span("stage:identify_links", {"variable_count": len(variables)})
+        try:
+            t0 = time.time()
+            raw_links = await self._identify_links(question, variables)
+            timings["phase3_identify_links"] = time.time() - t0
+            end_span(span, output=f"{len(raw_links)} raw links")
+        except Exception:
+            end_span(span, error="identify_links failed")
+            raise
 
         # Phase 4 — Merge Links & Trace Loops (computation, no LLM)
-        t0 = time.time()
-        causal_links = self._merge_links(raw_links, variables)
-        reinforcing_loops, balancing_loops = self._trace_loops(causal_links, variables)
-        timings["phase4_merge_trace"] = time.time() - t0
+        span = create_span("stage:merge_trace_loops", {"raw_link_count": len(raw_links)})
+        try:
+            t0 = time.time()
+            causal_links = self._merge_links(raw_links, variables)
+            reinforcing_loops, balancing_loops = self._trace_loops(causal_links, variables)
+            timings["phase4_merge_trace"] = time.time() - t0
+            end_span(span, output=f"{len(causal_links)} links, {len(reinforcing_loops)}R/{len(balancing_loops)}B loops")
+        except Exception:
+            end_span(span, error="merge_trace_loops failed")
+            raise
 
         # Phase 5 — Leverage Point Analysis (Opus)
-        t0 = time.time()
-        leverage_points = await self._leverage_analysis(
-            question, variables, causal_links, reinforcing_loops, balancing_loops,
-        )
-        timings["phase5_leverage_analysis"] = time.time() - t0
+        span = create_span("stage:leverage_analysis", {})
+        try:
+            t0 = time.time()
+            leverage_points = await self._leverage_analysis(
+                question, variables, causal_links, reinforcing_loops, balancing_loops,
+            )
+            timings["phase5_leverage_analysis"] = time.time() - t0
+            end_span(span, output="leverage analysis complete")
+        except Exception:
+            end_span(span, error="leverage_analysis failed")
+            raise
 
         return CausalLoopResult(
             question=question,
@@ -178,10 +208,12 @@ class CausalLoopOrchestrator:
             question=question,
             raw_variables_block=raw_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="dedup",
         )
         parsed = parse_json_object(extract_text(resp))
         variables = []

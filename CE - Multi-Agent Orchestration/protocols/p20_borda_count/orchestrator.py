@@ -11,8 +11,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import agent_complete, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import agent_complete, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -103,28 +103,46 @@ class BordaCountOrchestrator:
         k = len(options)
 
         # Phase 1 — Rank (parallel, Opus with extended thinking)
-        t0 = time.time()
-        ballots = await self._collect_rankings(question, options)
-        timings["phase1_rank"] = time.time() - t0
+        span = create_span("stage:collect_rankings", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            ballots = await self._collect_rankings(question, options)
+            timings["phase1_rank"] = time.time() - t0
+            end_span(span, output=f"{len(ballots)} ballots collected")
+        except Exception:
+            end_span(span, error="collect_rankings failed")
+            raise
 
         # Phase 2 — Score (pure computation, no API call)
-        t0 = time.time()
-        borda_scores = self._compute_borda_scores(ballots, options, k)
-        final_ranking = sorted(options, key=lambda o: borda_scores.get(o, 0), reverse=True)
-        timings["phase2_score"] = time.time() - t0
+        span = create_span("stage:compute_scores", {"option_count": len(options)})
+        try:
+            t0 = time.time()
+            borda_scores = self._compute_borda_scores(ballots, options, k)
+            final_ranking = sorted(options, key=lambda o: borda_scores.get(o, 0), reverse=True)
+            timings["phase2_score"] = time.time() - t0
+            end_span(span, output=f"top={final_ranking[0] if final_ranking else 'none'}")
+        except Exception:
+            end_span(span, error="compute_scores failed")
+            raise
 
         # Phase 3 — Analyze ties (Condorcet tiebreak if needed)
-        t0 = time.time()
-        had_tiebreak = False
-        if len(final_ranking) >= 2:
-            top_score = borda_scores[final_ranking[0]]
-            tied_at_top = [o for o in final_ranking if borda_scores[o] == top_score]
-            if len(tied_at_top) > 1:
-                had_tiebreak = True
-                final_ranking = await self._resolve_ties(
-                    question, ballots, borda_scores, final_ranking,
-                )
-        timings["phase3_analyze"] = time.time() - t0
+        span = create_span("stage:analyze_ties", {})
+        try:
+            t0 = time.time()
+            had_tiebreak = False
+            if len(final_ranking) >= 2:
+                top_score = borda_scores[final_ranking[0]]
+                tied_at_top = [o for o in final_ranking if borda_scores[o] == top_score]
+                if len(tied_at_top) > 1:
+                    had_tiebreak = True
+                    final_ranking = await self._resolve_ties(
+                        question, ballots, borda_scores, final_ranking,
+                    )
+            timings["phase3_analyze"] = time.time() - t0
+            end_span(span, output=f"tiebreak={'yes' if had_tiebreak else 'no'}")
+        except Exception:
+            end_span(span, error="analyze_ties failed")
+            raise
 
         winner = final_ranking[0] if final_ranking else ""
         margin = 0
@@ -132,11 +150,17 @@ class BordaCountOrchestrator:
             margin = borda_scores.get(final_ranking[0], 0) - borda_scores.get(final_ranking[1], 0)
 
         # Phase 4 — Report (Opus)
-        t0 = time.time()
-        report_data = await self._generate_report(
-            question, options, ballots, borda_scores, final_ranking, had_tiebreak,
-        )
-        timings["phase4_report"] = time.time() - t0
+        span = create_span("stage:generate_report", {})
+        try:
+            t0 = time.time()
+            report_data = await self._generate_report(
+                question, options, ballots, borda_scores, final_ranking, had_tiebreak,
+            )
+            timings["phase4_report"] = time.time() - t0
+            end_span(span, output="report complete")
+        except Exception:
+            end_span(span, error="generate_report failed")
+            raise
 
         return BordaResult(
             question=question,
@@ -247,10 +271,12 @@ class BordaCountOrchestrator:
                     tied_options_block=tied_options_block,
                     head_to_head_block=head_to_head_block,
                 )
-                _resp = await self.client.messages.create(
+                _resp = await llm_complete(
+                    self.client,
                     model=self.orchestration_model,
                     max_tokens=1024,
                     messages=[{"role": "user", "content": prompt}],
+                    agent_name="tiebreak",
                 )
                 # Use computational Condorcet result (not LLM) for actual ordering
                 resolved.extend(condorcet)

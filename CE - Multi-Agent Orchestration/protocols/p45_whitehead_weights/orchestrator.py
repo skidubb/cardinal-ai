@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete
 
 from .prompts import RECOMMEND_SYNTHESIS_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -120,10 +120,12 @@ class WhiteheadOrchestrator:
                 problem_type=problem_type,
                 rankings_text=rankings_text,
             )
-            msg = await self.client.messages.create(
+            msg = await llm_complete(
+                self.client,
                 model=self.orchestration_model,
                 max_tokens=500,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name="recommend_synthesis",
             )
             synthesis = extract_text(msg)
 
@@ -144,4 +146,11 @@ class WhiteheadOrchestrator:
         parts = question.split(":", 1)
         protocol = parts[0].strip()
         problem_type = parts[1].strip() if len(parts) > 1 else "general"
-        return await self.recommend(protocol, problem_type)
+        span = create_span("stage:recommend", {"protocol": protocol, "problem_type": problem_type})
+        try:
+            result = await self.recommend(protocol, problem_type)
+            end_span(span, output=f"{len(result.rankings)} agents ranked")
+            return result
+        except Exception:
+            end_span(span, error="recommend failed")
+            raise

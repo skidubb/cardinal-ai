@@ -11,8 +11,8 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_array, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_array, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -57,16 +57,34 @@ class FalsificationOrchestrator:
 
         # Phase 1: Generate falsification conditions
         print("Phase 1: Generating falsification conditions...")
-        conditions = await self._generate_conditions(recommendation, context)
-        result.conditions = [{"condition": c} for c in conditions]
+        span = create_span("stage:generate_conditions", {"agent_count": len(self.agents)})
+        try:
+            conditions = await self._generate_conditions(recommendation, context)
+            result.conditions = [{"condition": c} for c in conditions]
+            end_span(span, output=f"{len(conditions)} conditions generated")
+        except Exception:
+            end_span(span, error="generate_conditions failed")
+            raise
 
         # Phase 2: Active evidence search (parallel across agents × conditions)
         print("Phase 2: Searching for disconfirming evidence...")
-        await self._search_evidence(recommendation, context, result.conditions)
+        span = create_span("stage:evidence_search", {"condition_count": len(result.conditions), "agent_count": len(self.agents)})
+        try:
+            await self._search_evidence(recommendation, context, result.conditions)
+            end_span(span, output=f"{len(result.conditions)} conditions searched")
+        except Exception:
+            end_span(span, error="evidence_search failed")
+            raise
 
         # Phase 3: Verdict
         print("Phase 3: Rendering verdict...")
-        await self._render_verdict(recommendation, result)
+        span = create_span("stage:verdict", {})
+        try:
+            await self._render_verdict(recommendation, result)
+            end_span(span, output=f"verdict: {result.verdict}")
+        except Exception:
+            end_span(span, error="verdict failed")
+            raise
 
         return result
 
@@ -77,12 +95,14 @@ class FalsificationOrchestrator:
         )
 
         async def query_agent(agent: dict) -> str:
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return extract_text(response)
 
@@ -97,7 +117,8 @@ class FalsificationOrchestrator:
             f"=== {agent['name']} ===\n{output}"
             for agent, output in zip(self.agents, raw_outputs)
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{
@@ -108,6 +129,7 @@ class FalsificationOrchestrator:
                     "strings, each a single sentence.\n\n" + combined
                 ),
             }],
+            agent_name="dedup",
         )
         return parse_json_array(extract_text(response))
 
@@ -125,12 +147,14 @@ class FalsificationOrchestrator:
             )
 
             async def query_agent(agent: dict) -> str:
-                response = await self.client.messages.create(
+                response = await llm_complete(
+                    self.client,
                     model=self.thinking_model,
                     max_tokens=self.thinking_budget + 4096,
                     thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                     system=agent["system_prompt"],
                     messages=[{"role": "user", "content": prompt}],
+                    agent_name=agent["name"],
                 )
                 return extract_text(response)
 
@@ -163,7 +187,8 @@ class FalsificationOrchestrator:
             ],
             indent=2,
         )
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{
@@ -173,6 +198,7 @@ class FalsificationOrchestrator:
                     conditions_evidence=conditions_evidence,
                 ),
             }],
+            agent_name="verdict",
         )
         data = parse_json_object(extract_text(response))
 

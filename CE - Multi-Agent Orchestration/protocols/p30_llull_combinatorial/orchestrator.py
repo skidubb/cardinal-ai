@@ -9,8 +9,8 @@ import re
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_array
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_array
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -57,30 +57,55 @@ class CombinatorialOrchestrator:
 
         # Phase 1: Define the Disks
         print("Phase 1: Defining concept disks...")
-        result.disks = await self._define_disks(question)
-        disks_text = self._format_disks(result.disks)
+        span = create_span("stage:define_disks", {"agent_count": len(self.agents)})
+        try:
+            result.disks = await self._define_disks(question)
+            disks_text = self._format_disks(result.disks)
+            end_span(span, output=f"{len(result.disks)} disks defined")
+        except Exception:
+            end_span(span, error="define_disks failed")
+            raise
         print(f"  Defined {len(result.disks)} disks with {sum(len(d['elements']) for d in result.disks)} total elements")
 
         # Phase 2: Generate All Combinations (Generator agent — no judgment)
         print("Phase 2: Generating all combinations (exhaustive, no filtering)...")
-        result.combinations = await self._generate_combinations(question, disks_text)
+        span = create_span("stage:generate_combinations", {})
+        try:
+            result.combinations = await self._generate_combinations(question, disks_text)
+            end_span(span, output="combinations generated")
+        except Exception:
+            end_span(span, error="generate_combinations failed")
+            raise
 
         # Phase 3: Evaluate for Non-Obvious Relevance (Evaluator agent — separate)
         print("Phase 3: Evaluating combinations for non-obvious relevance...")
-        result.evaluations = await self._evaluate_combinations(question, result.combinations)
-        result.non_obvious_count, result.total_count = self._count_classifications(result.evaluations)
+        span = create_span("stage:evaluate_combinations", {})
+        try:
+            result.evaluations = await self._evaluate_combinations(question, result.combinations)
+            result.non_obvious_count, result.total_count = self._count_classifications(result.evaluations)
+            end_span(span, output=f"{result.non_obvious_count}/{result.total_count} non-obvious")
+        except Exception:
+            end_span(span, error="evaluate_combinations failed")
+            raise
         pct = (result.non_obvious_count / result.total_count * 100) if result.total_count > 0 else 0
         print(f"  {result.non_obvious_count}/{result.total_count} non-obvious ({pct:.0f}%)")
 
         # Phase 4: Synthesis
         print("Phase 4: Synthesizing insights from non-obvious combinations...")
-        result.synthesis = await self._synthesize(question, disks_text, result.evaluations)
+        span = create_span("stage:synthesis", {})
+        try:
+            result.synthesis = await self._synthesize(question, disks_text, result.evaluations)
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
     async def _define_disks(self, question: str) -> list[dict]:
         """Phase 1: Define 2-3 concept categories with elements."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -89,6 +114,7 @@ class CombinatorialOrchestrator:
                 "role": "user",
                 "content": DEFINE_DISKS_PROMPT.format(question=question),
             }],
+            agent_name=self.agents[0]["name"],
         )
         text = extract_text(response)
         return parse_json_array(text)
@@ -96,7 +122,8 @@ class CombinatorialOrchestrator:
     async def _generate_combinations(self, question: str, disks_text: str) -> str:
         """Phase 2: Generator agent produces all combinations without judgment."""
         # Use first agent as Generator
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -107,6 +134,7 @@ class CombinatorialOrchestrator:
                     question=question, disks_text=disks_text
                 ),
             }],
+            agent_name="generator",
         )
         return extract_text(response)
 
@@ -114,7 +142,8 @@ class CombinatorialOrchestrator:
         """Phase 3: Evaluator agent classifies combinations (separate from Generator)."""
         # Use second agent (or last if only one) as Evaluator for separation
         evaluator = self.agents[1] if len(self.agents) > 1 else self.agents[0]
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -125,12 +154,14 @@ class CombinatorialOrchestrator:
                     question=question, combinations=combinations
                 ),
             }],
+            agent_name="evaluator",
         )
         return extract_text(response)
 
     async def _synthesize(self, question: str, disks_text: str, evaluations: str) -> str:
         """Phase 4: Synthesize non-obvious combinations into actionable insights."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -142,6 +173,7 @@ class CombinatorialOrchestrator:
                     evaluations=evaluations,
                 ),
             }],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

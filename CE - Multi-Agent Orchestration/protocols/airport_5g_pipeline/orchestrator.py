@@ -18,8 +18,8 @@ from typing import Any
 from dotenv import load_dotenv
 load_dotenv()
 
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, filter_exceptions
 
 from protocols.tracing import make_client
 from protocols.p05_constraint_negotiation.constraints import ConstraintExtractor, ConstraintStore
@@ -109,16 +109,28 @@ class Airport5GPipelineOrchestrator:
         print("\n" + "=" * 70)
         print("STAGE 1: DISCOVER (1-2-4-All)")
         print("=" * 70)
-        stage1 = await self._stage1_discover(question)
-        result.stages.append(stage1)
+        span = create_span("stage:discover", {"agent_count": len(self.agents)})
+        try:
+            stage1 = await self._stage1_discover(question)
+            result.stages.append(stage1)
+            end_span(span, output=f"Discover complete in {stage1.elapsed_seconds:.1f}s")
+        except Exception:
+            end_span(span, error="discover failed")
+            raise
         print(f"  Stage 1 complete ({stage1.elapsed_seconds:.1f}s)")
 
         # Stage 2: Diagnose (ACH)
         print("\n" + "=" * 70)
         print("STAGE 2: DIAGNOSE (Analysis of Competing Hypotheses)")
         print("=" * 70)
-        stage2 = await self._stage2_diagnose(question, stage1.output)
-        result.stages.append(stage2)
+        span = create_span("stage:diagnose", {"hypotheses": len(DEFAULT_HYPOTHESES)})
+        try:
+            stage2 = await self._stage2_diagnose(question, stage1.output)
+            result.stages.append(stage2)
+            end_span(span, output=f"Diagnose complete in {stage2.elapsed_seconds:.1f}s")
+        except Exception:
+            end_span(span, error="diagnose failed")
+            raise
         print(f"  Stage 2 complete ({stage2.elapsed_seconds:.1f}s)")
 
         # Stage 3: Negotiate (Constraint Negotiation)
@@ -126,16 +138,28 @@ class Airport5GPipelineOrchestrator:
         print("STAGE 3: NEGOTIATE (Constraint Negotiation)")
         print("=" * 70)
         winning = stage2.raw_data.get("winning_hypothesis_label", "Hybrid Co-Investment")
-        stage3 = await self._stage3_negotiate(question, stage2.output, winning)
-        result.stages.append(stage3)
+        span = create_span("stage:negotiate", {"winning_hypothesis": winning, "rounds": self.negotiation_rounds})
+        try:
+            stage3 = await self._stage3_negotiate(question, stage2.output, winning)
+            result.stages.append(stage3)
+            end_span(span, output=f"Negotiate complete in {stage3.elapsed_seconds:.1f}s")
+        except Exception:
+            end_span(span, error="negotiate failed")
+            raise
         print(f"  Stage 3 complete ({stage3.elapsed_seconds:.1f}s)")
 
         # Stage 4: Stress-Test (Red/Blue/White)
         print("\n" + "=" * 70)
         print("STAGE 4: STRESS-TEST (Red/Blue/White Team)")
         print("=" * 70)
-        stage4 = await self._stage4_stress_test(question, stage3.output, stage3.raw_data)
-        result.stages.append(stage4)
+        span = create_span("stage:stress_test", {"agent_count": len(self.agents)})
+        try:
+            stage4 = await self._stage4_stress_test(question, stage3.output, stage3.raw_data)
+            result.stages.append(stage4)
+            end_span(span, output=f"Stress-test complete in {stage4.elapsed_seconds:.1f}s")
+        except Exception:
+            end_span(span, error="stress_test failed")
+            raise
         print(f"  Stage 4 complete ({stage4.elapsed_seconds:.1f}s)")
 
         result.final_recommendation = stage4.output
@@ -195,7 +219,9 @@ class Airport5GPipelineOrchestrator:
         prompt = DISCOVER_PAIR_MERGE_PROMPT.format(
             question=question, ideas_a=ideas_a, ideas_b=ideas_b,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name="pair_merge",
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
@@ -294,7 +320,9 @@ class Airport5GPipelineOrchestrator:
             inconsistency_block=inconsistency_block,
             diagnostic_block=diagnostic_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name="ach_synthesis",
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -324,7 +352,9 @@ class Airport5GPipelineOrchestrator:
             stage1_output=stage1_output,
             hypotheses_block=hypotheses_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name=agent.get("name"),
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -401,7 +431,9 @@ class Airport5GPipelineOrchestrator:
             constraint_table=constraint_store.format_for_prompt(),
             transcript=transcript,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name="negotiation_synthesis",
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -429,7 +461,9 @@ class Airport5GPipelineOrchestrator:
             stage2_output=stage2_output,
             question=question,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name=agent.get("name"),
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -449,7 +483,9 @@ class Airport5GPipelineOrchestrator:
             peer_constraints=peer_constraints,
             prior_arguments=prior_arguments,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name=agent.get("name"),
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -560,7 +596,9 @@ class Airport5GPipelineOrchestrator:
             question=question,
             consensus=consensus,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name=agent["name"],
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -578,7 +616,9 @@ class Airport5GPipelineOrchestrator:
             consensus=consensus,
             attacks_block=attacks_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name=agent["name"],
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -596,7 +636,9 @@ class Airport5GPipelineOrchestrator:
             attacks_block=attacks_block,
             defenses_block=defenses_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name="white_adjudication",
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -611,7 +653,9 @@ class Airport5GPipelineOrchestrator:
 
     async def _call_agent(self, agent: dict, prompt: str) -> str:
         """Call a single agent with their system prompt (Opus + thinking)."""
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name=agent.get("name"),
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -622,7 +666,9 @@ class Airport5GPipelineOrchestrator:
 
     async def _call_synthesis(self, prompt: str) -> str:
         """Call synthesis with Opus + thinking (no agent system prompt)."""
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
+            agent_name="synthesis",
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},

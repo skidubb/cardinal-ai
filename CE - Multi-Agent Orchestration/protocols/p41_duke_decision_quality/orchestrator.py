@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object
 
 from .prompts import ASSESSMENT_PROMPT, PROCESS_EVALUATION_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -64,11 +64,23 @@ class DecisionQualityOrchestrator:
 
         # Phase 1: Process Evaluation (thinking model)
         print("Phase 1: Evaluating process quality on 5 dimensions...")
-        await self._evaluate_process(result, question)
+        span = create_span("stage:process_evaluation", {"dimensions": len(DIMENSIONS)})
+        try:
+            await self._evaluate_process(result, question)
+            end_span(span, output=f"overall_score={result.overall_score:.1f}")
+        except Exception:
+            end_span(span, error="process_evaluation failed")
+            raise
 
         # Phase 2: Overall Assessment (orchestration model)
         print("Phase 2: Generating overall assessment...")
-        result.assessment = await self._generate_assessment(result)
+        span = create_span("stage:assessment", {"overall_score": result.overall_score})
+        try:
+            result.assessment = await self._generate_assessment(result)
+            end_span(span, output="assessment generated")
+        except Exception:
+            end_span(span, error="assessment failed")
+            raise
 
         return result
 
@@ -86,11 +98,13 @@ class DecisionQualityOrchestrator:
             context_section=context_section,
         )
 
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
             messages=[{"role": "user", "content": prompt}],
+            agent_name="process_evaluation",
         )
 
         text = extract_text(response)
@@ -117,10 +131,12 @@ class DecisionQualityOrchestrator:
             scores_text=scores_text,
         )
 
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="assessment",
         )
         return extract_text(response)
 

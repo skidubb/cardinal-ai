@@ -7,8 +7,8 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import agent_complete, extract_text
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import agent_complete, extract_text, llm_complete
 
 from .prompts import FINAL_SYNTHESIS_PROMPT, QUALITY_GATE_PROMPT, STAGE_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -111,10 +111,12 @@ class SequentialPipelineOrchestrator:
             all_outputs=_format_all_outputs(stages),
         )
 
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="quality_gate",
         )
 
         text = extract_text(response)
@@ -168,45 +170,63 @@ class SequentialPipelineOrchestrator:
         total_stages = len(agents)
 
         # --- Sequential execution ---
-        for i, agent in enumerate(agents, 1):
-            print(f"  Stage {i}/{total_stages}: {agent['name']}...")
-            stage_output = await self._run_stage(
-                agent=agent,
-                question=question,
-                stage_number=i,
-                total_stages=total_stages,
-                prior_stages=result.stages,
-            )
-            result.stages.append(stage_output)
+        span = create_span("stage:sequential_execution", {"agent_count": total_stages})
+        try:
+            for i, agent in enumerate(agents, 1):
+                print(f"  Stage {i}/{total_stages}: {agent['name']}...")
+                stage_output = await self._run_stage(
+                    agent=agent,
+                    question=question,
+                    stage_number=i,
+                    total_stages=total_stages,
+                    prior_stages=result.stages,
+                )
+                result.stages.append(stage_output)
+            end_span(span, output=f"{total_stages} stages complete")
+        except Exception:
+            end_span(span, error="sequential_execution failed")
+            raise
 
         # --- Quality gate ---
-        print("  Running quality gate...")
-        gate = await self._quality_gate(question, result.stages)
-        result.quality_passed = gate.get("passes", True)
+        span = create_span("stage:quality_gate", {})
+        try:
+            print("  Running quality gate...")
+            gate = await self._quality_gate(question, result.stages)
+            result.quality_passed = gate.get("passes", True)
 
-        # --- Retry one stage if quality gate fails ---
-        if not result.quality_passed:
-            failing_stage = gate.get("failing_stage")
-            if failing_stage and 1 <= failing_stage <= total_stages:
-                print(f"  Quality gate failed — re-running stage {failing_stage} ({agents[failing_stage - 1]['name']})...")
-                prior = [s for s in result.stages if s.stage_number < failing_stage]
-                new_output = await self._run_stage(
-                    agent=agents[failing_stage - 1],
-                    question=question,
-                    stage_number=failing_stage,
-                    total_stages=total_stages,
-                    prior_stages=prior,
-                )
-                result.stages[failing_stage - 1] = new_output
+            # --- Retry one stage if quality gate fails ---
+            if not result.quality_passed:
+                failing_stage = gate.get("failing_stage")
+                if failing_stage and 1 <= failing_stage <= total_stages:
+                    print(f"  Quality gate failed — re-running stage {failing_stage} ({agents[failing_stage - 1]['name']})...")
+                    prior = [s for s in result.stages if s.stage_number < failing_stage]
+                    new_output = await self._run_stage(
+                        agent=agents[failing_stage - 1],
+                        question=question,
+                        stage_number=failing_stage,
+                        total_stages=total_stages,
+                        prior_stages=prior,
+                    )
+                    result.stages[failing_stage - 1] = new_output
 
-                # Re-run quality gate
-                gate = await self._quality_gate(question, result.stages)
-                result.quality_passed = gate.get("passes", True)
-            else:
-                print(f"  Quality gate failed: {gate.get('reason', 'unknown')}")
+                    # Re-run quality gate
+                    gate = await self._quality_gate(question, result.stages)
+                    result.quality_passed = gate.get("passes", True)
+                else:
+                    print(f"  Quality gate failed: {gate.get('reason', 'unknown')}")
+            end_span(span, output=f"passed={result.quality_passed}")
+        except Exception:
+            end_span(span, error="quality_gate failed")
+            raise
 
         # --- Final synthesis ---
-        print("  Synthesizing final output...")
-        result.final_output = await self._synthesize(question, result.stages)
+        span = create_span("stage:synthesis", {})
+        try:
+            print("  Synthesizing final output...")
+            result.final_output = await self._synthesize(question, result.stages)
+            end_span(span, output=f"synthesis {len(result.final_output)} chars")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result

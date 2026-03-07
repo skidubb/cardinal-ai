@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -84,34 +84,58 @@ class VickreyOrchestrator:
         timings: dict[str, float] = {}
 
         # Phase 1 — Sealed Bidding
-        t0 = time.time()
-        bids = await self._sealed_bidding(question, options)
-        timings["phase1_sealed_bidding"] = time.time() - t0
+        span = create_span("stage:sealed_bidding", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            bids = await self._sealed_bidding(question, options)
+            timings["phase1_sealed_bidding"] = time.time() - t0
+            end_span(span, output=f"{len(bids)} bids collected")
+        except Exception:
+            end_span(span, error="sealed_bidding failed")
+            raise
 
         # Phase 2 — Reveal & Rank
-        t0 = time.time()
-        ranked_bids = sorted(bids, key=lambda b: b.confidence, reverse=True)
-        winner_bid = ranked_bids[0]
-        second_price = ranked_bids[1].confidence if len(ranked_bids) > 1 else winner_bid.confidence
-        bid_distribution = self._compute_distribution(bids)
-        consensus_score = self._compute_consensus(bids, options)
-        timings["phase2_reveal_rank"] = time.time() - t0
+        span = create_span("stage:reveal_rank", {"bid_count": len(bids)})
+        try:
+            t0 = time.time()
+            ranked_bids = sorted(bids, key=lambda b: b.confidence, reverse=True)
+            winner_bid = ranked_bids[0]
+            second_price = ranked_bids[1].confidence if len(ranked_bids) > 1 else winner_bid.confidence
+            bid_distribution = self._compute_distribution(bids)
+            consensus_score = self._compute_consensus(bids, options)
+            timings["phase2_reveal_rank"] = time.time() - t0
+            end_span(span, output=f"winner={winner_bid.agent}, consensus={consensus_score:.2f}")
+        except Exception:
+            end_span(span, error="reveal_rank failed")
+            raise
 
         # Phase 3 — Calibrated Justification
-        t0 = time.time()
-        justification_data = await self._calibrated_justification(
-            question, winner_bid, second_price, bids,
-        )
-        calibrated_justification = justification_data.get("calibrated_justification", "")
-        timings["phase3_calibrated_justification"] = time.time() - t0
+        span = create_span("stage:calibrated_justification", {})
+        try:
+            t0 = time.time()
+            justification_data = await self._calibrated_justification(
+                question, winner_bid, second_price, bids,
+            )
+            calibrated_justification = justification_data.get("calibrated_justification", "")
+            timings["phase3_calibrated_justification"] = time.time() - t0
+            end_span(span, output="justification complete")
+        except Exception:
+            end_span(span, error="calibrated_justification failed")
+            raise
 
         # Phase 4 — Final Assessment
-        t0 = time.time()
-        synthesis = await self._final_assessment(
-            question, options, bids, winner_bid, second_price,
-            calibrated_justification, bid_distribution,
-        )
-        timings["phase4_final_assessment"] = time.time() - t0
+        span = create_span("stage:final_assessment", {})
+        try:
+            t0 = time.time()
+            synthesis = await self._final_assessment(
+                question, options, bids, winner_bid, second_price,
+                calibrated_justification, bid_distribution,
+            )
+            timings["phase4_final_assessment"] = time.time() - t0
+            end_span(span, output="assessment complete")
+        except Exception:
+            end_span(span, error="final_assessment failed")
+            raise
 
         return VickreyResult(
             question=question,
@@ -245,10 +269,12 @@ class VickreyOrchestrator:
             calibrated_justification=calibrated_justification,
             distribution_block=distribution_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="final_assessment",
         )
         return parse_json_object(extract_text(resp))
 

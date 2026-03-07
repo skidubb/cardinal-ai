@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object
 
 from .prompts import CLASSIFICATION_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -46,16 +46,24 @@ class KantRouterOrchestrator:
         result = KantRouterResult(question=question)
 
         print("Classifying question...")
-        response = await self.client.messages.create(
-            model=self.orchestration_model,
-            max_tokens=1024,
-            messages=[{
-                "role": "user",
-                "content": CLASSIFICATION_PROMPT.format(question=question),
-            }],
-        )
+        span = create_span("stage:classification", {})
+        try:
+            response = await llm_complete(
+                self.client,
+                model=self.orchestration_model,
+                max_tokens=1024,
+                messages=[{
+                    "role": "user",
+                    "content": CLASSIFICATION_PROMPT.format(question=question),
+                }],
+                agent_name="classification",
+            )
 
-        data = parse_json_object(extract_text(response))
+            data = parse_json_object(extract_text(response))
+            end_span(span, output=f"type={data.get('problem_type', '')} modality={data.get('modality', '')}")
+        except Exception:
+            end_span(span, error="classification failed")
+            raise
         result.problem_type = data.get("problem_type", "")
         result.modality = data.get("modality", "")
         result.modality_reasoning = data.get("modality_reasoning", "")

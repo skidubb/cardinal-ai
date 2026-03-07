@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -86,27 +86,51 @@ class ArchetypeDetector:
         timings: dict[str, float] = {}
 
         # Phase 1 — Observe Dynamics (parallel, Opus)
-        t0 = time.time()
-        raw_dynamics = await self._observe_dynamics(question)
-        timings["phase1_observe"] = time.time() - t0
+        span = create_span("stage:observe_dynamics", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            raw_dynamics = await self._observe_dynamics(question)
+            timings["phase1_observe"] = time.time() - t0
+            end_span(span, output=f"{len(raw_dynamics)} raw dynamics")
+        except Exception:
+            end_span(span, error="observe_dynamics failed")
+            raise
 
         # Phase 2 — Merge Dynamics (Haiku)
-        t0 = time.time()
-        dynamics = await self._merge_dynamics(question, raw_dynamics)
-        timings["phase2_merge"] = time.time() - t0
+        span = create_span("stage:merge_dynamics", {"raw_count": len(raw_dynamics)})
+        try:
+            t0 = time.time()
+            dynamics = await self._merge_dynamics(question, raw_dynamics)
+            timings["phase2_merge"] = time.time() - t0
+            end_span(span, output=f"{len(dynamics)} merged dynamics")
+        except Exception:
+            end_span(span, error="merge_dynamics failed")
+            raise
 
         # Phase 3 — Match Archetypes (parallel, Opus)
-        t0 = time.time()
-        raw_scores = await self._match_archetypes(question, dynamics)
-        timings["phase3_match"] = time.time() - t0
+        span = create_span("stage:match_archetypes", {"dynamic_count": len(dynamics)})
+        try:
+            t0 = time.time()
+            raw_scores = await self._match_archetypes(question, dynamics)
+            timings["phase3_match"] = time.time() - t0
+            end_span(span, output=f"{len(raw_scores)} agent score sets")
+        except Exception:
+            end_span(span, error="match_archetypes failed")
+            raise
 
         # Aggregate scores across agents
         archetype_scores = self._aggregate_scores(raw_scores)
 
         # Phase 4 — Synthesize (Opus)
-        t0 = time.time()
-        synthesis = await self._synthesize(question, dynamics, archetype_scores)
-        timings["phase4_synthesize"] = time.time() - t0
+        span = create_span("stage:synthesize", {"archetype_count": len(archetype_scores)})
+        try:
+            t0 = time.time()
+            synthesis = await self._synthesize(question, dynamics, archetype_scores)
+            timings["phase4_synthesize"] = time.time() - t0
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesize failed")
+            raise
 
         best_matches = [
             ArchetypeMatch(
@@ -168,10 +192,12 @@ class ArchetypeDetector:
             question=question,
             raw_dynamics_block=raw_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="merge_dynamics",
         )
         parsed = parse_json_object(extract_text(resp))
         return [

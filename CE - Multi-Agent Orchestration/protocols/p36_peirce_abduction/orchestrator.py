@@ -10,8 +10,8 @@ import json
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -63,23 +63,47 @@ class AbductionOrchestrator:
 
             # Phase 1: Abduction
             print("Phase 1: Abduction — generating hypotheses...")
-            hypotheses = await self._abduction(anomaly)
-            cycle["hypotheses"] = hypotheses
+            span = create_span("stage:abduction", {"cycle": cycle_num, "agent_count": len(self.agents)})
+            try:
+                hypotheses = await self._abduction(anomaly)
+                cycle["hypotheses"] = hypotheses
+                end_span(span, output="hypotheses generated")
+            except Exception:
+                end_span(span, error="abduction failed")
+                raise
 
             # Phase 2: Deduction
             print("Phase 2: Deduction — deriving predictions...")
-            predictions = await self._deduction(anomaly, hypotheses)
-            cycle["predictions"] = predictions
+            span = create_span("stage:deduction", {"cycle": cycle_num, "agent_count": len(self.agents)})
+            try:
+                predictions = await self._deduction(anomaly, hypotheses)
+                cycle["predictions"] = predictions
+                end_span(span, output="predictions derived")
+            except Exception:
+                end_span(span, error="deduction failed")
+                raise
 
             # Phase 3: Induction
             print("Phase 3: Induction — testing against evidence...")
-            evidence = await self._induction(anomaly, hypotheses, predictions)
-            cycle["evidence_assessment"] = evidence
+            span = create_span("stage:induction", {"cycle": cycle_num, "agent_count": len(self.agents)})
+            try:
+                evidence = await self._induction(anomaly, hypotheses, predictions)
+                cycle["evidence_assessment"] = evidence
+                end_span(span, output="evidence assessed")
+            except Exception:
+                end_span(span, error="induction failed")
+                raise
 
             # Loop decision
             print("Evaluating cycle outcome...")
-            decision = await self._loop_decision(anomaly, evidence)
-            outcome = decision.get("outcome", "CONTINUE")
+            span = create_span("stage:loop_decision", {"cycle": cycle_num})
+            try:
+                decision = await self._loop_decision(anomaly, evidence)
+                outcome = decision.get("outcome", "CONTINUE")
+                end_span(span, output=f"outcome: {outcome}")
+            except Exception:
+                end_span(span, error="loop_decision failed")
+                raise
 
             if cycle_num == self.max_cycles and outcome == "CONTINUE":
                 outcome = "EXHAUSTED"
@@ -100,7 +124,13 @@ class AbductionOrchestrator:
 
         # Final synthesis
         print("\nSynthesizing final briefing...")
-        result.synthesis = await self._synthesize(question, result.cycles)
+        span = create_span("stage:synthesis", {"cycle_count": len(result.cycles)})
+        try:
+            result.synthesis = await self._synthesize(question, result.cycles)
+            end_span(span, output="synthesis complete")
+        except Exception:
+            end_span(span, error="synthesis failed")
+            raise
 
         return result
 
@@ -109,12 +139,14 @@ class AbductionOrchestrator:
         prompt = ABDUCTION_PROMPT.format(anomaly=anomaly)
 
         async def query_agent(agent: dict) -> str:
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return extract_text(response)
 
@@ -133,12 +165,14 @@ class AbductionOrchestrator:
         prompt = DEDUCTION_PROMPT.format(anomaly=anomaly, hypotheses=hypotheses)
 
         async def query_agent(agent: dict) -> str:
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return extract_text(response)
 
@@ -159,12 +193,14 @@ class AbductionOrchestrator:
         )
 
         async def query_agent(agent: dict) -> str:
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             return extract_text(response)
 
@@ -180,7 +216,8 @@ class AbductionOrchestrator:
 
     async def _loop_decision(self, anomaly: str, evidence_assessment: str) -> dict:
         """Decide whether to ACCEPT or CONTINUE."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{
@@ -189,13 +226,15 @@ class AbductionOrchestrator:
                     anomaly=anomaly, evidence_assessment=evidence_assessment
                 ),
             }],
+            agent_name="loop_decision",
         )
         return parse_json_object(extract_text(response))
 
     async def _synthesize(self, question: str, cycles: list[dict]) -> str:
         """Produce final briefing across all cycles."""
         cycle_history = json.dumps(cycles, indent=2, default=str)
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -205,6 +244,7 @@ class AbductionOrchestrator:
                     question=question, cycle_history=cycle_history
                 ),
             }],
+            agent_name="synthesis",
         )
         return extract_text(response)
 

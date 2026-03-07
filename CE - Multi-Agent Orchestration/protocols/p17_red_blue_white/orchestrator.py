@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from protocols.langfuse_tracing import trace_protocol
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
 from protocols.llm import agent_complete, parse_json_object, filter_exceptions
 
 from protocols.scoping import filter_context_for_agent, tag_context
@@ -106,22 +106,46 @@ class RedBlueWhiteOrchestrator:
 
         # Phase 1 — Red Team Attack
         t0 = time.time()
-        attacks = await self._red_team_attack(question, plan)
+        span = create_span("stage:red_team_attack", {"agent_count": len(self.red_agents)})
+        try:
+            attacks = await self._red_team_attack(question, plan)
+            end_span(span, output=f"{sum(len(a.vulnerabilities) for a in attacks)} vulnerabilities")
+        except Exception:
+            end_span(span, error="red_team_attack failed")
+            raise
         timings["phase1_red_attack"] = time.time() - t0
 
         # Phase 2 — Blue Team Defense
         t0 = time.time()
-        defenses = await self._blue_team_defense(question, plan, attacks)
+        span = create_span("stage:blue_team_defense", {"agent_count": len(self.blue_agents)})
+        try:
+            defenses = await self._blue_team_defense(question, plan, attacks)
+            end_span(span, output=f"{sum(len(d.mitigations) for d in defenses)} mitigations")
+        except Exception:
+            end_span(span, error="blue_team_defense failed")
+            raise
         timings["phase2_blue_defense"] = time.time() - t0
 
         # Phase 3 — White Team Adjudication
         t0 = time.time()
-        adjudication = await self._white_team_adjudicate(question, plan, attacks, defenses)
+        span = create_span("stage:white_adjudication", {})
+        try:
+            adjudication = await self._white_team_adjudicate(question, plan, attacks, defenses)
+            end_span(span, output=f"{len(adjudication)} adjudications")
+        except Exception:
+            end_span(span, error="white_adjudication failed")
+            raise
         timings["phase3_white_adjudicate"] = time.time() - t0
 
         # Phase 4 — Final Assessment
         t0 = time.time()
-        final = await self._final_assessment(question, plan, adjudication)
+        span = create_span("stage:final_assessment", {})
+        try:
+            final = await self._final_assessment(question, plan, adjudication)
+            end_span(span, output=f"score={final.get('plan_strength_score', '?')}")
+        except Exception:
+            end_span(span, error="final_assessment failed")
+            raise
         timings["phase4_final_assessment"] = time.time() - t0
 
         return RedBlueWhiteResult(

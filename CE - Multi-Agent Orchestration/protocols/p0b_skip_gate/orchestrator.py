@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -73,12 +73,24 @@ class SkipGate:
 
         # Phase 1 — Feature Extraction (Haiku)
         t0 = time.time()
-        features = await self._extract_features(question)
+        span = create_span("stage:feature_extraction", {})
+        try:
+            features = await self._extract_features(question)
+            end_span(span, output="features extracted")
+        except Exception:
+            end_span(span, error="feature_extraction failed")
+            raise
         timings["phase1_features"] = time.time() - t0
 
         # Phase 2 — Gate Decision (Haiku)
         t0 = time.time()
-        gate = await self._gate_decision(question, features)
+        span = create_span("stage:gate_decision", {})
+        try:
+            gate = await self._gate_decision(question, features)
+            end_span(span, output=f"decision={gate.get('decision', 'unknown')}")
+        except Exception:
+            end_span(span, error="gate_decision failed")
+            raise
         timings["phase2_gate"] = time.time() - t0
 
         decision = gate.get("decision", "escalate")
@@ -89,7 +101,13 @@ class SkipGate:
         # Phase 3 — Execute based on decision
         if decision == "skip":
             t0 = time.time()
-            single_agent_response = await self._single_agent_response(question)
+            span = create_span("stage:single_agent_response", {})
+            try:
+                single_agent_response = await self._single_agent_response(question)
+                end_span(span, output="single agent response generated")
+            except Exception:
+                end_span(span, error="single_agent_response failed")
+                raise
             timings["phase3_single_agent"] = time.time() - t0
             recommended_protocol = None
             recommended_name = None
@@ -113,10 +131,12 @@ class SkipGate:
 
     async def _extract_features(self, question: str) -> dict[str, Any]:
         prompt = FEATURE_EXTRACTION_PROMPT.format(question=question)
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="feature_extraction",
         )
         return parse_json_object(extract_text(resp))
 
@@ -131,10 +151,12 @@ class SkipGate:
             question=question,
             features_json=json.dumps(features, indent=2),
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="gate_decision",
         )
         return parse_json_object(extract_text(resp))
 
@@ -144,10 +166,12 @@ class SkipGate:
 
     async def _single_agent_response(self, question: str) -> str:
         prompt = SINGLE_AGENT_PROMPT.format(question=question)
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="single_agent",
         )
         return extract_text(resp)
 

@@ -11,8 +11,8 @@ import asyncio
 from dataclasses import dataclass, field
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_array, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_array, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -66,24 +66,43 @@ class EvaporationCloudOrchestrator:
 
         # Phase 1: Map the Cloud
         print("Phase 1: Mapping the conflict cloud...")
-        result.cloud = await self._map_cloud(question)
+        span = create_span("stage:map_cloud", {})
+        try:
+            result.cloud = await self._map_cloud(question)
+            end_span(span, output="cloud mapped")
+        except Exception:
+            end_span(span, error="map_cloud failed")
+            raise
 
         # Phase 2: Attack Assumptions Behind Each Arrow
         print("Phase 2: Surfacing hidden assumptions (5 arrows in parallel)...")
-        result.assumptions = await self._attack_assumptions(result.cloud)
+        span = create_span("stage:attack_assumptions", {"arrow_count": 5})
+        try:
+            result.assumptions = await self._attack_assumptions(result.cloud)
+            end_span(span, output=f"{len(result.assumptions)} arrows analyzed")
+        except Exception:
+            end_span(span, error="attack_assumptions failed")
+            raise
 
         # Phase 3: Identify Injection Point
         print("Phase 3: Identifying injection point...")
-        injection = await self._find_injection(result.cloud, result.assumptions)
-        result.injection_point = injection["injection_point"]
-        result.solution = injection["solution"]
-        result.synthesis = injection["synthesis"]
+        span = create_span("stage:find_injection", {})
+        try:
+            injection = await self._find_injection(result.cloud, result.assumptions)
+            result.injection_point = injection["injection_point"]
+            result.solution = injection["solution"]
+            result.synthesis = injection["synthesis"]
+            end_span(span, output="injection point identified")
+        except Exception:
+            end_span(span, error="find_injection failed")
+            raise
 
         return result
 
     async def _map_cloud(self, question: str) -> dict:
         """Phase 1: Structure the conflict as an Evaporation Cloud."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -91,6 +110,7 @@ class EvaporationCloudOrchestrator:
                 "role": "user",
                 "content": MAP_CLOUD_PROMPT.format(question=question),
             }],
+            agent_name="map_cloud",
         )
         text = extract_text(response)
         return parse_json_object(text)
@@ -115,11 +135,13 @@ class EvaporationCloudOrchestrator:
                 arrow_from=arrow_from,
                 arrow_to=arrow_to,
             )
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
+                agent_name="assumption_arrow",
             )
             text = extract_text(response)
             return arrow_label, parse_json_array(text)
@@ -132,11 +154,13 @@ class EvaporationCloudOrchestrator:
                 prerequisite_a=cloud["prerequisite_a"],
                 prerequisite_b=cloud["prerequisite_b"],
             )
-            response = await self.client.messages.create(
+            response = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
                 messages=[{"role": "user", "content": prompt}],
+                agent_name="assumption_conflict",
             )
             text = extract_text(response)
             return "Prerequisite A ↔ Prerequisite B (conflict)", parse_json_array(text)
@@ -156,7 +180,8 @@ class EvaporationCloudOrchestrator:
             for i, a in enumerate(items, 1):
                 assumptions_text += f"  {i}. {a}\n"
 
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -171,6 +196,7 @@ class EvaporationCloudOrchestrator:
                     assumptions_text=assumptions_text,
                 ),
             }],
+            agent_name="injection",
         )
         text = extract_text(response)
         return parse_json_object(text)

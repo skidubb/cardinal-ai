@@ -8,8 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -72,20 +72,38 @@ class SublationOrchestrator:
 
         # Phase 1: Thesis
         print("Phase 1: Generating Thesis...")
-        result.thesis = await self._generate_thesis(question, position_a)
+        span = create_span("stage:thesis", {})
+        try:
+            result.thesis = await self._generate_thesis(question, position_a)
+            end_span(span, output="thesis generated")
+        except Exception:
+            end_span(span, error="thesis failed")
+            raise
 
         # Phase 2: Antithesis
         print("Phase 2: Generating Antithesis...")
-        result.antithesis = await self._generate_antithesis(
-            question, position_b, result.thesis
-        )
+        span = create_span("stage:antithesis", {})
+        try:
+            result.antithesis = await self._generate_antithesis(
+                question, position_b, result.thesis
+            )
+            end_span(span, output="antithesis generated")
+        except Exception:
+            end_span(span, error="antithesis failed")
+            raise
 
         # Phase 3: Sublation
         print("Phase 3: Performing Sublation (aufheben)...")
-        sublation_text = await self._generate_sublation(
-            question, result.thesis, result.antithesis
-        )
-        result.sublation = sublation_text
+        span = create_span("stage:sublation", {})
+        try:
+            sublation_text = await self._generate_sublation(
+                question, result.thesis, result.antithesis
+            )
+            result.sublation = sublation_text
+            end_span(span, output="sublation complete")
+        except Exception:
+            end_span(span, error="sublation failed")
+            raise
 
         # Extract sections from sublation output
         result.preserves = _extract_section(sublation_text, "Preserved from Thesis", "Preserved from Antithesis", "Negated from Thesis")
@@ -97,7 +115,8 @@ class SublationOrchestrator:
 
     async def _generate_thesis(self, question: str, position_a: str) -> str:
         """Phase 1: Present the strongest case for Position A."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -108,6 +127,7 @@ class SublationOrchestrator:
                     question=question, position_a=position_a
                 ),
             }],
+            agent_name="thesis",
         )
         return extract_text(response)
 
@@ -115,7 +135,8 @@ class SublationOrchestrator:
         self, question: str, position_b: str, thesis: str
     ) -> str:
         """Phase 2: Present the strongest case for Position B."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -126,6 +147,7 @@ class SublationOrchestrator:
                     question=question, position_b=position_b, thesis=thesis
                 ),
             }],
+            agent_name="antithesis",
         )
         return extract_text(response)
 
@@ -133,7 +155,8 @@ class SublationOrchestrator:
         self, question: str, thesis: str, antithesis: str
     ) -> str:
         """Phase 3: Perform aufheben — preserve, negate, transcend."""
-        response = await self.client.messages.create(
+        response = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
             thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
@@ -144,6 +167,7 @@ class SublationOrchestrator:
                     question=question, thesis=thesis, antithesis=antithesis
                 ),
             }],
+            agent_name="sublation",
         )
         return extract_text(response)
 

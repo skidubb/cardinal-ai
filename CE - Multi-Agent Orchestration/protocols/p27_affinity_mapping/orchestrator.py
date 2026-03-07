@@ -11,8 +11,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -72,29 +72,54 @@ class AffinityMappingOrchestrator:
         timings: dict[str, float] = {}
 
         # Phase 1 — Generate Items (parallel, Opus)
-        t0 = time.time()
-        raw_items = await self._generate_items(question)
-        timings["phase1_generate_items"] = time.time() - t0
+        span = create_span("stage:generate_items", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            raw_items = await self._generate_items(question)
+            timings["phase1_generate_items"] = time.time() - t0
+            total_gen = sum(len(v) for v in raw_items.values())
+            end_span(span, output=f"{total_gen} items from {len(raw_items)} agents")
+        except Exception:
+            end_span(span, error="generate_items failed")
+            raise
 
         all_items = [item for items in raw_items.values() for item in items]
         total_items = len(all_items)
 
         # Phase 2 — Pool & Cluster (Haiku)
-        t0 = time.time()
-        clusters = await self._cluster_items(question, all_items)
-        timings["phase2_cluster"] = time.time() - t0
+        span = create_span("stage:cluster_items", {"total_items": total_items})
+        try:
+            t0 = time.time()
+            clusters = await self._cluster_items(question, all_items)
+            timings["phase2_cluster"] = time.time() - t0
+            end_span(span, output=f"{len(clusters)} clusters")
+        except Exception:
+            end_span(span, error="cluster_items failed")
+            raise
 
         # Phase 3 — Label & Validate (Haiku)
-        t0 = time.time()
-        themed_clusters = await self._label_validate(question, clusters)
-        timings["phase3_label_validate"] = time.time() - t0
+        span = create_span("stage:label_validate", {"cluster_count": len(clusters)})
+        try:
+            t0 = time.time()
+            themed_clusters = await self._label_validate(question, clusters)
+            timings["phase3_label_validate"] = time.time() - t0
+            end_span(span, output=f"{len(themed_clusters)} themed clusters")
+        except Exception:
+            end_span(span, error="label_validate failed")
+            raise
 
         # Phase 4 — Hierarchy & Synthesis (Opus)
-        t0 = time.time()
-        synthesis = await self._hierarchy_synthesis(
-            question, themed_clusters, total_items, len(self.agents),
-        )
-        timings["phase4_hierarchy_synthesis"] = time.time() - t0
+        span = create_span("stage:hierarchy_synthesis", {"themed_count": len(themed_clusters)})
+        try:
+            t0 = time.time()
+            synthesis = await self._hierarchy_synthesis(
+                question, themed_clusters, total_items, len(self.agents),
+            )
+            timings["phase4_hierarchy_synthesis"] = time.time() - t0
+            end_span(span, output="hierarchy synthesis complete")
+        except Exception:
+            end_span(span, error="hierarchy_synthesis failed")
+            raise
 
         return AffinityMappingResult(
             question=question,
@@ -120,10 +145,12 @@ class AffinityMappingOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await self.client.messages.create(
+            resp = await llm_complete(
+                self.client,
                 model=self.thinking_model,
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
+                agent_name=agent["name"],
             )
             parsed = parse_json_object(extract_text(resp))
             return agent["name"], parsed.get("items", [])
@@ -145,10 +172,12 @@ class AffinityMappingOrchestrator:
             question=question,
             items_block=items_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="cluster",
         )
         parsed = parse_json_object(extract_text(resp))
         return parsed.get("clusters", [])
@@ -170,10 +199,12 @@ class AffinityMappingOrchestrator:
             question=question,
             clusters_block=clusters_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="label_validate",
         )
         parsed = parse_json_object(extract_text(resp))
         return parsed.get("themed_clusters", [])
@@ -206,10 +237,12 @@ class AffinityMappingOrchestrator:
             agent_count=agent_count,
             themed_clusters_block=themed_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.thinking_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="hierarchy_synthesis",
         )
         return parse_json_object(extract_text(resp))
 

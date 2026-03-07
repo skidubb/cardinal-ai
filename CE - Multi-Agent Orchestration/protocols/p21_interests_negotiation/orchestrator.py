@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
-from protocols.langfuse_tracing import trace_protocol
-from protocols.llm import agent_complete, extract_text, parse_json_object, filter_exceptions
+from protocols.langfuse_tracing import trace_protocol, create_span, end_span
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_object, filter_exceptions
 
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -86,14 +86,26 @@ class InterestsNegotiationOrchestrator:
         timings: dict[str, float] = {}
 
         # Phase 1 — Surface Interests (parallel, Opus)
-        t0 = time.time()
-        interest_maps = await self._surface_interests(question)
-        timings["phase1_surface_interests"] = round(time.time() - t0, 2)
+        span = create_span("stage:surface_interests", {"agent_count": len(self.agents)})
+        try:
+            t0 = time.time()
+            interest_maps = await self._surface_interests(question)
+            timings["phase1_surface_interests"] = round(time.time() - t0, 2)
+            end_span(span, output=f"{len(interest_maps)} agent interest maps")
+        except Exception:
+            end_span(span, error="surface_interests failed")
+            raise
 
         # Phase 2 — Interest Map (Haiku mediator)
-        t0 = time.time()
-        categorized = await self._build_interest_map(question, interest_maps)
-        timings["phase2_interest_map"] = round(time.time() - t0, 2)
+        span = create_span("stage:interest_map", {})
+        try:
+            t0 = time.time()
+            categorized = await self._build_interest_map(question, interest_maps)
+            timings["phase2_interest_map"] = round(time.time() - t0, 2)
+            end_span(span, output="interest map complete")
+        except Exception:
+            end_span(span, error="interest_map failed")
+            raise
 
         # Phase 3 — Generate Options (parallel, Opus) — may run multiple rounds
         all_options: list[dict[str, Any]] = []
@@ -101,28 +113,40 @@ class InterestsNegotiationOrchestrator:
         pareto_found = False
 
         for round_num in range(1, self.max_rounds + 1):
-            t0 = time.time()
-            options = await self._generate_options(question, categorized)
-            timings[f"phase3_generate_r{round_num}"] = round(time.time() - t0, 2)
+            span = create_span(f"stage:generate_score_r{round_num}", {"agent_count": len(self.agents)})
+            try:
+                t0 = time.time()
+                options = await self._generate_options(question, categorized)
+                timings[f"phase3_generate_r{round_num}"] = round(time.time() - t0, 2)
 
-            all_options.extend(options)
+                all_options.extend(options)
 
-            # Phase 4 — Score & check Pareto (Haiku scoring)
-            t0 = time.time()
-            scores = await self._score_options(question, all_options, interest_maps)
-            timings[f"phase4_score_r{round_num}"] = round(time.time() - t0, 2)
-            all_scores = scores
+                # Phase 4 — Score & check Pareto (Haiku scoring)
+                t0 = time.time()
+                scores = await self._score_options(question, all_options, interest_maps)
+                timings[f"phase4_score_r{round_num}"] = round(time.time() - t0, 2)
+                all_scores = scores
 
-            pareto_found = any(s.get("pareto_optimal") for s in scores)
+                pareto_found = any(s.get("pareto_optimal") for s in scores)
+                end_span(span, output=f"{len(options)} options, pareto={pareto_found}")
+            except Exception:
+                end_span(span, error=f"generate_score_r{round_num} failed")
+                raise
             if pareto_found:
                 break
 
         # Final synthesis (Opus)
-        t0 = time.time()
-        agreement = await self._synthesize_agreement(
-            question, categorized, all_options, all_scores,
-        )
-        timings["phase5_agreement"] = round(time.time() - t0, 2)
+        span = create_span("stage:synthesize_agreement", {})
+        try:
+            t0 = time.time()
+            agreement = await self._synthesize_agreement(
+                question, categorized, all_options, all_scores,
+            )
+            timings["phase5_agreement"] = round(time.time() - t0, 2)
+            end_span(span, output="agreement complete")
+        except Exception:
+            end_span(span, error="synthesize_agreement failed")
+            raise
 
         # Extract satisfaction scores
         satisfaction: dict[str, float] = {}
@@ -189,10 +213,12 @@ class InterestsNegotiationOrchestrator:
             question=question,
             interests_block=interests_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="interest_map",
         )
         return parse_json_object(extract_text(resp))
 
@@ -259,10 +285,12 @@ class InterestsNegotiationOrchestrator:
             options_block=options_block,
             interests_block=interests_block,
         )
-        resp = await self.client.messages.create(
+        resp = await llm_complete(
+            self.client,
             model=self.orchestration_model,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
+            agent_name="score_options",
         )
         parsed = parse_json_object(extract_text(resp))
         return parsed.get("scores", [])
