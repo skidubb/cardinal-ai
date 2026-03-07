@@ -335,7 +335,29 @@ async def agent_complete(
                         "iteration": iteration,
                     })
 
+                # Langfuse span for tool call
+                try:
+                    from protocols.langfuse_tracing import create_span, end_span
+                    tool_span = create_span(
+                        f"tool:{block.name}",
+                        metadata={
+                            "agent_name": agent_name,
+                            "tool_name": block.name,
+                            "iteration": iteration,
+                            "input": json.dumps(block.input)[:1000] if block.input else "{}",
+                        },
+                    )
+                except Exception:
+                    tool_span = None
+
                 result, elapsed_ms = await execute_tool(block.name, block.input)
+
+                # End Langfuse tool span
+                try:
+                    from protocols.langfuse_tracing import end_span
+                    end_span(tool_span, output=result[:1000])
+                except Exception:
+                    pass
 
                 # Push tool_result event
                 if eq is not None:
