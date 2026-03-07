@@ -33,6 +33,13 @@ _log = logging.getLogger(__name__)
 _langfuse_available = False
 _langfuse_client = None
 
+# Load .env so CLI runs pick up LANGFUSE_* keys automatically
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 try:
     from langfuse import Langfuse
 
