@@ -20,6 +20,7 @@ from __future__ import annotations
 import functools
 import logging
 import os
+import re
 from contextvars import ContextVar
 from typing import Any
 
@@ -52,6 +53,36 @@ except ImportError:
 _current_trace_id: ContextVar[str | None] = ContextVar("_lf_trace_id", default=None)
 _current_root_span: ContextVar[Any] = ContextVar("_lf_root_span", default=None)
 _current_protocol: ContextVar[str | None] = ContextVar("_lf_protocol", default=None)
+_current_session_id: ContextVar[str | None] = ContextVar("_lf_session_id", default=None)
+
+
+# ---------------------------------------------------------------------------
+# Protocol category taxonomy
+# ---------------------------------------------------------------------------
+
+_CATEGORY_RANGES: list[tuple[range, str]] = [
+    (range(0, 3), "meta"),              # P0a-P0c
+    (range(3, 6), "baselines"),         # P3-P5
+    (range(6, 16), "liberating_structures"),  # P6-P15
+    (range(16, 19), "intelligence_analysis"),  # P16-P18
+    (range(19, 22), "game_theory"),     # P19-P21
+    (range(22, 24), "org_theory"),      # P22-P23
+    (range(24, 26), "systems_thinking"),  # P24-P25
+    (range(26, 28), "design_thinking"),  # P26-P27
+    (range(28, 48), "wave2_research"),  # P28-P47
+]
+
+
+def _category(protocol_key: str) -> str:
+    """Derive category tag from protocol key using the taxonomy."""
+    m = re.search(r"p(\d+)", protocol_key)
+    if not m:
+        return "unknown"
+    num = int(m.group(1))
+    for rng, cat in _CATEGORY_RANGES:
+        if num in rng:
+            return cat
+    return "unknown"
 
 
 def is_enabled() -> bool:
@@ -67,11 +98,17 @@ def get_trace_id() -> str | None:
 # Protocol-level decorator
 # ---------------------------------------------------------------------------
 
+def set_session_id(session_id: str | None) -> None:
+    """Set a session ID for grouping related traces (e.g. pipeline runs)."""
+    _current_session_id.set(session_id)
+
+
 def trace_protocol(protocol_key: str):
     """Decorator for orchestrator ``run()`` methods.
 
     Creates a top-level Langfuse span (v3 API), sets context vars so that
     ``record_generation()`` calls from ``llm.py`` attach as child spans.
+    Adds tags for category, environment, and agent mode for dashboard filtering.
     """
     def decorator(fn):
         if not _langfuse_available:
@@ -79,10 +116,20 @@ def trace_protocol(protocol_key: str):
 
         @functools.wraps(fn)
         async def wrapper(*args, **kwargs):
-            root = _langfuse_client.start_span(
-                name=protocol_key,
-                metadata={"protocol_key": protocol_key},
-            )
+            tags = [
+                f"category:{_category(protocol_key)}",
+                f"env:{os.getenv('ENV', 'dev')}",
+                f"mode:{os.getenv('AGENT_MODE', 'production')}",
+            ]
+            span_kwargs: dict[str, Any] = {
+                "name": protocol_key,
+                "metadata": {"protocol_key": protocol_key},
+                "tags": tags,
+            }
+            session_id = _current_session_id.get()
+            if session_id:
+                span_kwargs["session_id"] = session_id
+            root = _langfuse_client.start_span(**span_kwargs)
             trace_id = root.trace_id
             tok_id = _current_trace_id.set(trace_id)
             tok_root = _current_root_span.set(root)
@@ -129,27 +176,56 @@ def record_generation(
     cached_tokens: int = 0,
     agent_name: str | None = None,
     latency_ms: float | None = None,
+    cost_usd: float | None = None,
 ) -> None:
-    """Record an LLM call as a Langfuse generation span under the current trace."""
+    """Record an LLM call as a Langfuse generation under the current trace.
+
+    Uses start_generation() instead of start_span() so Langfuse natively
+    understands model, tokens, and cost — unlocking token histograms,
+    model comparison views, and cache rate dashboards.
+    """
     if not _langfuse_available:
         return
     trace_id = _current_trace_id.get()
     if not trace_id:
         return
     name = f"llm:{agent_name}" if agent_name else f"llm:{model}"
-    metadata = {"cached_tokens": cached_tokens}
+    metadata: dict[str, Any] = {"cached_tokens": cached_tokens}
     if latency_ms:
         metadata["latency_ms"] = latency_ms
-    gen = _langfuse_client.start_span(
-        name=name,
-        trace_context={"trace_id": trace_id},
-        metadata=metadata,
-    )
-    gen.update(
-        output=f"model={model} in={input_tokens} out={output_tokens}",
-        metadata={**metadata, "model": model, "input_tokens": input_tokens, "output_tokens": output_tokens},
-    )
-    gen.end()
+
+    usage = {
+        "input": input_tokens,
+        "output": output_tokens,
+    }
+    if cached_tokens:
+        usage["input_cached"] = cached_tokens
+
+    try:
+        gen = _langfuse_client.start_generation(
+            name=name,
+            trace_id=trace_id,
+            model=model,
+            usage=usage,
+            metadata=metadata,
+        )
+        update_kwargs: dict[str, Any] = {
+            "output": f"model={model} in={input_tokens} out={output_tokens}",
+        }
+        if cost_usd is not None:
+            update_kwargs["usage"] = {**usage, "total_cost": cost_usd}
+        gen.update(**update_kwargs)
+        gen.end()
+    except Exception as e:
+        # Fall back to span if generation API not available
+        _log.debug("start_generation failed, falling back to span: %s", e)
+        gen = _langfuse_client.start_span(
+            name=name,
+            trace_context={"trace_id": trace_id},
+            metadata={**metadata, "model": model, "input_tokens": input_tokens, "output_tokens": output_tokens},
+        )
+        gen.update(output=f"model={model} in={input_tokens} out={output_tokens}")
+        gen.end()
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +261,108 @@ def end_span(span: Any, output: str | None = None, error: str | None = None) -> 
     span.end()
 
 
+def score_trace(
+    name: str,
+    value: float,
+    comment: str | None = None,
+    trace_id: str | None = None,
+) -> None:
+    """Attach a numeric score to the current (or specified) trace.
+
+    Use for judge verdicts, eval scores, or any quality metric.
+    Scores appear in the Langfuse dashboard for filtering and trends.
+    """
+    if not _langfuse_available or not _langfuse_client:
+        return
+    tid = trace_id or _current_trace_id.get()
+    if not tid:
+        return
+    try:
+        _langfuse_client.score(
+            trace_id=tid,
+            name=name,
+            value=value,
+            comment=comment,
+        )
+    except Exception as e:
+        _log.warning("Failed to record Langfuse score %s: %s", name, e)
+
+
 def flush() -> None:
     """Flush pending Langfuse events."""
     if _langfuse_available and _langfuse_client:
         _langfuse_client.flush()
+
+
+# ---------------------------------------------------------------------------
+# Dataset helpers (for benchmark evaluation experiments)
+# ---------------------------------------------------------------------------
+
+def create_dataset(name: str, description: str | None = None, metadata: dict | None = None) -> Any:
+    """Create a Langfuse dataset (idempotent — safe to call repeatedly)."""
+    if not _langfuse_available or not _langfuse_client:
+        return None
+    try:
+        kwargs: dict[str, Any] = {"name": name}
+        if description:
+            kwargs["description"] = description
+        if metadata:
+            kwargs["metadata"] = metadata
+        return _langfuse_client.create_dataset(**kwargs)
+    except Exception as e:
+        _log.warning("Failed to create Langfuse dataset %s: %s", name, e)
+        return None
+
+
+def create_dataset_item(
+    dataset_name: str,
+    input: dict,
+    metadata: dict | None = None,
+    item_id: str | None = None,
+) -> Any:
+    """Add an item to a Langfuse dataset."""
+    if not _langfuse_available or not _langfuse_client:
+        return None
+    try:
+        kwargs: dict[str, Any] = {
+            "dataset_name": dataset_name,
+            "input": input,
+        }
+        if metadata:
+            kwargs["metadata"] = metadata
+        if item_id:
+            kwargs["id"] = item_id
+        return _langfuse_client.create_dataset_item(**kwargs)
+    except Exception as e:
+        _log.warning("Failed to create Langfuse dataset item %s: %s", item_id, e)
+        return None
+
+
+def link_trace_to_dataset_item(
+    dataset_name: str,
+    item_id: str,
+    trace_id: str,
+    run_name: str,
+    run_metadata: dict | None = None,
+) -> None:
+    """Link a trace to a dataset item for experiment comparison.
+
+    Uses the low-level API (CreateDatasetRunItemRequest) so we can link
+    by trace_id without needing the observation object in scope.
+    """
+    if not _langfuse_available or not _langfuse_client:
+        return
+    try:
+        from langfuse.api import CreateDatasetRunItemRequest
+
+        _langfuse_client.api.dataset_run_items.create(
+            request=CreateDatasetRunItemRequest(
+                run_name=run_name,
+                dataset_item_id=item_id,
+                trace_id=trace_id,
+                metadata=run_metadata,
+            )
+        )
+        _langfuse_client.flush()
+    except Exception as e:
+        _log.warning("Failed to link trace %s to dataset item %s: %s", trace_id, item_id, e)
