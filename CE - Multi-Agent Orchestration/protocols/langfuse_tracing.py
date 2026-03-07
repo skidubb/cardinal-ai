@@ -21,6 +21,7 @@ import functools
 import logging
 import os
 import re
+import time
 from contextvars import ContextVar
 from typing import Any
 
@@ -61,6 +62,7 @@ _current_trace_id: ContextVar[str | None] = ContextVar("_lf_trace_id", default=N
 _current_root_span: ContextVar[Any] = ContextVar("_lf_root_span", default=None)
 _current_protocol: ContextVar[str | None] = ContextVar("_lf_protocol", default=None)
 _current_session_id: ContextVar[str | None] = ContextVar("_lf_session_id", default=None)
+_current_user_id: ContextVar[str | None] = ContextVar("_lf_user_id", default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +112,51 @@ def set_session_id(session_id: str | None) -> None:
     _current_session_id.set(session_id)
 
 
+def set_user_id(user_id: str | None) -> None:
+    """Set a user ID for attributing traces (e.g. CLI user, API caller)."""
+    _current_user_id.set(user_id)
+
+
+def _update_trace_metadata(
+    trace_id: str,
+    name: str,
+    tags: list[str],
+    session_id: str | None = None,
+    user_id: str | None = None,
+) -> None:
+    """Set trace-level attributes (tags, session, user) via ingestion API.
+
+    Uses _create_trace_tags_via_ingestion for tags and a direct TraceBody
+    event for session/user, which is reliable in async contexts (unlike
+    update_current_trace which depends on OTel context propagation).
+    """
+    try:
+        _langfuse_client._create_trace_tags_via_ingestion(
+            trace_id=trace_id, tags=tags,
+        )
+    except Exception as e:
+        _log.debug("Failed to set trace tags: %s", e)
+
+    if session_id or user_id:
+        try:
+            from langfuse.api import TraceBody
+            body_kwargs: dict[str, Any] = {"id": trace_id, "name": name}
+            if session_id:
+                body_kwargs["sessionId"] = session_id
+            if user_id:
+                body_kwargs["userId"] = user_id
+            event = {
+                "id": _langfuse_client.create_trace_id(),
+                "type": "trace-create",
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+                "body": TraceBody(**body_kwargs),
+            }
+            if _langfuse_client._resources is not None:
+                _langfuse_client._resources.add_trace_task(event)
+        except Exception as e:
+            _log.debug("Failed to set trace session/user: %s", e)
+
+
 def trace_protocol(protocol_key: str):
     """Decorator for orchestrator ``run()`` methods.
 
@@ -128,47 +175,50 @@ def trace_protocol(protocol_key: str):
                 f"env:{os.getenv('ENV', 'dev')}",
                 f"mode:{os.getenv('AGENT_MODE', 'production')}",
             ]
-            # start_as_current_span is a sync context manager that sets up
-            # Langfuse's internal context. Tags/session are trace-level
-            # attributes applied via update_current_trace.
-            with _langfuse_client.start_as_current_span(
+            # Pre-create trace_id so we can reliably set trace-level
+            # attributes (tags, session, user) via the ingestion API.
+            trace_id = _langfuse_client.create_trace_id()
+            root = _langfuse_client.start_span(
+                trace_context={"trace_id": trace_id},
                 name=protocol_key,
                 metadata={"protocol_key": protocol_key},
-            ) as root:
-                trace_id = root.trace_id
-                # Apply trace-level attributes (tags, session_id)
-                trace_update: dict[str, Any] = {"name": protocol_key, "tags": tags}
-                session_id = _current_session_id.get()
-                if session_id:
-                    trace_update["session_id"] = session_id
-                _langfuse_client.update_current_trace(**trace_update)
+            )
 
-                tok_id = _current_trace_id.set(trace_id)
-                tok_root = _current_root_span.set(root)
-                tok_proto = _current_protocol.set(protocol_key)
+            # Set trace-level attributes via reliable ingestion API
+            session_id = _current_session_id.get()
+            user_id = _current_user_id.get()
+            _update_trace_metadata(
+                trace_id, protocol_key, tags,
+                session_id=session_id, user_id=user_id,
+            )
+
+            tok_id = _current_trace_id.set(trace_id)
+            tok_root = _current_root_span.set(root)
+            tok_proto = _current_protocol.set(protocol_key)
+            try:
+                result = await fn(*args, **kwargs)
                 try:
-                    result = await fn(*args, **kwargs)
-                    try:
-                        result._langfuse_trace_id = trace_id
-                    except (AttributeError, TypeError):
-                        pass
-                    root.update(
-                        output=str(result)[:2000],
-                        metadata={"protocol_key": protocol_key, "status": "completed"},
-                    )
-                    return result
-                except Exception as e:
-                    root.update(
-                        level="ERROR",
-                        status_message=str(e)[:500],
-                        metadata={"protocol_key": protocol_key, "status": "failed"},
-                    )
-                    raise
-                finally:
-                    _current_trace_id.reset(tok_id)
-                    _current_root_span.reset(tok_root)
-                    _current_protocol.reset(tok_proto)
-                    _langfuse_client.flush()
+                    result._langfuse_trace_id = trace_id
+                except (AttributeError, TypeError):
+                    pass
+                root.update(
+                    output=str(result)[:2000],
+                    metadata={"protocol_key": protocol_key, "status": "completed"},
+                )
+                return result
+            except Exception as e:
+                root.update(
+                    level="ERROR",
+                    status_message=str(e)[:500],
+                    metadata={"protocol_key": protocol_key, "status": "failed"},
+                )
+                raise
+            finally:
+                root.end()
+                _current_trace_id.reset(tok_id)
+                _current_root_span.reset(tok_root)
+                _current_protocol.reset(tok_proto)
+                _langfuse_client.flush()
 
         return wrapper
     return decorator
