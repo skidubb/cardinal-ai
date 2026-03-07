@@ -124,52 +124,52 @@ def set_user_id(user_id: str | None) -> None:
     _current_user_id.set(user_id)
 
 
-def _update_trace_metadata(
+def _create_trace_via_ingestion(
     trace_id: str,
     name: str,
-    tags: list[str],
+    tags: list[str] | None = None,
     session_id: str | None = None,
     user_id: str | None = None,
+    input: Any = None,
+    metadata: dict | None = None,
 ) -> None:
-    """Set trace-level attributes (tags, session, user) via ingestion API.
+    """Create a trace via the ingestion API with all attributes baked in.
 
-    Uses _create_trace_tags_via_ingestion for tags and a direct TraceBody
-    event for session/user, which is reliable in async contexts (unlike
-    update_current_trace which depends on OTel context propagation).
+    This is the only reliable way to set tags, session_id, and user_id
+    on traces in Langfuse SDK v3. OTel-created traces (via start_span)
+    cannot be patched with these attributes after the fact.
     """
     try:
-        _langfuse_client._create_trace_tags_via_ingestion(
-            trace_id=trace_id, tags=tags,
-        )
+        from langfuse.api import TraceBody
+        body_kwargs: dict[str, Any] = {"id": trace_id, "name": name}
+        if tags:
+            body_kwargs["tags"] = tags
+        if session_id:
+            body_kwargs["session_id"] = session_id
+        if user_id:
+            body_kwargs["user_id"] = user_id
+        if input is not None:
+            body_kwargs["input"] = input
+        if metadata:
+            body_kwargs["metadata"] = metadata
+        event = {
+            "id": _langfuse_client.create_trace_id(),
+            "type": "trace-create",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+            "body": TraceBody(**body_kwargs),
+        }
+        if _langfuse_client._resources is not None:
+            _langfuse_client._resources.add_trace_task(event)
     except Exception as e:
-        _log.debug("Failed to set trace tags: %s", e)
-
-    if session_id or user_id:
-        try:
-            from langfuse.api import TraceBody
-            body_kwargs: dict[str, Any] = {"id": trace_id, "name": name}
-            if session_id:
-                body_kwargs["sessionId"] = session_id
-            if user_id:
-                body_kwargs["userId"] = user_id
-            event = {
-                "id": _langfuse_client.create_trace_id(),
-                "type": "trace-create",
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
-                "body": TraceBody(**body_kwargs),
-            }
-            if _langfuse_client._resources is not None:
-                _langfuse_client._resources.add_trace_task(event)
-        except Exception as e:
-            _log.debug("Failed to set trace session/user: %s", e)
+        _log.debug("Failed to create trace via ingestion: %s", e)
 
 
 def trace_protocol(protocol_key: str):
     """Decorator for orchestrator ``run()`` methods.
 
-    Creates a top-level Langfuse span (v3 API), sets context vars so that
+    Creates a Langfuse trace via ingestion API (with tags, session, user),
+    then attaches a root span for timing. Sets context vars so that
     ``record_generation()`` calls from ``llm.py`` attach as child spans.
-    Adds tags for category, environment, and agent mode for dashboard filtering.
     """
     def decorator(fn):
         if not _langfuse_available:
@@ -182,21 +182,26 @@ def trace_protocol(protocol_key: str):
                 f"env:{os.getenv('ENV', 'dev')}",
                 f"mode:{os.getenv('AGENT_MODE', 'production')}",
             ]
-            # Pre-create trace_id so we can reliably set trace-level
-            # attributes (tags, session, user) via the ingestion API.
             trace_id = _langfuse_client.create_trace_id()
+            session_id = _current_session_id.get()
+            user_id = _current_user_id.get()
+
+            # Create trace via ingestion FIRST — this is the only way
+            # to reliably set tags, session_id, and user_id in SDK v3.
+            _create_trace_via_ingestion(
+                trace_id=trace_id,
+                name=protocol_key,
+                tags=tags,
+                session_id=session_id,
+                user_id=user_id,
+                metadata={"protocol_key": protocol_key},
+            )
+
+            # Attach root span for timing and output capture
             root = _langfuse_client.start_span(
                 trace_context={"trace_id": trace_id},
                 name=protocol_key,
                 metadata={"protocol_key": protocol_key},
-            )
-
-            # Set trace-level attributes via reliable ingestion API
-            session_id = _current_session_id.get()
-            user_id = _current_user_id.get()
-            _update_trace_metadata(
-                trace_id, protocol_key, tags,
-                session_id=session_id, user_id=user_id,
             )
 
             tok_id = _current_trace_id.set(trace_id)
@@ -235,6 +240,39 @@ def trace_protocol(protocol_key: str):
 # Generation recording (called from llm.py after each LLM call)
 # ---------------------------------------------------------------------------
 
+_MECHANICAL_AGENT_NAMES = frozenset({
+    "dedup", "ranking", "synthesis", "verdict", "loop_decision",
+    "final_synthesis", "classification", "extraction", "scoring",
+    "consensus", "merge", "judge",
+})
+
+
+def _is_mechanical(agent_name: str | None) -> bool:
+    """Return True if this is a mechanical/orchestration step, not an agent call."""
+    if not agent_name:
+        return True  # unnamed calls are mechanical
+    return agent_name.lower() in _MECHANICAL_AGENT_NAMES
+
+
+def _extract_user_question(messages: list[dict] | str | None) -> str | None:
+    """Extract the user's actual question from a messages array.
+
+    For agent calls, Langfuse evals work best with a clean question string
+    rather than the full messages array with system prompts and JSON instructions.
+    """
+    if isinstance(messages, str):
+        return messages[:5_000] if len(messages) > 5_000 else messages
+    if not isinstance(messages, list):
+        return None
+    # Find the last user message
+    for msg in reversed(messages):
+        if isinstance(msg, dict) and msg.get("role") == "user":
+            content = msg.get("content", "")
+            if isinstance(content, str):
+                return content[:5_000] if len(content) > 5_000 else content
+    return None
+
+
 def record_generation(
     model: str,
     input_tokens: int,
@@ -251,14 +289,23 @@ def record_generation(
     Includes actual input/output content so Langfuse's built-in LLM-as-Judge
     evaluators can score the generation. Content is truncated to avoid
     excessive data volume.
+
+    Tags each generation with ``generation_type: agent`` or
+    ``generation_type: mechanical`` in metadata so Langfuse evaluators
+    can target only agent responses (where scoring is meaningful).
     """
     if not _langfuse_available:
         return
     trace_id = _current_trace_id.get()
     if not trace_id:
         return
+
+    mechanical = _is_mechanical(agent_name)
     name = f"llm:{agent_name}" if agent_name else f"llm:{model}"
-    metadata: dict[str, Any] = {"cached_tokens": cached_tokens}
+    metadata: dict[str, Any] = {
+        "cached_tokens": cached_tokens,
+        "generation_type": "mechanical" if mechanical else "agent",
+    }
     if latency_ms:
         metadata["latency_ms"] = latency_ms
 
@@ -273,19 +320,22 @@ def record_generation(
     if cost_usd is not None:
         cost_details = {"total": cost_usd}
 
-    # Truncate content to keep Langfuse payload reasonable
-    gen_input = input_content
-    if isinstance(gen_input, str) and len(gen_input) > 10_000:
-        gen_input = gen_input[:10_000] + "...[truncated]"
-    elif isinstance(gen_input, list):
-        # Keep structure but truncate individual message content
-        truncated = []
-        for msg in gen_input:
-            if isinstance(msg, dict) and isinstance(msg.get("content"), str) and len(msg["content"]) > 5_000:
-                truncated.append({**msg, "content": msg["content"][:5_000] + "...[truncated]"})
-            else:
-                truncated.append(msg)
-        gen_input = truncated
+    # For agent calls: extract clean user question for Langfuse evals.
+    # For mechanical calls: send full messages so debugging is possible.
+    if not mechanical:
+        gen_input = _extract_user_question(input_content)
+    else:
+        gen_input = input_content
+        if isinstance(gen_input, str) and len(gen_input) > 10_000:
+            gen_input = gen_input[:10_000] + "...[truncated]"
+        elif isinstance(gen_input, list):
+            truncated = []
+            for msg in gen_input:
+                if isinstance(msg, dict) and isinstance(msg.get("content"), str) and len(msg["content"]) > 5_000:
+                    truncated.append({**msg, "content": msg["content"][:5_000] + "...[truncated]"})
+                else:
+                    truncated.append(msg)
+            gen_input = truncated
 
     gen_output = output_content
     if gen_output and len(gen_output) > 10_000:
