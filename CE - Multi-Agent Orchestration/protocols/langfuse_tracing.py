@@ -236,12 +236,14 @@ def record_generation(
     agent_name: str | None = None,
     latency_ms: float | None = None,
     cost_usd: float | None = None,
+    input_content: list[dict] | str | None = None,
+    output_content: str | None = None,
 ) -> None:
     """Record an LLM call as a Langfuse generation under the current trace.
 
-    Uses start_generation() instead of start_span() so Langfuse natively
-    understands model, tokens, and cost — unlocking token histograms,
-    model comparison views, and cache rate dashboards.
+    Includes actual input/output content so Langfuse's built-in LLM-as-Judge
+    evaluators can score the generation. Content is truncated to avoid
+    excessive data volume.
     """
     if not _langfuse_available:
         return
@@ -264,17 +266,36 @@ def record_generation(
     if cost_usd is not None:
         cost_details = {"total": cost_usd}
 
+    # Truncate content to keep Langfuse payload reasonable
+    gen_input = input_content
+    if isinstance(gen_input, str) and len(gen_input) > 10_000:
+        gen_input = gen_input[:10_000] + "...[truncated]"
+    elif isinstance(gen_input, list):
+        # Keep structure but truncate individual message content
+        truncated = []
+        for msg in gen_input:
+            if isinstance(msg, dict) and isinstance(msg.get("content"), str) and len(msg["content"]) > 5_000:
+                truncated.append({**msg, "content": msg["content"][:5_000] + "...[truncated]"})
+            else:
+                truncated.append(msg)
+        gen_input = truncated
+
+    gen_output = output_content
+    if gen_output and len(gen_output) > 10_000:
+        gen_output = gen_output[:10_000] + "...[truncated]"
+
     try:
         gen = _langfuse_client.start_observation(
             as_type="generation",
             name=name,
             trace_context={"trace_id": trace_id},
+            input=gen_input,
             model=model,
             usage_details=usage_details,
             cost_details=cost_details,
             metadata=metadata,
         )
-        gen.update(output=f"model={model} in={input_tokens} out={output_tokens}")
+        gen.update(output=gen_output or f"model={model} in={input_tokens} out={output_tokens}")
         gen.end()
     except Exception as e:
         _log.debug("start_observation(generation) failed, falling back to span: %s", e)
@@ -283,7 +304,7 @@ def record_generation(
             trace_context={"trace_id": trace_id},
             metadata={**metadata, "model": model, "input_tokens": input_tokens, "output_tokens": output_tokens},
         )
-        gen.update(output=f"model={model} in={input_tokens} out={output_tokens}")
+        gen.update(output=gen_output or f"model={model} in={input_tokens} out={output_tokens}")
         gen.end()
 
 

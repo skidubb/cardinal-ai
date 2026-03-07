@@ -117,10 +117,16 @@ def get_cost_tracker() -> Any:
     return _cost_tracker.get()
 
 
-def _record_usage(model: str, response: Any, agent_name: str | None = None) -> None:
+def _record_usage(
+    model: str,
+    response: Any,
+    agent_name: str | None = None,
+    input_messages: list[dict] | str | None = None,
+) -> None:
     """Extract token counts from an API response and forward to the active tracker.
 
     Also records a Langfuse generation span if tracing is active.
+    ``input_messages`` is the prompt sent to the LLM (for Langfuse eval visibility).
     """
     usage = getattr(response, "usage", None)
     if usage is None:
@@ -152,12 +158,24 @@ def _record_usage(model: str, response: Any, agent_name: str | None = None) -> N
             # Backward compatibility for custom trackers.
             tracker.track(model, input_tokens, output_tokens, cached_tokens)
 
+    # Extract response text for Langfuse eval visibility
+    response_text: str | None = None
+    try:
+        response_text = extract_text(response)
+    except Exception:
+        pass
+
     # Langfuse generation span (no-op if not configured)
     try:
         from protocols.langfuse_tracing import record_generation
         from protocols.cost_tracker import _compute_cost
         call_cost = _compute_cost(model, input_tokens, output_tokens, cached_tokens)
-        record_generation(model, input_tokens, output_tokens, cached_tokens, agent_name, cost_usd=call_cost)
+        record_generation(
+            model, input_tokens, output_tokens, cached_tokens, agent_name,
+            cost_usd=call_cost,
+            input_content=input_messages,
+            output_content=response_text,
+        )
     except ImportError:
         pass
 
@@ -183,7 +201,7 @@ async def llm_complete(
     """
     response = await _retry_api_call(client.messages.create, **kwargs)
     model = kwargs.get("model", "unknown")
-    _record_usage(model, response, agent_name=agent_name)
+    _record_usage(model, response, agent_name=agent_name, input_messages=kwargs.get("messages"))
     return response
 
 
@@ -248,7 +266,7 @@ async def agent_complete(
             kwargs["tools"] = tools
 
         response = await _retry_api_call(litellm.acompletion, **kwargs)
-        _record_usage(agent_model, response, agent_name=agent.get("name"))
+        _record_usage(agent_model, response, agent_name=agent.get("name"), input_messages=litellm_messages)
         return response.choices[0].message.content
 
     # Anthropic SDK fallback — orchestrator's model, preserves tracing
@@ -287,7 +305,7 @@ async def agent_complete(
         create_kwargs["tools"] = effective_tools
 
     response = await _retry_api_call(anthropic_client.messages.create, **create_kwargs)
-    _record_usage(fallback_model, response, agent_name=agent.get("name"))
+    _record_usage(fallback_model, response, agent_name=agent.get("name"), input_messages=messages)
 
     # If no tools or no tool_use in response, return text directly
     if not effective_tools or response.stop_reason != "tool_use":
@@ -345,7 +363,7 @@ async def agent_complete(
             anthropic_client.messages.create,
             **{**create_kwargs, "messages": loop_messages},
         )
-        _record_usage(fallback_model, response, agent_name=agent.get("name"))
+        _record_usage(fallback_model, response, agent_name=agent.get("name"), input_messages=loop_messages)
 
         if response.stop_reason != "tool_use":
             break
