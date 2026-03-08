@@ -285,6 +285,23 @@ AGENT_CONFIGS = {
         name="CTO's Internal Platform Engineer", role="cto-internal-platform",
         model="claude-opus-4-6", temperature=0.6,
     ),
+    # --- CTO R&D Team ---
+    "cto-rd-lead": AgentConfig(
+        name="CTO's R&D Lead", role="cto-rd-lead",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "cto-ml-engineer": AgentConfig(
+        name="CTO's ML Engineer", role="cto-ml-engineer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "cto-infra-engineer": AgentConfig(
+        name="CTO's Infrastructure Engineer", role="cto-infra-engineer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "cto-security-engineer": AgentConfig(
+        name="CTO's Security & Compliance Engineer", role="cto-security-engineer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
     # --- GTM Leadership ---
     "gtm-cro": AgentConfig(
         name="Chief Revenue Officer (GTM)", role="gtm-cro",

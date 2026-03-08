@@ -214,6 +214,27 @@ ROLE_TOOL_MAP: dict[str, list[str]] = {
         "github_assess_engineering_maturity", "github_generate_prospect_profile",
         "pinecone_search_knowledge", *_COMMON_TOOLS,
     ],
+    # --- CTO R&D Team (inherit CTO tools) ---
+    "cto-rd-lead": [
+        "github_get_org", "github_analyze_tech_stack",
+        "github_assess_engineering_maturity", "github_generate_prospect_profile",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cto-ml-engineer": [
+        "github_get_org", "github_analyze_tech_stack",
+        "github_assess_engineering_maturity", "github_generate_prospect_profile",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cto-infra-engineer": [
+        "github_get_org", "github_analyze_tech_stack",
+        "github_assess_engineering_maturity", "github_generate_prospect_profile",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
+    "cto-security-engineer": [
+        "github_get_org", "github_analyze_tech_stack",
+        "github_assess_engineering_maturity", "github_generate_prospect_profile",
+        "pinecone_search_knowledge", *_COMMON_TOOLS,
+    ],
     # --- GTM Leadership (inherit CRO tools) ---
     "gtm-cro": [
         "sec_search_companies", "sec_get_financials", "sec_get_filings",

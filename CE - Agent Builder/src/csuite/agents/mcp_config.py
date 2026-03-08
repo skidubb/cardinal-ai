@@ -108,6 +108,11 @@ ROLE_MCP_SERVERS: dict[str, dict[str, McpServerConfig]] = {
     "cto-ai-systems-designer": {**_COMMON, "github-intel": GITHUB_INTEL},
     "cto-audit-architect": {**_COMMON, "github-intel": GITHUB_INTEL},
     "cto-internal-platform": {**_COMMON, "github-intel": GITHUB_INTEL},
+    # --- CTO R&D Team (inherit CTO: GitHub Intel) ---
+    "cto-rd-lead": {**_COMMON, "github-intel": GITHUB_INTEL},
+    "cto-ml-engineer": {**_COMMON, "github-intel": GITHUB_INTEL},
+    "cto-infra-engineer": {**_COMMON, "github-intel": GITHUB_INTEL},
+    "cto-security-engineer": {**_COMMON, "github-intel": GITHUB_INTEL},
     # --- GTM Leadership (inherit CRO: SEC EDGAR, Pricing) ---
     "gtm-cro": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
     "gtm-vp-sales": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
