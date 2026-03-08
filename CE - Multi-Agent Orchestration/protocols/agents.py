@@ -379,6 +379,12 @@ BUILTIN_AGENTS.update(GTM_SUCCESS_AGENTS)
 BUILTIN_AGENTS.update(GTM_OPS_AGENTS)
 BUILTIN_AGENTS.update(EXTERNAL_AGENTS)
 
+# ── Walk Exploration Lenses ────────────────────────────────────────────────
+# Cognitive lens agents for the Walk protocol family (P49-P52)
+from protocols.walk_shared.agents import WALK_AGENTS
+
+BUILTIN_AGENTS.update(WALK_AGENTS)
+
 # Category lookup for protocol routing / agent selection
 AGENT_CATEGORIES = {
     "executive": list(EXECUTIVE_AGENTS.keys()),
@@ -395,6 +401,7 @@ AGENT_CATEGORIES = {
     "gtm-success": list(GTM_SUCCESS_AGENTS.keys()),
     "gtm-ops": list(GTM_OPS_AGENTS.keys()),
     "external": list(EXTERNAL_AGENTS.keys()),
+    "walk": list(WALK_AGENTS.keys()),
 }
 
 

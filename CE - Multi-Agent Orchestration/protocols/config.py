@@ -62,6 +62,12 @@ STAGE_COGNITIVE_MAP = {
     "reframe": "L4",
     "generate": "L4",
     "reason": "L4",
+    # Walk protocol stages (P49-P52)
+    "frame": "L4",
+    "shallow_walk": "L3",
+    "salience": "L2",
+    "deep_walk": "L4",
+    "cross_exam": "L3",
 }
 
 
