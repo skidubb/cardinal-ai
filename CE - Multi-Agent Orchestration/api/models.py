@@ -35,6 +35,20 @@ class Agent(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
+# ── Integrations ─────────────────────────────────────────────────────────────
+
+class Integration(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    type: str = ""            # "tool_domain" | "mcp_server"
+    enabled: bool = False
+    config_json: str = "{}"
+    api_key_configured: bool = False
+    description: str = ""
+    is_builtin: bool = True
+    created_at: datetime = Field(default_factory=_now)
+
+
 # ── Teams ─────────────────────────────────────────────────────────────────────
 
 class Team(SQLModel, table=True):

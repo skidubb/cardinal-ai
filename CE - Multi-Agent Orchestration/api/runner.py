@@ -22,7 +22,8 @@ from api.database import engine
 from api.models import AgentOutput, Run, RunStep
 from protocols.config import ORCHESTRATION_MODEL, THINKING_MODEL
 from protocols.cost_tracker import ProtocolCostTracker
-from protocols.langfuse_tracing import get_trace_id, is_enabled as langfuse_is_enabled
+from protocols.judge import QualityJudge
+from protocols.langfuse_tracing import get_trace_id, is_enabled as langfuse_is_enabled, score_trace, set_session_id
 from protocols.llm import set_cost_tracker, set_event_queue, set_no_tools
 from protocols.persistence import PersistOutcome, persist_run
 from protocols.run_envelope import StepEnvelope, TelemetryWarning, build_run_envelope
@@ -274,6 +275,9 @@ async def run_protocol_stream(
             yield _sse_event(evt["event"], evt)
 
         cost_summary = cost_tracker.summary()
+        # Record cost as a Langfuse score for unified cost+quality dashboards
+        if cost_tracker.total_cost > 0:
+            score_trace("cost_usd", cost_tracker.total_cost, trace_id=get_trace_id())
         run_warnings: list[TelemetryWarning | dict[str, Any]] = []
         if not langfuse_is_enabled():
             run_warnings.append(
@@ -306,6 +310,45 @@ async def run_protocol_stream(
 
         if envelope.result_summary:
             yield _sse_event("synthesis", {"text": envelope.result_summary})
+
+        # Quality Judge — score synthesis against agent outputs
+        judge_verdict_dict: dict[str, Any] | None = None
+        if envelope.result_summary and envelope.agent_outputs:
+            try:
+                from protocols.tracing import make_client as _make_judge_client
+                judge_client = _make_judge_client(protocol_id="judge")
+                judge = QualityJudge(judge_client)
+                agent_outputs_text = "\n\n".join(
+                    f"=== {o.agent_key} ===\n{o.text}"
+                    for o in envelope.agent_outputs
+                )
+                verdict = await judge.evaluate(
+                    question=question,
+                    agent_outputs=agent_outputs_text,
+                    synthesis=envelope.result_summary,
+                )
+                judge_verdict_dict = verdict.as_dict()
+                yield _sse_event("judge_verdict", judge_verdict_dict)
+                # Attach scores to Langfuse trace for dashboard filtering/trends
+                trace_id = envelope.trace_id
+                for dim in ("completeness", "consistency", "actionability", "overall"):
+                    score_trace(f"judge_{dim}", float(getattr(verdict, dim)), trace_id=trace_id)
+                score_trace(
+                    "judge_recommendation",
+                    1.0 if verdict.recommendation == "accept" else 0.0,
+                    comment="; ".join(verdict.flags) if verdict.flags else None,
+                    trace_id=trace_id,
+                )
+            except Exception as judge_err:
+                _judge_warning = {
+                    "code": "judge_failed",
+                    "message": f"Quality judge failed: {judge_err}",
+                    "component": "judge",
+                    "recoverable": True,
+                }
+                run_warnings.append(
+                    TelemetryWarning(**_judge_warning)
+                )
 
         # Persist outputs
         with Session(engine) as session:
@@ -378,14 +421,18 @@ async def run_protocol_stream(
                     session.add(run)
                     session.commit()
 
-        yield _sse_event("run_complete", {
+        run_complete_payload: dict[str, Any] = {
             "run_id": run_id,
             "elapsed_seconds": round(elapsed, 1),
             "status": "completed",
             "cost": cost_summary,
+            "trace_id": envelope.trace_id,
             "telemetry_degraded": envelope.telemetry_degraded,
             "warnings": [w.as_dict() for w in envelope.warnings],
-        })
+        }
+        if judge_verdict_dict:
+            run_complete_payload["judge_verdict"] = judge_verdict_dict
+        yield _sse_event("run_complete", run_complete_payload)
 
         # Clear tracker from context
         set_cost_tracker(None)
@@ -447,6 +494,10 @@ async def run_pipeline_stream(
     """Execute a pipeline (sequence of protocols) and yield SSE events."""
 
     yield _sse_event("run_start", {"run_id": run_id, "type": "pipeline", "step_count": len(steps)})
+
+    # Set session_id so all protocol traces in this pipeline are grouped
+    pipeline_session_id = f"pipeline-{run_id}"
+    set_session_id(pipeline_session_id)
 
     with Session(engine) as session:
         run = session.get(Run, run_id)
@@ -661,6 +712,7 @@ async def run_pipeline_stream(
                 }
             )
 
+        set_session_id(None)
         yield _sse_event(
             "run_complete",
             {
@@ -684,6 +736,7 @@ async def run_pipeline_stream(
                 session.commit()
 
         set_cost_tracker(None)
+        set_session_id(None)
         run_error_warnings: list[dict[str, Any]] = []
         try:
             outcome = await persist_run(

@@ -132,18 +132,37 @@ def list_agents(session: Session = Depends(get_session)) -> list[dict]:
     return agents
 
 
+def _apply_body_to_agent(agent: Agent, body: dict) -> None:
+    """Apply a dict body (with list fields) to an Agent model (with JSON string fields)."""
+    for field in ["name", "category", "model", "temperature", "max_tokens", "system_prompt",
+                  "kb_write_enabled", "deliverable_template", "personality", "communication_style"]:
+        if field in body:
+            setattr(agent, field, body[field])
+
+    for field, json_field in [("tools", "tools_json"), ("mcp_servers", "mcp_servers_json"),
+                               ("kb_namespaces", "kb_namespaces_json"), ("frameworks", "frameworks_json"),
+                               ("delegation", "delegation_json"), ("constraints", "constraints_json")]:
+        if field in body:
+            setattr(agent, json_field, json.dumps(body[field]))
+
+
 @router.post("", status_code=201)
-def create_agent(agent: Agent, session: Session = Depends(get_session)) -> Agent:
-    if agent.key in BUILTIN_AGENTS:
-        raise HTTPException(status_code=409, detail=f"Agent key '{agent.key}' is a builtin agent")
-    found = session.exec(select(Agent).where(Agent.key == agent.key)).first()
+def create_agent(body: dict, session: Session = Depends(get_session)) -> dict:
+    key = body.get("key", "")
+    if not key:
+        raise HTTPException(status_code=400, detail="Agent key is required")
+    if key in BUILTIN_AGENTS:
+        raise HTTPException(status_code=409, detail=f"Agent key '{key}' is a builtin agent")
+    found = session.exec(select(Agent).where(Agent.key == key)).first()
     if found:
-        raise HTTPException(status_code=409, detail=f"Agent key '{agent.key}' already exists")
-    agent.is_builtin = False
+        raise HTTPException(status_code=409, detail=f"Agent key '{key}' already exists")
+
+    agent = Agent(key=key, name=body.get("name", key), is_builtin=False)
+    _apply_body_to_agent(agent, body)
     session.add(agent)
     session.commit()
     session.refresh(agent)
-    return agent
+    return _db_agent_to_dict(agent)
 
 
 @router.get("/{key}")
@@ -166,16 +185,7 @@ def update_agent(key: str, body: dict, session: Session = Depends(get_session)) 
             raise HTTPException(status_code=404, detail=f"Agent '{key}' not found")
         agent = Agent(key=key, name=BUILTIN_AGENTS[key]["name"], is_builtin=True)
 
-    for field in ["name", "category", "model", "temperature", "max_tokens", "system_prompt",
-                  "kb_write_enabled", "deliverable_template", "personality", "communication_style"]:
-        if field in body:
-            setattr(agent, field, body[field])
-
-    for field, json_field in [("tools", "tools_json"), ("mcp_servers", "mcp_servers_json"),
-                               ("kb_namespaces", "kb_namespaces_json"), ("frameworks", "frameworks_json"),
-                               ("delegation", "delegation_json"), ("constraints", "constraints_json")]:
-        if field in body:
-            setattr(agent, json_field, json.dumps(body[field]))
+    _apply_body_to_agent(agent, body)
 
     session.add(agent)
     session.commit()

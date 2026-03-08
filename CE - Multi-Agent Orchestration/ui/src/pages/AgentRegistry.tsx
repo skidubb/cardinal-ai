@@ -62,7 +62,30 @@ export default function AgentRegistry() {
   const { currentTeamKeys, addAgent, removeAgent } = useTeamStore()
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [editorAgent, setEditorAgent] = useState<Agent | null>(null)
+  const [editorMode, setEditorMode] = useState<'edit' | 'create'>('edit')
   const [importing, setImporting] = useState(false)
+
+  const EMPTY_AGENT: Agent = {
+    key: '',
+    name: '',
+    category: 'executive',
+    model: 'claude-opus-4-6',
+    temperature: 1.0,
+    system_prompt: '',
+    constraints: [],
+    context_scope: [],
+    is_builtin: false,
+    max_tokens: 8192,
+    tools: [],
+    mcp_servers: [],
+    kb_namespaces: [],
+    kb_write_enabled: false,
+    deliverable_template: '',
+    frameworks: [],
+    delegation: [],
+    personality: '',
+    communication_style: '',
+  }
 
   useEffect(() => { fetch() }, [fetch])
 
@@ -87,13 +110,21 @@ export default function AgentRegistry() {
       <div className="w-80 shrink-0 flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <p className="text-xs font-bold tracking-wider uppercase text-text-muted">Agent Registry</p>
-          <button
-            onClick={handleImportRich}
-            disabled={importing}
-            className="px-2.5 py-1 rounded text-xs font-medium bg-elevated border border-border text-text-muted hover:text-text disabled:opacity-50"
-          >
-            {importing ? 'Importing...' : 'Import Rich'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setEditorAgent(EMPTY_AGENT); setEditorMode('create') }}
+              className="px-2.5 py-1 rounded text-xs font-medium bg-primary text-white hover:bg-primary-hover"
+            >
+              Create Agent
+            </button>
+            <button
+              onClick={handleImportRich}
+              disabled={importing}
+              className="px-2.5 py-1 rounded text-xs font-medium bg-elevated border border-border text-text-muted hover:text-text disabled:opacity-50"
+            >
+              {importing ? 'Importing...' : 'Import Rich'}
+            </button>
+          </div>
         </div>
 
         <input
@@ -173,7 +204,7 @@ export default function AgentRegistry() {
             inTeam={currentTeamKeys.includes(selectedAgent.key)}
             onAddToTeam={() => addAgent(selectedAgent.key)}
             onRemoveFromTeam={() => removeAgent(selectedAgent.key)}
-            onEdit={() => setEditorAgent(selectedAgent)}
+            onEdit={() => { setEditorAgent(selectedAgent); setEditorMode('edit') }}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-text-muted">
@@ -186,6 +217,7 @@ export default function AgentRegistry() {
       {editorAgent && (
         <AgentEditor
           agent={editorAgent}
+          mode={editorMode}
           onClose={() => setEditorAgent(null)}
           onSaved={() => {
             setEditorAgent(null)

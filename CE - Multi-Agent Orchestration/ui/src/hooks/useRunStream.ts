@@ -9,6 +9,34 @@ export interface AgentOutputEvent {
   step?: number
 }
 
+export interface CostByModel {
+  calls: number
+  input_tokens: number
+  output_tokens: number
+  cached_tokens: number
+  cost_usd: number
+}
+
+export interface CostByAgent extends CostByModel {
+  primary_model: string
+}
+
+export interface CostSummary {
+  total_usd: number
+  calls: number
+  by_model: Record<string, CostByModel>
+  by_agent: Record<string, CostByAgent>
+}
+
+export interface JudgeVerdict {
+  completeness: number
+  consistency: number
+  actionability: number
+  overall: number
+  flags: string[]
+  recommendation: 'accept' | 'revise'
+}
+
 export interface RunStreamState {
   runId: number | null
   status: 'idle' | 'starting' | 'running' | 'completed' | 'failed'
@@ -19,6 +47,10 @@ export interface RunStreamState {
   error: string | null
   elapsedSeconds: number | null
   currentStep: number | null
+  currentStage: string | null
+  cost: CostSummary | null
+  traceId: string | null
+  judgeVerdict: JudgeVerdict | null
 }
 
 const initial: RunStreamState = {
@@ -31,6 +63,10 @@ const initial: RunStreamState = {
   error: null,
   elapsedSeconds: null,
   currentStep: null,
+  currentStage: null,
+  cost: null,
+  traceId: null,
+  judgeVerdict: null,
 }
 
 export function useRunStream() {
@@ -188,7 +224,7 @@ function handleEvent(
       setState(s => ({ ...s, agents: data.agents }))
       break
     case 'stage':
-      // info event, could display as status message
+      setState(s => ({ ...s, currentStage: data.message ?? null }))
       break
     case 'step_start':
       setState(s => ({ ...s, currentStep: data.step }))
@@ -226,6 +262,9 @@ function handleEvent(
     case 'synthesis':
       setState(s => ({ ...s, synthesis: data.text }))
       break
+    case 'judge_verdict':
+      setState(s => ({ ...s, judgeVerdict: data as JudgeVerdict }))
+      break
     case 'error':
       setState(s => ({ ...s, error: data.message }))
       break
@@ -234,6 +273,10 @@ function handleEvent(
         ...s,
         status: data.status === 'completed' ? 'completed' : 'failed',
         elapsedSeconds: data.elapsed_seconds ?? null,
+        currentStage: null,
+        cost: data.cost ?? null,
+        traceId: data.trace_id ?? null,
+        judgeVerdict: data.judge_verdict ?? s.judgeVerdict,
       }))
       break
   }

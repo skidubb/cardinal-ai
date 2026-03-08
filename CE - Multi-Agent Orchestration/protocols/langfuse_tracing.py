@@ -217,6 +217,25 @@ def trace_protocol(protocol_key: str):
                     output=str(result)[:2000],
                     metadata={"protocol_key": protocol_key, "status": "completed"},
                 )
+
+                # Run multi-agent evals (non-blocking, best-effort)
+                if not os.getenv("SKIP_MULTIAGENT_EVALS"):
+                    try:
+                        orchestrator = args[0] if args else None
+                        agent_keys = []
+                        if orchestrator and hasattr(orchestrator, "agents"):
+                            agents = orchestrator.agents
+                            if isinstance(agents, list):
+                                agent_keys = [
+                                    a.get("name", "") if isinstance(a, dict)
+                                    else getattr(a, "name", "")
+                                    for a in agents
+                                ]
+                        from protocols.multiagent_evals import evaluate_multiagent
+                        await evaluate_multiagent(result, agent_keys, trace_id)
+                    except Exception as eval_err:
+                        _log.debug("Multi-agent eval skipped: %s", eval_err)
+
                 return result
             except Exception as e:
                 root.update(

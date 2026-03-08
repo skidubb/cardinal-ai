@@ -5,21 +5,74 @@ import { useAgentStore } from './stores/agentStore'
 import Dashboard from './pages/Dashboard'
 import AgentRegistry from './pages/AgentRegistry'
 import Teams from './pages/Teams'
+import ToolsHub from './pages/ToolsHub'
+import KnowledgeExplorer from './pages/KnowledgeExplorer'
 import ProtocolLibrary from './pages/ProtocolLibrary'
 import Pipelines from './pages/Pipelines'
 import RunHistory from './pages/RunHistory'
 import RunView from './pages/RunView'
 import Settings from './pages/Settings'
 
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/agents', label: 'Agent Registry', badge: '56' },
-  { to: '/teams', label: 'Teams' },
-  { to: '/protocols', label: 'Protocol Library', badge: '48' },
-  { to: '/pipelines', label: 'Pipelines' },
-  { to: '/run', label: 'Run' },
-  { to: '/runs', label: 'Run History' },
+interface NavItem {
+  to: string
+  label: string
+  badge?: string
+}
+
+interface NavSection {
+  label: string | null
+  items: NavItem[]
+}
+
+const navSections: NavSection[] = [
+  {
+    label: null,
+    items: [{ to: '/dashboard', label: 'Dashboard' }],
+  },
+  {
+    label: 'Build',
+    items: [
+      { to: '/agents', label: 'Agents', badge: '56' },
+      { to: '/teams', label: 'Teams' },
+      { to: '/tools', label: 'Tools & MCP' },
+      { to: '/knowledge', label: 'Knowledge' },
+    ],
+  },
+  {
+    label: 'Run',
+    items: [
+      { to: '/protocols', label: 'Protocols', badge: '48' },
+      { to: '/pipelines', label: 'Pipelines' },
+      { to: '/run', label: 'Run' },
+    ],
+  },
+  {
+    label: 'History',
+    items: [{ to: '/runs', label: 'Run History' }],
+  },
 ]
+
+function NavItemLink({ item }: { item: NavItem }) {
+  return (
+    <NavLink
+      to={item.to}
+      className={({ isActive }) =>
+        `flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
+          isActive
+            ? 'bg-elevated text-primary font-medium'
+            : 'text-text-muted hover:text-text hover:bg-elevated/50'
+        }`
+      }
+    >
+      <span>{item.label}</span>
+      {item.badge && (
+        <span className="text-xs text-text-muted bg-elevated border border-border px-1.5 py-0.5 rounded">
+          {item.badge}
+        </span>
+      )}
+    </NavLink>
+  )
+}
 
 function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
@@ -33,41 +86,22 @@ function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              `flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
-                isActive
-                  ? 'bg-elevated text-primary font-medium'
-                  : 'text-text-muted hover:text-text hover:bg-elevated/50'
-              }`
-            }
-          >
-            <span>{item.label}</span>
-            {item.badge && (
-              <span className="text-xs text-text-muted bg-elevated border border-border px-1.5 py-0.5 rounded">
-                {item.badge}
-              </span>
+        {navSections.map((section, si) => (
+          <div key={si} className={section.label ? 'pt-3' : ''}>
+            {section.label && (
+              <p className="px-3 pb-1.5 text-[10px] font-bold tracking-widest uppercase text-text-muted/50">
+                {section.label}
+              </p>
             )}
-          </NavLink>
+            {section.items.map((item) => (
+              <NavItemLink key={item.to} item={item} />
+            ))}
+          </div>
         ))}
       </nav>
 
       <div className="border-t border-border px-3 py-3">
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            `flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-              isActive
-                ? 'bg-elevated text-primary font-medium'
-                : 'text-text-muted hover:text-text hover:bg-elevated/50'
-            }`
-          }
-        >
-          Settings
-        </NavLink>
+        <NavItemLink item={{ to: '/settings', label: 'Settings' }} />
       </div>
     </aside>
   )
@@ -144,6 +178,8 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/agents" element={<AgentRegistry />} />
             <Route path="/teams" element={<Teams />} />
+            <Route path="/tools" element={<ToolsHub />} />
+            <Route path="/knowledge" element={<KnowledgeExplorer />} />
             <Route path="/protocols" element={<ProtocolLibrary />} />
             <Route path="/pipelines" element={<Pipelines />} />
             <Route path="/run" element={<RunView />} />

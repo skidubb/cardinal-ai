@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { ToolCallEvent } from '../types'
 import { useProtocolStore } from '../stores/protocolStore'
 import { useTeamStore } from '../stores/teamStore'
 import { useAgentStore } from '../stores/agentStore'
-import { useRunStream } from '../hooks/useRunStream'
+import { useRunStream, type CostSummary, type AgentOutputEvent, type JudgeVerdict } from '../hooks/useRunStream'
 
 export default function RunView() {
   const { protocols, fetch: fetchProtocols } = useProtocolStore()
@@ -16,7 +17,19 @@ export default function RunView() {
   const [rounds, setRounds] = useState<number>(3)
   const [toolsEnabled, setToolsEnabled] = useState(true)
 
-  useEffect(() => { fetchProtocols(); fetchAgents() }, [fetchProtocols, fetchAgents])
+  const [searchParams] = useSearchParams()
+
+  useEffect(() => {
+    fetchProtocols()
+    fetchAgents()
+  }, [fetchProtocols, fetchAgents])
+
+  useEffect(() => {
+    const preselect = searchParams.get('protocol')
+    if (preselect && protocols.length > 0 && !protocolKey) {
+      setProtocolKey(preselect)
+    }
+  }, [searchParams, protocols, protocolKey])
 
   const proto = protocols.find(p => p.key === protocolKey)
   const teamAgents = allAgents.filter(a => currentTeamKeys.includes(a.key))
@@ -185,6 +198,14 @@ export default function RunView() {
             </div>
           )}
 
+          {/* Live stage progress */}
+          {isActive && stream.currentStage && (
+            <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+              <span className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+              <span className="text-sm font-medium text-blue-700">{stream.currentStage}</span>
+            </div>
+          )}
+
           {/* Running indicator */}
           {isActive && stream.outputs.length === 0 && stream.toolCalls.length === 0 && (
             <div className="bg-card border border-border rounded-xl p-8 text-center mb-4">
@@ -234,6 +255,40 @@ export default function RunView() {
               </div>
             </div>
           )}
+
+          {/* Judge verdict */}
+          {stream.judgeVerdict && (
+            <JudgeVerdictCard verdict={stream.judgeVerdict} />
+          )}
+
+          {/* Cost breakdown */}
+          {stream.status === 'completed' && stream.cost && (
+            <CostBreakdown cost={stream.cost} />
+          )}
+
+          {/* Download report */}
+          {stream.status === 'completed' && (
+            <div className="mt-4">
+              <button
+                onClick={() => downloadReport({
+                  protocolName: proto?.name || protocolKey,
+                  protocolKey,
+                  question,
+                  agents: stream.agents,
+                  outputs: stream.outputs,
+                  toolCalls: stream.toolCalls,
+                  synthesis: stream.synthesis,
+                  judgeVerdict: stream.judgeVerdict,
+                  cost: stream.cost,
+                  traceId: stream.traceId,
+                  elapsedSeconds: stream.elapsedSeconds,
+                })}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-elevated border border-border text-text hover:bg-white transition"
+              >
+                Download Report (.md)
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -281,6 +336,234 @@ function toolBadgeColor(toolName: string): string {
     if (toolName.toLowerCase().includes(domain)) return cls
   }
   return 'bg-elevated text-text-muted border-border'
+}
+
+function CostBreakdown({ cost }: { cost: CostSummary }) {
+  return (
+    <div className="mt-6 bg-card border border-border rounded-xl p-5">
+      <p className="text-xs font-bold tracking-wider uppercase text-text-muted mb-3">Cost Breakdown</p>
+      <div className="flex items-baseline gap-2 mb-4">
+        <span className="text-2xl font-semibold text-text">${cost.total_usd.toFixed(4)}</span>
+        <span className="text-xs text-text-muted">{cost.calls} API calls</span>
+      </div>
+
+      {Object.keys(cost.by_model).length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs font-medium text-text-muted mb-2">By Model</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-text-muted border-b border-border">
+                  <th className="pb-1.5 pr-4">Model</th>
+                  <th className="pb-1.5 pr-4 text-right">Calls</th>
+                  <th className="pb-1.5 pr-4 text-right">Input</th>
+                  <th className="pb-1.5 pr-4 text-right">Output</th>
+                  <th className="pb-1.5 text-right">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(cost.by_model).map(([model, m]) => (
+                  <tr key={model} className="border-b border-border/50">
+                    <td className="py-1.5 pr-4 font-mono text-text">{model}</td>
+                    <td className="py-1.5 pr-4 text-right text-text-muted">{m.calls}</td>
+                    <td className="py-1.5 pr-4 text-right text-text-muted">{m.input_tokens.toLocaleString()}</td>
+                    <td className="py-1.5 pr-4 text-right text-text-muted">{m.output_tokens.toLocaleString()}</td>
+                    <td className="py-1.5 text-right font-medium text-text">${m.cost_usd.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {Object.keys(cost.by_agent).length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-text-muted mb-2">By Agent</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-text-muted border-b border-border">
+                  <th className="pb-1.5 pr-4">Agent</th>
+                  <th className="pb-1.5 pr-4">Model</th>
+                  <th className="pb-1.5 pr-4 text-right">Calls</th>
+                  <th className="pb-1.5 pr-4 text-right">Input</th>
+                  <th className="pb-1.5 pr-4 text-right">Output</th>
+                  <th className="pb-1.5 text-right">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(cost.by_agent).map(([agent, a]) => (
+                  <tr key={agent} className="border-b border-border/50">
+                    <td className="py-1.5 pr-4 font-medium text-text">{agent}</td>
+                    <td className="py-1.5 pr-4 font-mono text-text-muted">{a.primary_model}</td>
+                    <td className="py-1.5 pr-4 text-right text-text-muted">{a.calls}</td>
+                    <td className="py-1.5 pr-4 text-right text-text-muted">{a.input_tokens.toLocaleString()}</td>
+                    <td className="py-1.5 pr-4 text-right text-text-muted">{a.output_tokens.toLocaleString()}</td>
+                    <td className="py-1.5 text-right font-medium text-text">${a.cost_usd.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function scoreColor(score: number): string {
+  if (score >= 4) return 'bg-green-100 text-green-700 border-green-200'
+  if (score >= 3) return 'bg-yellow-100 text-yellow-700 border-yellow-200'
+  return 'bg-red-100 text-red-700 border-red-200'
+}
+
+function JudgeVerdictCard({ verdict }: { verdict: JudgeVerdict }) {
+  const dimensions = [
+    { label: 'Completeness', score: verdict.completeness },
+    { label: 'Consistency', score: verdict.consistency },
+    { label: 'Actionability', score: verdict.actionability },
+    { label: 'Overall', score: verdict.overall },
+  ]
+  const isAccept = verdict.recommendation === 'accept'
+
+  return (
+    <div className="mt-6 bg-card border border-border rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold tracking-wider uppercase text-text-muted">Quality Judge</span>
+        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${isAccept ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+          {isAccept ? 'Accepted' : 'Revise'}
+        </span>
+      </div>
+      <div className="flex gap-3 mb-3">
+        {dimensions.map(d => (
+          <div key={d.label} className="flex flex-col items-center gap-1">
+            <span className={`w-10 h-10 rounded-lg border flex items-center justify-center text-sm font-bold ${scoreColor(d.score)}`}>
+              {d.score}
+            </span>
+            <span className="text-[10px] text-text-muted">{d.label}</span>
+          </div>
+        ))}
+      </div>
+      {verdict.flags.length > 0 && (
+        <div className="space-y-1">
+          {verdict.flags.map((flag, i) => (
+            <div key={i} className="flex items-start gap-1.5 text-xs text-amber-700">
+              <span className="mt-0.5 flex-shrink-0">&#9888;</span>
+              <span>{flag}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function downloadReport(data: {
+  protocolName: string
+  protocolKey: string
+  question: string
+  agents: { key: string; name: string }[]
+  outputs: AgentOutputEvent[]
+  toolCalls: ToolCallEvent[]
+  synthesis: string
+  judgeVerdict: JudgeVerdict | null
+  cost: CostSummary | null
+  traceId: string | null
+  elapsedSeconds: number | null
+}) {
+  const ts = new Date().toISOString()
+  const lines: string[] = [
+    `# Protocol Run Report`,
+    '',
+    `**Protocol:** ${data.protocolName} (\`${data.protocolKey}\`)`,
+    `**Question:** ${data.question}`,
+    `**Timestamp:** ${ts}`,
+    `**Duration:** ${data.elapsedSeconds != null ? `${data.elapsedSeconds}s` : 'N/A'}`,
+    `**Agents:** ${data.agents.map(a => a.name).join(', ')}`,
+    '',
+  ]
+
+  if (data.traceId) {
+    lines.push(`**Langfuse Trace:** [View in Langfuse](https://us.cloud.langfuse.com/trace/${data.traceId})`, '')
+  }
+
+  lines.push('---', '', '## Agent Outputs', '')
+  for (const out of data.outputs) {
+    const label = out.agent_name || out.agent_key
+    const meta = [out.round !== undefined && `Round ${out.round}`, out.step !== undefined && `Step ${out.step + 1}`].filter(Boolean).join(' | ')
+    lines.push(`### ${label}${meta ? ` (${meta})` : ''}`, '', out.text, '')
+  }
+
+  if (data.toolCalls.length > 0) {
+    lines.push('---', '', '## Tool Activity', '', `${data.toolCalls.length} tool calls total.`, '')
+    const grouped: Record<string, typeof data.toolCalls> = {}
+    for (const tc of data.toolCalls) {
+      const k = tc.agent_name || 'unknown'
+      if (!grouped[k]) grouped[k] = []
+      grouped[k].push(tc)
+    }
+    for (const [agent, calls] of Object.entries(grouped)) {
+      lines.push(`**${agent}:**`)
+      for (const tc of calls) {
+        const ms = tc.elapsed_ms != null ? ` (${Math.round(tc.elapsed_ms)}ms)` : ''
+        lines.push(`- \`${tc.tool_name}\`${ms}`)
+      }
+      lines.push('')
+    }
+  }
+
+  if (data.synthesis) {
+    lines.push('---', '', '## Synthesis', '', data.synthesis, '')
+  }
+
+  if (data.judgeVerdict) {
+    const v = data.judgeVerdict
+    lines.push('---', '', '## Quality Judge', '')
+    lines.push(`**Recommendation:** ${v.recommendation === 'accept' ? 'Accept' : 'Revise'}`, '')
+    lines.push('| Dimension | Score |', '|-----------|------:|')
+    lines.push(`| Completeness | ${v.completeness}/5 |`)
+    lines.push(`| Consistency | ${v.consistency}/5 |`)
+    lines.push(`| Actionability | ${v.actionability}/5 |`)
+    lines.push(`| Overall | ${v.overall}/5 |`)
+    lines.push('')
+    if (v.flags.length > 0) {
+      lines.push('**Flags:**')
+      for (const flag of v.flags) {
+        lines.push(`- ${flag}`)
+      }
+      lines.push('')
+    }
+  }
+
+  if (data.cost) {
+    lines.push('---', '', '## Cost Breakdown', '')
+    lines.push(`**Total:** $${data.cost.total_usd.toFixed(4)} (${data.cost.calls} calls)`, '')
+
+    if (Object.keys(data.cost.by_model).length > 0) {
+      lines.push('### By Model', '', '| Model | Calls | Input Tokens | Output Tokens | Cost |', '|-------|------:|-------------:|--------------:|-----:|')
+      for (const [model, m] of Object.entries(data.cost.by_model)) {
+        lines.push(`| \`${model}\` | ${m.calls} | ${m.input_tokens.toLocaleString()} | ${m.output_tokens.toLocaleString()} | $${m.cost_usd.toFixed(4)} |`)
+      }
+      lines.push('')
+    }
+
+    if (Object.keys(data.cost.by_agent).length > 0) {
+      lines.push('### By Agent', '', '| Agent | Model | Calls | Input | Output | Cost |', '|-------|-------|------:|------:|-------:|-----:|')
+      for (const [agent, a] of Object.entries(data.cost.by_agent)) {
+        lines.push(`| ${agent} | \`${a.primary_model}\` | ${a.calls} | ${a.input_tokens.toLocaleString()} | ${a.output_tokens.toLocaleString()} | $${a.cost_usd.toFixed(4)} |`)
+      }
+      lines.push('')
+    }
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `run-${data.protocolKey}-${new Date().toISOString().slice(0, 10)}.md`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function ToolActivityPanel({ toolCalls }: { toolCalls: ToolCallEvent[] }) {

@@ -33,11 +33,12 @@ const KB_NAMESPACES = [
 
 interface Props {
   agent: Agent
+  mode?: 'edit' | 'create'
   onClose: () => void
   onSaved: () => void
 }
 
-export default function AgentEditor({ agent, onClose, onSaved }: Props) {
+export default function AgentEditor({ agent, mode = 'edit', onClose, onSaved }: Props) {
   const { registry, fetch: fetchTools } = useToolStore()
   const [form, setForm] = useState<Agent>({ ...agent })
   const [saving, setSaving] = useState(false)
@@ -99,10 +100,20 @@ export default function AgentEditor({ agent, onClose, onSaved }: Props) {
   }
 
   const handleSave = async () => {
+    if (mode === 'create') {
+      if (!form.key || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(form.key)) {
+        setError('Key must be non-empty kebab-case (e.g., "my-agent")')
+        return
+      }
+    }
     setSaving(true)
     setError(null)
     try {
-      await api.agents.update(form.key, form)
+      if (mode === 'create') {
+        await api.agents.create(form)
+      } else {
+        await api.agents.update(form.key, form)
+      }
       onSaved()
     } catch (e) {
       setError((e as Error).message)
@@ -129,7 +140,7 @@ export default function AgentEditor({ agent, onClose, onSaved }: Props) {
       {/* Drawer */}
       <div className="relative w-[640px] max-w-full bg-white border-l border-border overflow-y-auto shadow-2xl">
         <div className="sticky top-0 z-10 bg-white border-b border-border px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-text">Edit Agent</h2>
+          <h2 className="text-lg font-semibold text-text">{mode === 'create' ? 'Create Agent' : 'Edit Agent'}</h2>
           <div className="flex items-center gap-3">
             {error && <span className="text-red-500 text-xs">{error}</span>}
             <button
@@ -153,7 +164,7 @@ export default function AgentEditor({ agent, onClose, onSaved }: Props) {
               </div>
               <div>
                 <Label>Key</Label>
-                <Input value={form.key} onChange={(v) => updateField('key', v)} disabled={agent.is_builtin} />
+                <Input value={form.key} onChange={(v) => updateField('key', v)} disabled={mode === 'edit' && agent.is_builtin} />
               </div>
               <div>
                 <Label>Category</Label>

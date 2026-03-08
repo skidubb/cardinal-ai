@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.database import create_db_and_tables
-from api.routers import agents, pipelines, protocols, runs, teams
+from api.routers import agents, integrations, knowledge, pipelines, protocols, runs, teams
 from api.routers.agents import tools_router
 
 load_dotenv()
@@ -27,7 +27,7 @@ app = FastAPI(title="CE Orchestrator API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,6 +55,8 @@ async def auth_middleware(request: Request, call_next):
 
 app.include_router(tools_router)
 app.include_router(agents.router)
+app.include_router(integrations.router)
+app.include_router(knowledge.router)
 app.include_router(protocols.router)
 app.include_router(teams.router)
 app.include_router(pipelines.router)

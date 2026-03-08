@@ -1,9 +1,38 @@
-# Custom Langfuse Evaluators for Coordination Lab
+# Langfuse Evaluators for Coordination Lab
 
-Paste these into Langfuse → Settings → Evaluators → Create New.
+Two evaluation layers score every protocol run:
+
+## Layer 1: Multi-Agent Dynamics (Programmatic — automatic)
+
+These run automatically via `protocols/multiagent_evals.py`, hooked into the
+`@trace_protocol` decorator. No Langfuse UI config needed. Scores appear on
+traces as `perspective_diversity`, `synthesis_fidelity`, `emergence`, and
+`constructive_tension`.
+
+Requires 2+ agent outputs and a synthesis. Uses Haiku for cost efficiency.
+Skip with `SKIP_MULTIAGENT_EVALS=1` env var.
+
+| Score | What it measures |
+|-------|-----------------|
+| `perspective_diversity` | Did agents bring meaningfully different analyses? |
+| `synthesis_fidelity` | Did synthesis capture all agents' key insights? |
+| `emergence` | Did the collective produce insights no single agent had? |
+| `constructive_tension` | Did agents productively challenge each other? |
+
+## Layer 2: Individual Agent Quality (Langfuse UI — manual setup)
+
+These score each agent's generation span independently. Paste into
+Langfuse → Settings → Evaluators → Create New.
 
 For each: set Model to `gemini-3.1-flash-lite-preview` (cheap), Filter to
 `Type = GENERATION` + `Metadata generation_type = agent`.
+
+| Score | Why it matters |
+|-------|---------------|
+| `Strategic Depth` | Detects when agents give generic platitudes instead of genuine analysis with second-order thinking. |
+| `Analytical Rigor` | Catches unsubstantiated assertions — agents should show evidence, trade-offs, and scenario analysis. |
+| `Actionability` | Ensures agent output is decision-ready, not theoretical hand-waving a leader can't act on. |
+| `Role Differentiation` | Validates that agents embody their persona — a CFO should sound like a CFO, not a generic advisor. |
 
 ---
 

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProtocolStore } from '../stores/protocolStore'
+import ProtocolDiagram from '../components/ProtocolDiagram'
 import type { Protocol } from '../types'
 
 const COST_COLORS: Record<string, string> = {
@@ -99,6 +101,9 @@ export default function ProtocolLibrary() {
 }
 
 function ProtocolDetail({ protocol }: { protocol: Protocol }) {
+  const navigate = useNavigate()
+  const [showDiagram, setShowDiagram] = useState(false)
+
   return (
     <div className="bg-card border border-border rounded-xl p-6 max-w-2xl">
       <div className="flex items-start justify-between mb-4">
@@ -116,7 +121,10 @@ function ProtocolDetail({ protocol }: { protocol: Protocol }) {
             )}
           </div>
         </div>
-        <button className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-hover shadow-lg shadow-primary/20 transition">
+        <button
+          onClick={() => navigate(`/run?protocol=${protocol.key}`)}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-hover shadow-lg shadow-primary/20 transition"
+        >
           Run This Protocol
         </button>
       </div>
@@ -168,6 +176,16 @@ function ProtocolDetail({ protocol }: { protocol: Protocol }) {
           <p className="text-sm text-text leading-relaxed">{protocol.when_not_to_use}</p>
         </div>
       )}
+
+      <div className="mt-4 pt-4 border-t border-border">
+        <button
+          onClick={() => setShowDiagram(!showDiagram)}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-elevated border border-border text-text hover:bg-white transition"
+        >
+          {showDiagram ? 'Hide Stage Diagram' : 'Show Stage Diagram'}
+        </button>
+        {showDiagram && <ProtocolDiagram protocolKey={protocol.key} />}
+      </div>
     </div>
   )
 }

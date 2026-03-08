@@ -4,8 +4,9 @@ import { useAgentStore } from '../stores/agentStore'
 
 export default function Teams() {
   const {
-    teams, currentTeamKeys, currentTeamName, loading,
-    fetch: fetchTeams, addAgent, removeAgent, setTeamName, clearTeam, saveTeam, deleteTeam,
+    teams, currentTeamKeys, currentTeamName, editingTeamId, loading,
+    fetch: fetchTeams, addAgent, removeAgent, setTeamName, clearTeam,
+    saveTeam, updateTeam, startEditing, cancelEditing, deleteTeam,
   } = useTeamStore()
   const { agents, fetch: fetchAgents } = useAgentStore()
   const [saving, setSaving] = useState(false)
@@ -27,7 +28,11 @@ export default function Teams() {
     if (currentTeamKeys.length === 0) return
     setSaving(true)
     try {
-      await saveTeam()
+      if (editingTeamId) {
+        await updateTeam()
+      } else {
+        await saveTeam()
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } finally {
@@ -49,15 +54,31 @@ export default function Teams() {
       <p className="text-xs font-bold tracking-wider uppercase text-text-muted mb-4">Team Composition</p>
 
       {/* Current team builder */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-8">
+      <div className={`bg-card border rounded-xl p-6 mb-8 ${editingTeamId ? 'border-primary/30' : 'border-border'}`}>
         <div className="flex items-center justify-between mb-4">
-          <input
-            type="text"
-            value={currentTeamName}
-            onChange={(e) => setTeamName(e.target.value)}
-            className="text-lg font-semibold text-text bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none px-1 py-0.5 transition"
-          />
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={currentTeamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              className="text-lg font-semibold text-text bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none px-1 py-0.5 transition"
+            />
+            {editingTeamId && (
+              <span className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                Editing
+              </span>
+            )}
+          </div>
           <div className="flex gap-2">
+            {editingTeamId && (
+              <button
+                onClick={cancelEditing}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted border border-border hover:bg-elevated transition"
+              >
+                Cancel
+              </button>
+            )}
             <button
               onClick={clearTeam}
               className="px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted border border-border hover:bg-elevated transition"
@@ -69,7 +90,7 @@ export default function Teams() {
               disabled={saving || currentTeamKeys.length === 0}
               className="px-4 py-1.5 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary-hover shadow-sm shadow-primary/20 transition disabled:opacity-50"
             >
-              {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Team'}
+              {saving ? 'Saving...' : saved ? 'Saved!' : editingTeamId ? 'Update Team' : 'Save Team'}
             </button>
           </div>
         </div>
@@ -152,7 +173,15 @@ export default function Teams() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {teams.map((team) => (
-            <div key={team.id} className="bg-card border border-border rounded-xl p-4">
+            <div
+              key={team.id}
+              onClick={() => startEditing(team)}
+              className={`bg-card border rounded-xl p-4 cursor-pointer transition hover:shadow-sm ${
+                editingTeamId === team.id
+                  ? 'border-primary/30 ring-1 ring-primary/10'
+                  : 'border-border hover:border-primary/20'
+              }`}
+            >
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-text">{team.name}</h3>
@@ -176,7 +205,7 @@ export default function Teams() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDelete(team.id)}
+                  onClick={(e) => { e.stopPropagation(); handleDelete(team.id) }}
                   disabled={deleting === team.id}
                   className="shrink-0 ml-2 px-2 py-1 rounded-lg text-xs text-text-muted hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 transition disabled:opacity-50"
                 >
