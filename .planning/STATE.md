@@ -8,13 +8,13 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Phase
 - Phase: 2
 - Status: In Progress
-- Plans: 3/5
+- Plans: 4/5
 
 ## Phase Summary
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
 | 1 | Shared Package & Pricing Unification | ● | 3/3 | 100% |
-| 2 | Environment Consolidation | ◐ | 3/5 | 60% |
+| 2 | Environment Consolidation | ◐ | 4/5 | 80% |
 | 3 | Token Estimation & Documentation | ○ | 0/0 | 0% |
 
 ## Key Decisions
@@ -30,6 +30,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - **Phase 2-2:** POSTGRES_PASSWORD has no default in docker-compose.yml (forces explicit .env); USER/DB have safe defaults
 - **Phase 2-3:** langfuse_tracing.py keeps dotenv fallback for graceful degradation when ce-shared is not installed
 - **Phase 2-3:** ce-db constructs DATABASE_URL from POSTGRES_* vars; no hardcoded password fallback
+- **Phase 2-4:** Docker-category keys grouped as "Docker / Database" separate from project groups; run_check catches EnvironmentError for graceful diagnostic output
 
 ## Metrics
 | Phase-Plan | Duration | Tasks | Files |
@@ -40,10 +41,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 | 02-01 | 2 min | 6 | 5 |
 | 02-02 | 2 min | 5 | 3 |
 | 02-03 | 3 min | 10 | 14 |
+| 02-04 | 2 min | 3 | 3 |
 
 ## Session
-- **Last completed:** 02-03-PLAN.md
-- **Next:** Continue Phase 2 environment consolidation plans (02-04 through 02-05)
+- **Last completed:** 02-04-PLAN.md
+- **Next:** Continue Phase 2 environment consolidation plan 02-05
 
 ## History
 - 2026-03-09: Completed Plan 01-01 (ce-shared package with verified pricing)
@@ -52,3 +54,4 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - 2026-03-09: Completed Plan 02-02 (consolidated root .env, .env.example, docker-compose.yml interpolation)
 - 2026-03-09: Completed Plan 02-01 (ce-shared env module with loader, registry, validation)
 - 2026-03-09: Completed Plan 02-03 (migrated all load_dotenv call sites to ce-shared loader)
+- 2026-03-09: Completed Plan 02-04 (env_check diagnostic CLI with Rich output)
