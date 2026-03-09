@@ -1007,10 +1007,10 @@ def calculate_model_tier_cost(
     Returns:
         Cost breakdown
     """
-    pricing = MODEL_PRICING.get(model_tier.lower(), MODEL_PRICING["opus"])
+    input_per_mtok, output_per_mtok = get_pricing(model_tier)
 
-    input_rate = pricing["input"] / 1_000_000
-    output_rate = pricing["output"] / 1_000_000
+    input_rate = input_per_mtok / 1_000_000
+    output_rate = output_per_mtok / 1_000_000
 
     # Non-cached input at full rate
     non_cached_input = max(0, input_tokens - cached_tokens)
