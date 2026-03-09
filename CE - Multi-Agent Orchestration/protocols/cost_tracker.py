@@ -15,10 +15,14 @@ Usage:
 
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any
 
 from ce_shared.pricing import cost_for_model, get_pricing
+
+logger = logging.getLogger(__name__)
 
 
 def _compute_cost(
@@ -81,11 +85,19 @@ class ProtocolCostTracker:
     Thread-safety note: protocols use asyncio (single thread), so no locking needed.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cost_ceiling_usd: float | None = None) -> None:
         self._calls: int = 0
         self._total_cost: float = 0.0
         self._by_model: dict[str, _ModelStats] = {}
         self._by_agent: dict[str, _AgentStats] = {}
+
+        # Budget ceiling: warn (but don't halt) when exceeded
+        if cost_ceiling_usd is not None:
+            self.cost_ceiling_usd: float | None = cost_ceiling_usd
+        else:
+            env_val = os.environ.get("PROTOCOL_COST_CEILING")
+            self.cost_ceiling_usd = float(env_val) if env_val else None
+        self._ceiling_warned: bool = False
 
     # ------------------------------------------------------------------
     # Public API
