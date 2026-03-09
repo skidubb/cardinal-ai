@@ -7,6 +7,9 @@ pyyaml>=6.0
 # Observability data layer (local package)
 ce-db @ file:../ce-db
 
+# Shared pricing and utilities (local package)
+ce-shared @ file:../ce-shared
+
 # Only needed for scripts/ingest_papers.py:
 PyMuPDF>=1.25.0
 pinecone>=5.0.0
