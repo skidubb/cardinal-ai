@@ -12,7 +12,7 @@
 
 ### Success Criteria
 1. `from ce_shared.pricing import MODEL_PRICING` succeeds in both Agent Builder and Orchestration venvs
-2. Running `csuite ceo "test"` and a protocol run both produce cost entries using Opus $5/$25, Sonnet $3/$15, Haiku $0.80/$4.00 pricing
+2. Running `csuite ceo "test"` and a protocol run both produce cost entries using Opus $5/$25, Sonnet $3/$15, Haiku $1/$5 pricing (verified against Anthropic docs 2026-03-09)
 3. Changing a price in `ce-shared/src/ce_shared/pricing.py` is immediately reflected in both projects without reinstall (editable install)
 4. No local pricing constants remain in either project's cost tracker files
 
