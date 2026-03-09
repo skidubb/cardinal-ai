@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CE - AGENTS Architecture</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f1117;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        header {
+            background: #1a1d27;
+            border-bottom: 1px solid #2a2d3a;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+        }
+        header h1 span { color: #818cf8; }
+        .controls {
+            display: flex;
+            gap: 8px;
+        }
+        .controls button {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid #3a3d4a;
+            background: #22252f;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.15s;
+        }
+        .controls button:hover {
+            background: #2a2d3a;
+            color: #fff;
+            border-color: #818cf8;
+        }
+        .diagram-container {
+            width: 100%;
+            height: calc(100vh - 60px);
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            padding: 24px;
+        }
+        .mermaid {
+            max-width: 100%;
+        }
+        .mermaid svg {
+            max-width: none !important;
+        }
+        .legend {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            background: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 12px;
+            z-index: 10;
+        }
+        .legend h3 { font-size: 13px; margin-bottom: 8px; color: #fff; }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0;
+        }
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><span>CE - AGENTS</span> &nbsp;Architecture Diagram</h1>
+        <div class="controls">
+            <button onclick="zoomIn()">+ Zoom In</button>
+            <button onclick="zoomOut()">- Zoom Out</button>
+            <button onclick="resetZoom()">Reset</button>
+            <button onclick="exportSVG()">Export SVG</button>
+        </div>
+    </header>
+
+    <div class="diagram-container" id="container">
+        <pre class="mermaid">
+graph TB
+    %% ═══════════════════════════════════════════
+    %% EXTERNAL SERVICES
+    %% ═══════════════════════════════════════════
+    subgraph EXTERNAL["External Services"]
+        anthropic["Anthropic API\n(Claude Opus 4.6 / Haiku 4.5)"]
+        llmproviders["LiteLLM Providers\n(OpenAI, Gemini, XAI, DeepSeek)"]
+        langfuse["Langfuse Cloud\n(us.cloud.langfuse.com)\nTraces · Spans · Scores"]
+        postgres["PostgreSQL 16\n(Docker: ce_platform)\nRuns · Agent Outputs · Evals"]
+        pinecone["Pinecone\n(ce-gtm-knowledge KB)\n(ce-c-suite-learning Memory)"]
+        notion_ext["Notion API"]
+        sec_edgar["SEC EDGAR"]
+        github_api["GitHub API"]
+        brave["Brave Search"]
+    end
+
+    %% ═══════════════════════════════════════════
+    %% CE - AGENT BUILDER
+    %% ═══════════════════════════════════════════
+    subgraph BUILDER["CE - Agent Builder (Agent Factory)"]
+        direction TB
+
+        subgraph AGENTS_CORE["Agent Core"]
+            factory["Agent Factory\n(backend router)\nlegacy / sdk"]
+            sdkagent["SdkAgent\n(Claude Agent SDK)\nasync chat()"]
+            baseagent["BaseAgent\n(Legacy API)"]
+            factory --> sdkagent
+            factory --> baseagent
+        end
+
+        subgraph ROLES["Agent Roles (67 total)"]
+            executives["7 Executives\nCEO · CFO · CTO\nCMO · COO · CPO · CRO"]
+            subreports["42+ Sub-Agents\nCEO: board-prep, deal-strategist\nCFO: cash-flow, pricing\nCTO: rd-lead, ml-eng, security\nGTM: SDR, AE, CSM, RevOps..."]
+            walkagents["14 Walk Agents\nobserver · synthesizer\nchallenger · poet\nhistorian · economist..."]
+        end
+
+        subgraph PROMPTS_SYS["Prompt System"]
+            prompts["System Prompts\n(per-role .py files)"]
+            kb_instructions["KB Instructions\n(appended to all)"]
+            debate_prompt["Debate Framework"]
+        end
+
+        subgraph MCP["MCP Servers"]
+            mcp_pinecone["Pinecone MCP\n(all agents)"]
+            mcp_notion["Notion MCP\n(all agents)"]
+            mcp_sec["SEC EDGAR MCP\n(CFO, CRO)"]
+            mcp_pricing["Pricing Calculator\n(CFO, CRO)"]
+            mcp_github["GitHub Intel MCP\n(CTO + reports)"]
+        end
+
+        subgraph TOOLS_REG["Tools (16 modules)"]
+            tools["web_search · web_fetch\nnotion_api · image_gen\nsec_edgar · github_api\npricing_calc · census\nbls · qa_protocol\npinecone_kb · report_gen\nresilience · cost_tracker"]
+            schemas["Tool Schemas\n(Anthropic format)"]
+            registry_tools["Tool Registry\n(role → tool map)"]
+        end
+
+        subgraph MEMORY_STORE["Memory & Storage"]
+            mem_store["Pinecone Memory\n(semantic, per-role ns)\ndecision · analysis\nfeedback · fact"]
+            duckdb["DuckDB\n(agent_memory.duckdb)\nsessions · prefs\nexperience_logs\ndebate_state\ncausal_traces"]
+            learning["Learning System\nfeedback_loop.py\nexperience_log.py\npreferences.py"]
+        end
+
+        subgraph SESSION["Session Management"]
+            session_mgr["SessionManager\nJSON persistence\nfork / resume\ncost tracking"]
+        end
+
+        subgraph CLI_BUILDER["CLI (csuite)"]
+            cli_ceo["csuite ceo 'question'"]
+            cli_synth["csuite synthesize"]
+            cli_debate["csuite debate"]
+            cli_audit["csuite audit"]
+            cli_interactive["csuite interactive\n(@ceo @all @debate)"]
+            cli_sessions["csuite sessions\nlist / resume / fork"]
+            cli_report["csuite report\nfinancial · ops · strategic"]
+        end
+
+        %% Internal Builder flows
+        executives --> sdkagent
+        subreports --> sdkagent
+        walkagents --> sdkagent
+        prompts --> sdkagent
+        kb_instructions --> prompts
+
+        sdkagent --> mcp_pinecone
+        sdkagent --> mcp_notion
+        sdkagent --> mcp_sec
+        sdkagent --> mcp_github
+        sdkagent --> mcp_pricing
+
+        sdkagent -->|"write experience,\nsessions"| duckdb
+        duckdb -->|"read prefs,\npast context"| sdkagent
+        sdkagent --> mem_store
+        learning --> mem_store
+        learning --> duckdb
+        baseagent --> duckdb
+
+        cli_ceo --> factory
+        cli_synth --> factory
+        cli_debate --> factory
+        cli_interactive --> factory
+        session_mgr --> duckdb
+    end
+
+    %% ═══════════════════════════════════════════
+    %% CE - MULTI-AGENT ORCHESTRATION
+    %% ═══════════════════════════════════════════
+    subgraph ORCH["CE - Multi-Agent Orchestration"]
+        direction TB
+
+        subgraph PROTO_LAYER["Protocol Layer (53 protocols)"]
+            meta["P0a-P0c Meta\nReasoning Router\nSkip Gate\nTiered Escalation"]
+            baselines["P3-P5 Baselines\nParallel Synthesis\nMulti-Round Debate\nConstraint Negotiation"]
+            lib_struct["P6-P15 Liberating Structures\nTRIZ · Wicked Questions\nMin Specs · Troika\n1-2-4-All · Ecocycle..."]
+            intel["P16-P18 Intelligence\nACH · Red/Blue/White\nDelphi Method"]
+            game["P19-P21 Game Theory\nVickrey · Borda\nInterests Negotiation"]
+            org["P22-P23 Org Theory\nSequential Pipeline\nCynefin Probe"]
+            systems_proto["P24-P25 Systems\nCausal Loop\nSystem Archetype"]
+            design["P26-P27 Design\nCrazy Eights\nAffinity Mapping"]
+            wave2["P28-P47 Wave 2 (20)\nSix Hats · PMI · Tetlock\nHegel · Klein · Popper\nBoyd OODA · Polya..."]
+            walk["P49-P52 Walk Family\nPeripatetic Walk\nTournament · Wildcard\nDrift Return"]
+        end
+
+        subgraph AGENT_REG["Agent Registry"]
+            agents_py["protocols/agents.py\n56 agents · 14 categories\n@category group syntax"]
+        end
+
+        subgraph EXEC_PIPE["Execution Pipeline"]
+            agent_provider["agent_provider.py\nDual Mode Router"]
+            bridge["AgentBridge\n(production mode)\nwraps SdkAgent"]
+            research_mode["Research Mode\n(thin dicts)"]
+            llm_dispatch["llm.py\nagent_complete()\nllm_complete()"]
+            litellm_router["LiteLLM Router\n(agent.model override)"]
+            cost_tracker["Cost Tracker\nper-model · per-agent\nUSD + tokens"]
+            retry["Retry Logic\n4 attempts\nexp backoff + jitter"]
+        end
+
+        subgraph OBSERVE["Observability"]
+            tracing["langfuse_tracing.py\n@trace_protocol\nrecord_generation()"]
+            persistence["persistence.py\npersist_run()\nRunEnvelope"]
+            evals_hook["multiagent_evals.py\n4 dimensions:\nperspective_diversity\nsynthesis_fidelity\nemergence\nconstructive_tension"]
+        end
+
+        subgraph API_LAYER["API Layer"]
+            fastapi["FastAPI Server\n(api/server.py)\nCORS · X-API-Key auth"]
+            runner["api/runner.py\nrun_protocol_stream\nrun_pipeline_stream"]
+
+            subgraph ROUTERS["Routers"]
+                r_protocols["protocols"]
+                r_agents["agents"]
+                r_runs["runs"]
+                r_teams["teams"]
+                r_knowledge["knowledge"]
+                r_tools["tools"]
+                r_pipelines["pipelines"]
+                r_integrations["integrations"]
+            end
+
+            sqlite["SQLite\n(api/database.py)\nRuns · AgentOutputs"]
+        end
+
+        subgraph UI_LAYER["UI (React + Vite + TS)"]
+            dashboard["Dashboard"]
+            proto_lib["Protocol Library"]
+            run_history["Run History"]
+            run_view["Run View\n(live streaming)"]
+            agent_reg_ui["Agent Registry"]
+            kb_explorer["Knowledge Explorer"]
+            tools_hub["Tools Hub"]
+            pipelines_ui["Pipelines"]
+            settings_ui["Settings"]
+            stores["Zustand Stores\nprotocol · run · agent\ntool · knowledge\nintegration · team · ui"]
+        end
+
+        %% Internal Orchestration flows
+        agents_py --> agent_provider
+        agent_provider -->|"production"| bridge
+        agent_provider -->|"research"| research_mode
+        bridge --> sdkagent
+
+        baselines --> llm_dispatch
+        lib_struct --> llm_dispatch
+        intel --> llm_dispatch
+        wave2 --> llm_dispatch
+        walk --> llm_dispatch
+
+        llm_dispatch --> retry
+        llm_dispatch -->|"agent.model set"| litellm_router
+        llm_dispatch -->|"default"| anthropic
+        llm_dispatch --> cost_tracker
+
+        baselines --> tracing
+        lib_struct --> tracing
+        walk --> tracing
+        tracing -->|"triggers post-run"| evals_hook
+        baselines --> persistence
+
+        runner --> baselines
+        runner --> lib_struct
+        runner --> intel
+        runner --> walk
+        fastapi --> runner
+        fastapi --> ROUTERS
+        ROUTERS --> sqlite
+
+        dashboard --> stores
+        run_view --> stores
+    end
+
+    %% ═══════════════════════════════════════════
+    %% CE - EVALS
+    %% ═══════════════════════════════════════════
+    subgraph EVALS["CE - Evals (Library)"]
+        blind_judge["BlindJudge\nanonymize candidates\nparallel multi-model"]
+        rubric["Rubric\n(eval criteria → prompt)"]
+        eval_runner["Eval Runner\nbatch support"]
+        eval_cost["Cost Accounting\nper-judge costs"]
+
+        subgraph BACKENDS["Judge Backends"]
+            claude_judge["Claude\n(Opus 4.6)"]
+            gpt4_judge["GPT-4\n(OpenAI)"]
+            gemini_judge["Gemini\n(Google)"]
+        end
+
+        eval_runner --> blind_judge
+        blind_judge --> rubric
+        blind_judge --> claude_judge
+        blind_judge --> gpt4_judge
+        blind_judge --> gemini_judge
+        eval_runner --> eval_cost
+    end
+
+    %% ═══════════════════════════════════════════
+    %% CE-DB
+    %% ═══════════════════════════════════════════
+    subgraph CEDB["ce-db (Shared Schema)"]
+        db_agents["agents table\nkey · category · model\nsystem_prompt · tools\nmcp_servers"]
+        db_runs["runs table\nprotocol_key · status\nresult_json · cost\nlangfuse_trace_id"]
+        db_evals["evals table\nscores_json\njudge_models\nrubric_id"]
+        db_session["Async SQLAlchemy\n+ asyncpg"]
+    end
+
+    %% ═══════════════════════════════════════════
+    %% N8N
+    %% ═══════════════════════════════════════════
+    subgraph N8N["n8n Workflows"]
+        n8n["Automation Flows\n(JSON exports)"]
+    end
+
+    %% ═══════════════════════════════════════════
+    %% CROSS-PROJECT CONNECTIONS
+    %% ═══════════════════════════════════════════
+
+    %% Agent Builder → External
+    sdkagent -->|"chat completions"| anthropic
+    mcp_pinecone -->|"KB read/write"| pinecone
+    mem_store -->|"learning memory\nper-role namespaces"| pinecone
+    mcp_notion --> notion_ext
+    mcp_sec --> sec_edgar
+    mcp_github --> github_api
+    tools -->|"web search"| brave
+
+    %% Orchestration → External
+    litellm_router --> llmproviders
+    tracing -->|"spans · tags\nsession_id"| langfuse
+    evals_hook -->|"score_trace()\n4 dimension scores"| langfuse
+    cost_tracker -.->|"cost_usd score"| langfuse
+    persistence -->|"RunEnvelope\nasync write"| postgres
+
+    %% Evals → External
+    claude_judge --> anthropic
+    gpt4_judge --> llmproviders
+    gemini_judge --> llmproviders
+
+    %% Evals ↔ Orchestration
+    eval_runner -.->|"protocol results\n+ agent outputs"| blind_judge
+
+    %% ce-db → Postgres
+    db_session --> postgres
+    CEDB --> persistence
+
+    %% n8n → API
+    n8n -.->|"triggers via HTTP"| fastapi
+
+    %% UI → API
+    stores -->|"fetch / WebSocket"| fastapi
+
+    %% Styling
+    classDef external fill:#fce4ec,stroke:#c62828,stroke-width:2px,color:#000
+    classDef builder fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef orch fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    classDef evals fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
+    classDef data fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
+    classDef ui fill:#e0f7fa,stroke:#00838f,stroke-width:2px,color:#000
+
+    class anthropic,llmproviders,langfuse,postgres,pinecone,notion_ext,sec_edgar,github_api,brave external
+    class sdkagent,baseagent,factory,prompts,tools,mem_store,duckdb,learning builder
+    class agents_py,llm_dispatch,litellm_router,bridge,tracing,persistence,evals_hook,cost_tracker orch
+    class blind_judge,rubric,eval_runner,claude_judge,gpt4_judge,gemini_judge evals
+    class sqlite,db_agents,db_runs,db_evals,db_session data
+    class dashboard,proto_lib,run_history,run_view,agent_reg_ui,stores ui
+        </pre>
+    </div>
+
+    <div class="legend">
+        <h3>Legend</h3>
+        <div class="legend-item"><div class="legend-dot" style="background:#fce4ec;border:1px solid #c62828"></div> External Services</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e8f5e9;border:1px solid #2e7d32"></div> Agent Builder</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e3f2fd;border:1px solid #1565c0"></div> Orchestration</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fff3e0;border:1px solid #e65100"></div> Evals</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f3e5f5;border:1px solid #6a1b9a"></div> Data / Storage</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e0f7fa;border:1px solid #00838f"></div> UI Layer</div>
+    </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                darkMode: true,
+                background: '#0f1117',
+                primaryColor: '#1e3a5f',
+                primaryTextColor: '#e0e0e0',
+                primaryBorderColor: '#4a90d9',
+                lineColor: '#6b7280',
+                secondaryColor: '#1a2744',
+                tertiaryColor: '#1a1d27',
+                fontSize: '14px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
+            },
+            flowchart: {
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 16,
+                nodeSpacing: 30,
+                rankSpacing: 40,
+                useMaxWidth: false
+            },
+            securityLevel: 'loose'
+        });
+
+        let currentZoom = 1;
+        const container = document.getElementById('container');
+
+        window.zoomIn = () => {
+            currentZoom = Math.min(currentZoom + 0.2, 3);
+            applyZoom();
+        };
+        window.zoomOut = () => {
+            currentZoom = Math.max(currentZoom - 0.2, 0.3);
+            applyZoom();
+        };
+        window.resetZoom = () => {
+            currentZoom = 1;
+            applyZoom();
+        };
+
+        function applyZoom() {
+            const svg = container.querySelector('svg');
+            if (svg) {
+                svg.style.transform = `scale(${currentZoom})`;
+                svg.style.transformOrigin = 'top center';
+            }
+        }
+
+        window.exportSVG = () => {
+            const svg = container.querySelector('svg');
+            if (!svg) return;
+            const clone = svg.cloneNode(true);
+            clone.style.transform = '';
+            const blob = new Blob([clone.outerHTML], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ce-agents-architecture.svg';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+    </script>
+</body>
+</html>
