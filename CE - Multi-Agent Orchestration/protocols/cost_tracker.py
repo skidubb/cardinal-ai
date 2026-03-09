@@ -18,38 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Pricing constants  (Anthropic public pricing, March 2026)
-# Per million tokens (MTok) — input / output in USD
-# ---------------------------------------------------------------------------
-
-_PRICING: dict[str, dict[str, float]] = {
-    # Exact model IDs
-    "claude-opus-4-6":            {"input": 15.00, "output": 75.00},
-    "claude-opus-4-5":            {"input": 15.00, "output": 75.00},
-    "claude-sonnet-4-6":          {"input":  3.00, "output": 15.00},
-    "claude-sonnet-4-5-20250929": {"input":  3.00, "output": 15.00},
-    "claude-haiku-4-5-20251001":  {"input":  0.80, "output":  4.00},
-    "claude-haiku-4-5":           {"input":  0.80, "output":  4.00},
-    # Substring fallbacks (matched in order)
-    "opus":   {"input": 15.00, "output": 75.00},
-    "sonnet": {"input":  3.00, "output": 15.00},
-    "haiku":  {"input":  0.80, "output":  4.00},
-}
-
-_CACHE_READ_MULTIPLIER = 0.10  # cached input tokens charged at 10% of normal rate
-
-
-def _price_for_model(model: str) -> dict[str, float]:
-    """Return input/output pricing for a model string."""
-    if model in _PRICING:
-        return _PRICING[model]
-    lower = model.lower()
-    for key in ("opus", "sonnet", "haiku"):
-        if key in lower:
-            return _PRICING[key]
-    # Conservative fallback — charge at Opus rate
-    return _PRICING["opus"]
+from ce_shared.pricing import cost_for_model, get_pricing
 
 
 def _compute_cost(
@@ -58,15 +27,21 @@ def _compute_cost(
     output_tokens: int,
     cached_tokens: int = 0,
 ) -> float:
-    """Return USD cost for a single API call."""
-    pricing = _price_for_model(model)
-    input_rate = pricing["input"] / 1_000_000
-    output_rate = pricing["output"] / 1_000_000
+    """Return USD cost for a single API call.
 
+    Thin wrapper around ``ce_shared.pricing.cost_for_model``.
+
+    Note: *input_tokens* here is the **total** input count (including any
+    cached portion).  ``cost_for_model`` expects regular (non-cached) tokens
+    separately, so we subtract *cached_tokens* before delegating.
+    """
     non_cached = max(0, input_tokens - cached_tokens)
-    input_cost = non_cached * input_rate + cached_tokens * input_rate * _CACHE_READ_MULTIPLIER
-    output_cost = output_tokens * output_rate
-    return input_cost + output_cost
+    return cost_for_model(
+        model,
+        input_tokens=non_cached,
+        output_tokens=output_tokens,
+        cache_read_tokens=cached_tokens,
+    )
 
 
 # ---------------------------------------------------------------------------
