@@ -20,6 +20,7 @@ See: /Users/scottewalt/Documents/CE - C-Suite/Strategy Meeting/CFO-Agent-Economi
 import json
 import os
 from datetime import datetime, timedelta
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
