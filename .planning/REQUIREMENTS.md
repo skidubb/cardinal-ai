@@ -81,40 +81,40 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SHPK-01 | — | Pending |
-| SHPK-02 | — | Pending |
-| SHPK-03 | — | Pending |
-| PRIC-01 | — | Pending |
-| PRIC-02 | — | Pending |
-| PRIC-03 | — | Pending |
-| PRIC-04 | — | Pending |
-| PRIC-05 | — | Pending |
-| PRIC-06 | — | Pending |
-| PRIC-07 | — | Pending |
-| PRIC-08 | — | Pending |
-| ENVR-01 | — | Pending |
-| ENVR-02 | — | Pending |
-| ENVR-03 | — | Pending |
-| ENVR-04 | — | Pending |
-| ENVR-05 | — | Pending |
-| ENVR-06 | — | Pending |
-| ENVR-07 | — | Pending |
-| ENVR-08 | — | Pending |
-| ENVR-09 | — | Pending |
-| TOKN-01 | — | Pending |
-| TOKN-02 | — | Pending |
-| TOKN-03 | — | Pending |
-| TOKN-04 | — | Pending |
-| TOKN-05 | — | Pending |
-| TOKN-06 | — | Pending |
-| DOCS-01 | — | Pending |
-| DOCS-02 | — | Pending |
+| SHPK-01 | 1 | Pending |
+| SHPK-02 | 1 | Pending |
+| SHPK-03 | 1 | Pending |
+| PRIC-01 | 1 | Pending |
+| PRIC-02 | 1 | Pending |
+| PRIC-03 | 1 | Pending |
+| PRIC-04 | 1 | Pending |
+| PRIC-05 | 1 | Pending |
+| PRIC-06 | 1 | Pending |
+| PRIC-07 | 1 | Pending |
+| PRIC-08 | 1 | Pending |
+| ENVR-01 | 2 | Pending |
+| ENVR-02 | 2 | Pending |
+| ENVR-03 | 2 | Pending |
+| ENVR-04 | 2 | Pending |
+| ENVR-05 | 2 | Pending |
+| ENVR-06 | 2 | Pending |
+| ENVR-07 | 2 | Pending |
+| ENVR-08 | 2 | Pending |
+| ENVR-09 | 2 | Pending |
+| TOKN-01 | 3 | Pending |
+| TOKN-02 | 3 | Pending |
+| TOKN-03 | 3 | Pending |
+| TOKN-04 | 3 | Pending |
+| TOKN-05 | 3 | Pending |
+| TOKN-06 | 3 | Pending |
+| DOCS-01 | 3 | Pending |
+| DOCS-02 | 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 ⚠️
+- Mapped to phases: 28 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after initial definition*
+*Last updated: 2026-03-09 after roadmap creation*
