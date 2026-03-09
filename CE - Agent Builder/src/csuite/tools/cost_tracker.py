@@ -134,20 +134,13 @@ class UsageRecord(BaseModel):
         self.total_cost = self.input_cost + self.output_cost
 
     def _get_pricing(self) -> dict[str, float]:
-        """Get pricing for this record's model."""
-        # Try exact match first
-        model_lower = self.model.lower()
-        for tier in ModelTier:
-            if tier.value == self.model:
-                return MODEL_PRICING[tier]
+        """Get pricing for this record's model.
 
-        # Fallback to substring match
-        for key in ["opus", "sonnet", "haiku"]:
-            if key in model_lower:
-                return MODEL_PRICING[key]
-
-        # Default to Opus pricing (conservative)
-        return MODEL_PRICING["opus"]
+        Delegates to ce_shared.pricing.get_pricing() which handles exact match,
+        substring fallback, and conservative defaults.
+        """
+        input_rate, output_rate = get_pricing(self.model)
+        return {"input": input_rate, "output": output_rate}
 
 
 class AggregatedMetrics(BaseModel):
