@@ -6,6 +6,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
+from ce_shared.env import find_and_load_dotenv
+
 
 class Settings(BaseSettings):
     anthropic_api_key: str = ""
@@ -20,14 +22,18 @@ class Settings(BaseSettings):
     ]
     project_root: Path = Path(__file__).resolve().parent.parent.parent
 
-    model_config = {"env_prefix": "", "env_file": ".env", "extra": "ignore"}
+    model_config = {"env_prefix": "", "extra": "ignore"}
 
 
 _settings: Settings | None = None
+_env_loaded = False
 
 
 def get_settings() -> Settings:
-    global _settings
+    global _settings, _env_loaded
+    if not _env_loaded:
+        find_and_load_dotenv(project="evals")
+        _env_loaded = True
     if _settings is None:
         _settings = Settings()
     return _settings
