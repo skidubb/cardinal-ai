@@ -3,18 +3,18 @@
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-09)
 **Core value:** Cost tracking and pricing data must be accurate and consistent
-**Current focus:** Phase 1
+**Current focus:** Phase 2
 
 ## Current Phase
-- Phase: 1
-- Status: Complete
-- Plans: 3/3
+- Phase: 2
+- Status: In Progress
+- Plans: 1/5
 
 ## Phase Summary
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
 | 1 | Shared Package & Pricing Unification | ● | 3/3 | 100% |
-| 2 | Environment Consolidation | ○ | 0/0 | 0% |
+| 2 | Environment Consolidation | ◐ | 1/5 | 20% |
 | 3 | Token Estimation & Documentation | ○ | 0/0 | 0% |
 
 ## Key Decisions
@@ -26,6 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - **Phase 1-2:** Used get_pricing() from ce-shared for all lookup sites (delegates logic to shared module)
 - **Phase 1-3:** _compute_cost() preserved as thin wrapper to avoid changing protocols/llm.py import
 - **Phase 1-3:** input_tokens parameter semantics mapped: Orchestration passes total (including cached), ce-shared expects non-cached separately
+- **Phase 2-2:** Used Agent Builder's ANTHROPIC_API_KEY as default; Orchestration's different key preserved as comment
+- **Phase 2-2:** POSTGRES_PASSWORD has no default in docker-compose.yml (forces explicit .env); USER/DB have safe defaults
 
 ## Metrics
 | Phase-Plan | Duration | Tasks | Files |
@@ -33,12 +35,14 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 | 01-01 | 3 min | 7 | 6 |
 | 01-02 | 3 min | 7 | 2 |
 | 01-03 | 1 min | 7 | 2 |
+| 02-02 | 2 min | 5 | 3 |
 
 ## Session
-- **Last completed:** 01-02-PLAN.md
-- **Next:** Phase 1 complete, ready for Phase 2
+- **Last completed:** 02-02-PLAN.md
+- **Next:** Continue Phase 2 environment consolidation plans
 
 ## History
 - 2026-03-09: Completed Plan 01-01 (ce-shared package with verified pricing)
 - 2026-03-09: Completed Plan 01-03 (Orchestration cost tracker migrated to ce-shared)
 - 2026-03-09: Completed Plan 01-02 (Agent Builder cost tracker migration to ce-shared)
+- 2026-03-09: Completed Plan 02-02 (consolidated root .env, .env.example, docker-compose.yml interpolation)
