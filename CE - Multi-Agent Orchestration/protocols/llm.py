@@ -258,7 +258,27 @@ async def agent_complete(
     # Production agent detection: if agent has chat(), use it directly
     if hasattr(agent, "chat") and callable(agent.chat):
         user_msg = messages[-1]["content"] if messages else ""
-        return await agent.chat(user_msg)
+        result = await agent.chat(user_msg)
+        cost_usd = getattr(agent, "cost", 0.0)
+        if cost_usd and cost_usd > 0:
+            from ce_shared.pricing import estimate_tokens_from_cost
+            est = estimate_tokens_from_cost(fallback_model, cost_usd)
+            agent_name_val = getattr(agent, "name", None)
+            tracker = _cost_tracker.get()
+            _record_usage(
+                response=None,
+                model=fallback_model,
+                agent_name=agent_name_val,
+                estimated_tokens=est,
+                cost_usd=cost_usd,
+                input_messages=user_msg,
+            )
+        else:
+            _log.warning(
+                "Production agent %s returned zero cost — skipping token estimation",
+                getattr(agent, "name", "unknown"),
+            )
+        return result
 
     effective_no_tools = no_tools or _no_tools.get()
     system_prompt = system or agent.get("system_prompt", "")
