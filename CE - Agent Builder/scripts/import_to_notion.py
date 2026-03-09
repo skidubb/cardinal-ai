@@ -13,10 +13,10 @@ import time
 from pathlib import Path
 
 from notion_client import Client
-from dotenv import load_dotenv
+from ce_shared.env import find_and_load_dotenv
 import os
 
-load_dotenv()
+find_and_load_dotenv()
 
 notion = Client(auth=os.environ["NOTION_API_KEY"])
 
