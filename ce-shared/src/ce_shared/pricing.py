@@ -119,6 +119,49 @@ def get_pricing(model: str) -> tuple[float, float]:
     return _DEFAULT_PRICING
 
 
+def estimate_tokens_from_cost(
+    model: str,
+    cost_usd: float,
+    input_output_ratio: float = 5.0,
+) -> dict[str, int | str]:
+    """Estimate input/output token counts from a known USD cost.
+
+    Inverse of ``cost_for_model()``.  Given a model name and total cost,
+    back-calculate estimated input and output token counts assuming a
+    configurable input:output ratio (default 5:1).
+
+    Args:
+        model: Model ID string (exact or partial).
+        cost_usd: Total cost in USD.
+        input_output_ratio: Ratio of input tokens to output tokens
+            (default 5.0, meaning 5 input tokens per 1 output token).
+
+    Returns:
+        Dict with ``input_tokens`` (int), ``output_tokens`` (int), and
+        ``token_source`` (str, always ``"estimated_from_cost"``).
+    """
+    if cost_usd <= 0:
+        return {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "token_source": "estimated_from_cost",
+        }
+
+    input_rate, output_rate = get_pricing(model)
+
+    # cost = (input_tokens * input_rate + output_tokens * output_rate) / 1_000_000
+    # With input_tokens = ratio * output_tokens:
+    # cost = output_tokens * (ratio * input_rate + output_rate) / 1_000_000
+    output_tokens = cost_usd * 1_000_000 / (input_output_ratio * input_rate + output_rate)
+    input_tokens = input_output_ratio * output_tokens
+
+    return {
+        "input_tokens": max(1, round(input_tokens)),
+        "output_tokens": max(1, round(output_tokens)),
+        "token_source": "estimated_from_cost",
+    }
+
+
 def cost_for_model(
     model: str,
     input_tokens: int,
