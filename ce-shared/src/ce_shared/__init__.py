@@ -14,6 +14,7 @@ from ce_shared.pricing import (
     PRICING_VERIFIED_DATE,
     ModelTier,
     cost_for_model,
+    estimate_tokens_from_cost,
     get_pricing,
 )
 
@@ -31,5 +32,6 @@ __all__ = [
     "PRICING_VERIFIED_DATE",
     "ModelTier",
     "cost_for_model",
+    "estimate_tokens_from_cost",
     "get_pricing",
 ]
