@@ -176,3 +176,69 @@ def test_multiplier_values():
     assert CACHE_READ_MULTIPLIER == 0.10
     assert CACHE_WRITE_MULTIPLIER == 1.25
     assert BATCH_DISCOUNT == 0.50
+
+
+# ---------------------------------------------------------------------------
+# Token estimation from cost
+# ---------------------------------------------------------------------------
+
+
+def test_estimate_tokens_basic():
+    """Known model + known cost produces non-zero int tokens with correct source."""
+    from ce_shared import estimate_tokens_from_cost
+
+    result = estimate_tokens_from_cost("claude-opus-4-6", 0.03)
+    assert isinstance(result["input_tokens"], int)
+    assert isinstance(result["output_tokens"], int)
+    assert result["input_tokens"] > 0
+    assert result["output_tokens"] > 0
+    assert result["token_source"] == "estimated_from_cost"
+
+
+def test_estimate_tokens_zero_cost():
+    """Cost=0 returns all zeros."""
+    from ce_shared import estimate_tokens_from_cost
+
+    result = estimate_tokens_from_cost("claude-opus-4-6", 0)
+    assert result["input_tokens"] == 0
+    assert result["output_tokens"] == 0
+    assert result["token_source"] == "estimated_from_cost"
+
+
+def test_estimate_tokens_unknown_model():
+    """Unknown model string uses Opus-tier pricing (TOKN-04)."""
+    from ce_shared import estimate_tokens_from_cost
+
+    known = estimate_tokens_from_cost("claude-opus-4-6", 0.10)
+    unknown = estimate_tokens_from_cost("totally-unknown-model-xyz", 0.10)
+    assert known == unknown
+
+
+def test_estimate_tokens_round_trip():
+    """Estimate tokens, recompute cost, verify within 5% of original."""
+    from ce_shared import estimate_tokens_from_cost
+
+    original_cost = 0.05
+    result = estimate_tokens_from_cost("claude-opus-4-6", original_cost)
+    recomputed = cost_for_model(
+        "claude-opus-4-6", result["input_tokens"], result["output_tokens"]
+    )
+    assert abs(recomputed - original_cost) / original_cost < 0.05
+
+
+def test_estimate_tokens_minimum_one():
+    """Very small non-zero cost produces at least 1 for each token field."""
+    from ce_shared import estimate_tokens_from_cost
+
+    result = estimate_tokens_from_cost("claude-opus-4-6", 0.0000001)
+    assert result["input_tokens"] >= 1
+    assert result["output_tokens"] >= 1
+
+
+def test_estimate_tokens_custom_ratio():
+    """Passing input_output_ratio=3.0 changes the result vs default 5.0."""
+    from ce_shared import estimate_tokens_from_cost
+
+    default = estimate_tokens_from_cost("claude-opus-4-6", 0.10)
+    custom = estimate_tokens_from_cost("claude-opus-4-6", 0.10, input_output_ratio=3.0)
+    assert default != custom
