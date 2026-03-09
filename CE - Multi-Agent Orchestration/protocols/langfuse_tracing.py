@@ -306,6 +306,7 @@ def record_generation(
     cost_usd: float | None = None,
     input_content: list[dict] | str | None = None,
     output_content: str | None = None,
+    token_source: str | None = None,
 ) -> None:
     """Record an LLM call as a Langfuse generation under the current trace.
 
@@ -316,6 +317,9 @@ def record_generation(
     Tags each generation with ``generation_type: agent`` or
     ``generation_type: mechanical`` in metadata so Langfuse evaluators
     can target only agent responses (where scoring is meaningful).
+
+    When ``token_source`` is provided (e.g., ``"estimated_from_cost"`` or
+    ``"sdk_response"``), it is included in the span metadata for provenance.
     """
     if not _langfuse_available:
         return
@@ -329,6 +333,8 @@ def record_generation(
         "cached_tokens": cached_tokens,
         "generation_type": "mechanical" if mechanical else "agent",
     }
+    if token_source:
+        metadata["token_source"] = token_source
     if latency_ms:
         metadata["latency_ms"] = latency_ms
 
