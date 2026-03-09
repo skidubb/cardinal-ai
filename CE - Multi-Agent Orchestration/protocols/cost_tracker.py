@@ -138,6 +138,20 @@ class ProtocolCostTracker:
             model_stats.cached_tokens += cached_tokens
             model_stats.cost_usd += cost
 
+        # Budget ceiling check (warn once per run)
+        if (
+            self.cost_ceiling_usd is not None
+            and not self._ceiling_warned
+            and self._total_cost > self.cost_ceiling_usd
+        ):
+            self._ceiling_warned = True
+            logger.warning(
+                "Protocol cost $%.4f exceeds ceiling $%.2f%s",
+                self._total_cost,
+                self.cost_ceiling_usd,
+                f" (model: {model})" if model else "",
+            )
+
     @property
     def total_cost(self) -> float:
         """Total USD cost accumulated so far."""
