@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "ce-shared"
 version = "0.1.0"
 description = "Shared utilities for the CE-AGENTS monorepo"
-readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 
