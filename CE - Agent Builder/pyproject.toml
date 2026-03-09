@@ -14,6 +14,7 @@ authors = [
 ]
 dependencies = [
     "anthropic>=0.83.0",
+    "ce-shared @ file:../ce-shared",
 
     "click>=8.1.0",
     "rich>=13.0.0",
@@ -39,6 +40,9 @@ dev = [
 
 [project.scripts]
 csuite = "csuite.main:cli"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/csuite"]
