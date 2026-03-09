@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
+from ce_shared.env import find_and_load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -14,7 +14,7 @@ from api.database import create_db_and_tables
 from api.routers import agents, integrations, knowledge, pipelines, protocols, runs, teams
 from api.routers.agents import tools_router
 
-load_dotenv()
+find_and_load_dotenv()
 
 
 @asynccontextmanager
