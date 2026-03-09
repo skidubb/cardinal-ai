@@ -20,40 +20,19 @@ See: /Users/scottewalt/Documents/CE - C-Suite/Strategy Meeting/CFO-Agent-Economi
 import json
 import os
 from datetime import datetime, timedelta
-from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-# =============================================================================
-# Cost Model Constants (Anthropic Pricing - February 2026)
-# =============================================================================
-
-class ModelTier(StrEnum):
-    """Model tiers with associated pricing."""
-    OPUS = "claude-opus-4-6"
-    SONNET = "claude-sonnet-4-5-20250929"
-    HAIKU = "claude-haiku-4-5-20251001"
-
-
-# Pricing per million tokens (MTok)
-MODEL_PRICING = {
-    ModelTier.OPUS: {"input": 5.00, "output": 25.00},
-    ModelTier.SONNET: {"input": 3.00, "output": 15.00},
-    ModelTier.HAIKU: {"input": 1.00, "output": 5.00},
-    # Fallback for any model containing these substrings
-    "opus": {"input": 5.00, "output": 25.00},
-    "sonnet": {"input": 3.00, "output": 15.00},
-    "haiku": {"input": 1.00, "output": 5.00},
-}
-
-# Batch API discount: 50% off
-BATCH_DISCOUNT = 0.50
-
-# Cache pricing: writes 1.25x, reads 0.1x
-CACHE_WRITE_MULTIPLIER = 1.25
-CACHE_READ_MULTIPLIER = 0.10
+from ce_shared.pricing import (
+    BATCH_DISCOUNT,
+    CACHE_READ_MULTIPLIER,
+    CACHE_WRITE_MULTIPLIER,
+    MODEL_PRICING,
+    ModelTier,
+    get_pricing,
+)
 
 
 # =============================================================================
