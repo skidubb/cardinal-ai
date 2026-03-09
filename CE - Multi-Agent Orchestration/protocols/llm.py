@@ -122,19 +122,33 @@ def _record_usage(
     response: Any,
     agent_name: str | None = None,
     input_messages: list[dict] | str | None = None,
+    estimated_tokens: dict | None = None,
+    cost_usd: float | None = None,
 ) -> None:
     """Extract token counts from an API response and forward to the active tracker.
 
     Also records a Langfuse generation span if tracing is active.
     ``input_messages`` is the prompt sent to the LLM (for Langfuse eval visibility).
+
+    When ``estimated_tokens`` is provided (and ``response`` is None), uses the
+    estimated values instead of extracting from an SDK response. This supports
+    production SDK agents where only cumulative cost is available.
     """
-    usage = getattr(response, "usage", None)
-    if usage is None:
-        return
-    input_tokens = getattr(usage, "input_tokens", 0) or 0
-    output_tokens = getattr(usage, "output_tokens", 0) or 0
-    # cache_read_input_tokens is Anthropic SDK's attribute name for prompt-cache hits
-    cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+    if estimated_tokens is not None and response is None:
+        # Estimated path — production SDK agent with cost-based estimation
+        input_tokens = estimated_tokens.get("input_tokens", 0)
+        output_tokens = estimated_tokens.get("output_tokens", 0)
+        cached_tokens = 0
+        token_source = "estimated_from_cost"
+    else:
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return
+        input_tokens = getattr(usage, "input_tokens", 0) or 0
+        output_tokens = getattr(usage, "output_tokens", 0) or 0
+        # cache_read_input_tokens is Anthropic SDK's attribute name for prompt-cache hits
+        cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+        token_source = "sdk_response"
 
     tracker = _cost_tracker.get()
     if tracker is None:
@@ -160,21 +174,25 @@ def _record_usage(
 
     # Extract response text for Langfuse eval visibility
     response_text: str | None = None
-    try:
-        response_text = extract_text(response)
-    except Exception:
-        pass
+    if response is not None:
+        try:
+            response_text = extract_text(response)
+        except Exception:
+            pass
 
     # Langfuse generation span (no-op if not configured)
     try:
         from protocols.langfuse_tracing import record_generation
         from protocols.cost_tracker import _compute_cost
-        call_cost = _compute_cost(model, input_tokens, output_tokens, cached_tokens)
+        call_cost = cost_usd if cost_usd is not None else _compute_cost(
+            model, input_tokens, output_tokens, cached_tokens
+        )
         record_generation(
             model, input_tokens, output_tokens, cached_tokens, agent_name,
             cost_usd=call_cost,
             input_content=input_messages,
             output_content=response_text,
+            token_source=token_source,
         )
     except ImportError:
         pass
