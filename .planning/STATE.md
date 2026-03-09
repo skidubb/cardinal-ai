@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-09T20:58:28.976Z"
+last_updated: "2026-03-09T21:17:06.762Z"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 12
+  completed_plans: 9
 ---
 
 # Project State
@@ -16,19 +16,19 @@ progress:
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-09)
 **Core value:** Cost tracking and pricing data must be accurate and consistent
-**Current focus:** Phase 2
+**Current focus:** Phase 3
 
 ## Current Phase
-- Phase: 2
+- Phase: 3
 - Status: In Progress
-- Plans: 5/5
+- Plans: 1/4
 
 ## Phase Summary
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
 | 1 | Shared Package & Pricing Unification | ● | 3/3 | 100% |
 | 2 | Environment Consolidation | ● | 5/5 | 100% |
-| 3 | Token Estimation & Documentation | ○ | 0/0 | 0% |
+| 3 | Token Estimation & Documentation | ◐ | 1/4 | 25% |
 
 ## Key Decisions
 - **Phase 1-1:** Opus 4.6 = $5/$25 (not $15/$75 as Orchestration tracker had — that was Opus 4.0/4.1 pricing)
@@ -44,6 +44,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - **Phase 2-3:** langfuse_tracing.py keeps dotenv fallback for graceful degradation when ce-shared is not installed
 - **Phase 2-3:** ce-db constructs DATABASE_URL from POSTGRES_* vars; no hardcoded password fallback
 - **Phase 2-4:** Docker-category keys grouped as "Docker / Database" separate from project groups; run_check catches EnvironmentError for graceful diagnostic output
+- **Phase 3-1:** Formula: output_tokens = cost * 1M / (ratio * input_rate + output_rate); max(1, round()) guarantees min 1 token
 
 ## Metrics
 | Phase-Plan | Duration | Tasks | Files |
@@ -56,10 +57,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 | 02-03 | 3 min | 10 | 14 |
 | 02-04 | 2 min | 3 | 3 |
 | 02-05 | 2 min | 8 | 0 |
+| 03-01 | 1 min | 4 | 3 |
 
 ## Session
-- **Last completed:** 02-05-PLAN.md
-- **Next:** Phase 2 complete. Begin Phase 3 (Token Estimation & Documentation)
+- **Last completed:** 03-01-PLAN.md
+- **Next:** Continue Phase 3 with Plan 03-02
 
 ## History
 - 2026-03-09: Completed Plan 01-01 (ce-shared package with verified pricing)
@@ -70,3 +72,4 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - 2026-03-09: Completed Plan 02-03 (migrated all load_dotenv call sites to ce-shared loader)
 - 2026-03-09: Completed Plan 02-04 (env_check diagnostic CLI with Rich output)
 - 2026-03-09: Completed Plan 02-05 (deleted stale .env files, full end-to-end verification passed)
+- 2026-03-09: Completed Plan 03-01 (estimate_tokens_from_cost() in ce-shared pricing)
