@@ -30,6 +30,22 @@ from csuite.prompts.airport_cro_prompt import AIRPORT_CRO_SYSTEM_PROMPT
 from csuite.prompts.att_carrier_rep_prompt import ATT_CARRIER_REP_SYSTEM_PROMPT
 from csuite.prompts.cargo_ops_director_prompt import CARGO_OPS_DIRECTOR_SYSTEM_PROMPT
 from csuite.prompts.concessions_tech_lead_prompt import CONCESSIONS_TECH_LEAD_SYSTEM_PROMPT
+from csuite.prompts.walk_agents import (
+    WALK_ADVERSARIAL_SYSTEM_PROMPT,
+    WALK_ANALOGY_SYSTEM_PROMPT,
+    WALK_COMPLEXITY_SYSTEM_PROMPT,
+    WALK_CONSTRAINT_SYSTEM_PROMPT,
+    WALK_ECONOMIST_SYSTEM_PROMPT,
+    WALK_FRAMER_SYSTEM_PROMPT,
+    WALK_HISTORIAN_SYSTEM_PROMPT,
+    WALK_NARRATIVE_SYSTEM_PROMPT,
+    WALK_POET_SYSTEM_PROMPT,
+    WALK_SALIENCE_JUDGE_SYSTEM_PROMPT,
+    WALK_SEMIOTICIAN_SYSTEM_PROMPT,
+    WALK_STATISTICIAN_SYSTEM_PROMPT,
+    WALK_SYNTHESIZER_SYSTEM_PROMPT,
+    WALK_SYSTEMS_SYSTEM_PROMPT,
+)
 from csuite.prompts.sub_agents import (
     BRAND_ESSENCE_SYSTEM_PROMPT,
     CEO_BOARD_PREP_SYSTEM_PROMPT,
@@ -164,6 +180,21 @@ _ROLE_PROMPTS: dict[str, str] = {
     "vc-app-investor": VC_APP_INVESTOR_SYSTEM_PROMPT,
     "vc-infra-investor": VC_INFRA_INVESTOR_SYSTEM_PROMPT,
     "brand-essence": BRAND_ESSENCE_SYSTEM_PROMPT,
+    # Walk Protocol Cognitive Lenses
+    "walk-framer": WALK_FRAMER_SYSTEM_PROMPT,
+    "walk-systems": WALK_SYSTEMS_SYSTEM_PROMPT,
+    "walk-analogy": WALK_ANALOGY_SYSTEM_PROMPT,
+    "walk-narrative": WALK_NARRATIVE_SYSTEM_PROMPT,
+    "walk-constraint": WALK_CONSTRAINT_SYSTEM_PROMPT,
+    "walk-adversarial": WALK_ADVERSARIAL_SYSTEM_PROMPT,
+    "walk-salience-judge": WALK_SALIENCE_JUDGE_SYSTEM_PROMPT,
+    "walk-synthesizer": WALK_SYNTHESIZER_SYSTEM_PROMPT,
+    "walk-poet": WALK_POET_SYSTEM_PROMPT,
+    "walk-historian": WALK_HISTORIAN_SYSTEM_PROMPT,
+    "walk-complexity": WALK_COMPLEXITY_SYSTEM_PROMPT,
+    "walk-semiotician": WALK_SEMIOTICIAN_SYSTEM_PROMPT,
+    "walk-economist": WALK_ECONOMIST_SYSTEM_PROMPT,
+    "walk-statistician": WALK_STATISTICIAN_SYSTEM_PROMPT,
     # Airport 5G Simulation
     "airport-cio": AIRPORT_CIO_SYSTEM_PROMPT,
     "airport-cro": AIRPORT_CRO_SYSTEM_PROMPT,

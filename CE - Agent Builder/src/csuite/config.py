@@ -421,6 +421,63 @@ AGENT_CONFIGS = {
         name="Brand Essence Analyst", role="brand-essence",
         model="claude-opus-4-6", temperature=0.6,
     ),
+    # --- Walk Protocol Cognitive Lenses ---
+    "walk-framer": AgentConfig(
+        name="Problem Framer", role="walk-framer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "walk-systems": AgentConfig(
+        name="Systems Walker", role="walk-systems",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "walk-analogy": AgentConfig(
+        name="Analogy Walker", role="walk-analogy",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    "walk-narrative": AgentConfig(
+        name="Narrative Walker", role="walk-narrative",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    "walk-constraint": AgentConfig(
+        name="Constraint Walker", role="walk-constraint",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "walk-adversarial": AgentConfig(
+        name="Adversarial Walker", role="walk-adversarial",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "walk-salience-judge": AgentConfig(
+        name="Salience Judge", role="walk-salience-judge",
+        model="claude-opus-4-6", temperature=0.5,
+    ),
+    "walk-synthesizer": AgentConfig(
+        name="Walk Synthesizer", role="walk-synthesizer",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "walk-poet": AgentConfig(
+        name="Poet", role="walk-poet",
+        model="claude-opus-4-6", temperature=0.8,
+    ),
+    "walk-historian": AgentConfig(
+        name="Historian", role="walk-historian",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "walk-complexity": AgentConfig(
+        name="Complexity Researcher", role="walk-complexity",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    "walk-semiotician": AgentConfig(
+        name="Semiotician", role="walk-semiotician",
+        model="claude-opus-4-6", temperature=0.7,
+    ),
+    "walk-economist": AgentConfig(
+        name="Economist", role="walk-economist",
+        model="claude-opus-4-6", temperature=0.6,
+    ),
+    "walk-statistician": AgentConfig(
+        name="Statistician", role="walk-statistician",
+        model="claude-opus-4-6", temperature=0.5,
+    ),
     # --- Airport 5G Decision-Maker Simulation Agents ---
     "airport-cio": AgentConfig(
         name="Airport CIO", role="airport-cio",
