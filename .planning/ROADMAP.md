@@ -32,6 +32,8 @@
 
 ## Phase 3: Token Estimation & Documentation
 
+**Status:** In Progress (3/4 plans complete, 2026-03-09)
+
 **Goal:** Back-calculate token counts from SDK cost data using shared pricing, add budget guardrails, and document the `bypassPermissions` design decision.
 **Requirements:** TOKN-01, TOKN-02, TOKN-03, TOKN-04, TOKN-05, TOKN-06, DOCS-01, DOCS-02
 

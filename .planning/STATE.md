@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-09T21:18:04.436Z"
+last_updated: "2026-03-09T22:00:00.000Z"
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State
@@ -21,14 +21,14 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Phase
 - Phase: 3
 - Status: In Progress
-- Plans: 2/4
+- Plans: 3/4
 
 ## Phase Summary
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
 | 1 | Shared Package & Pricing Unification | ● | 3/3 | 100% |
 | 2 | Environment Consolidation | ● | 5/5 | 100% |
-| 3 | Token Estimation & Documentation | ◐ | 2/4 | 50% |
+| 3 | Token Estimation & Documentation | ◐ | 3/4 | 75% |
 
 ## Key Decisions
 - **Phase 1-1:** Opus 4.6 = $5/$25 (not $15/$75 as Orchestration tracker had — that was Opus 4.0/4.1 pricing)
@@ -46,6 +46,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - **Phase 2-4:** Docker-category keys grouped as "Docker / Database" separate from project groups; run_check catches EnvironmentError for graceful diagnostic output
 - **Phase 3-1:** Formula: output_tokens = cost * 1M / (ratio * input_rate + output_rate); max(1, round()) guarantees min 1 token
 - **Phase 3-2:** Warn once per run via _ceiling_warned flag to avoid log spam; ceiling is warn-only, never halts
+- **Phase 3-3:** Zero-cost SDK agents log warning and skip estimation; token_source metadata distinguishes estimated vs real tokens
 
 ## Metrics
 | Phase-Plan | Duration | Tasks | Files |
@@ -60,10 +61,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 | 02-05 | 2 min | 8 | 0 |
 | 03-01 | 1 min | 4 | 3 |
 | 03-02 | 2 min | 4 | 3 |
+| 03-03 | 2 min | 3 | 2 |
 
 ## Session
-- **Last completed:** 03-02-PLAN.md
-- **Next:** Continue Phase 3 with Plan 03-03
+- **Last completed:** 03-03-PLAN.md
+- **Next:** Continue Phase 3 with Plan 03-04
 
 ## History
 - 2026-03-09: Completed Plan 01-01 (ce-shared package with verified pricing)
@@ -76,3 +78,4 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - 2026-03-09: Completed Plan 02-05 (deleted stale .env files, full end-to-end verification passed)
 - 2026-03-09: Completed Plan 03-01 (estimate_tokens_from_cost() in ce-shared pricing)
 - 2026-03-09: Completed Plan 03-02 (budget guardrails in ProtocolCostTracker)
+- 2026-03-09: Completed Plan 03-03 (wired token estimation into production agent path and Langfuse)
