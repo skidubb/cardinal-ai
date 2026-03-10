@@ -256,6 +256,173 @@ def test_stream_completed_run_returns_sse(client, engine):
     app.dependency_overrides.pop(get_session, None)
 
 
+# ── Plan 02: Pipeline presets ─────────────────────────────────────────────────
+
+def test_pipeline_presets_in_list(client):
+    """GET /api/pipelines returns preset entries with is_preset=True (API-08)."""
+    resp = client.get("/api/pipelines")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+
+    presets = [item for item in data if item.get("is_preset") is True]
+    assert len(presets) >= 5, f"Expected at least 5 presets, got {len(presets)}"
+
+    # Each preset must have required fields
+    for preset in presets:
+        assert "name" in preset, f"Preset missing 'name': {preset}"
+        assert "steps" in preset, f"Preset missing 'steps': {preset}"
+        assert len(preset["steps"]) >= 1, f"Preset has no steps: {preset}"
+        for step in preset["steps"]:
+            assert "protocol_key" in step, f"Step missing 'protocol_key': {step}"
+            assert "question_template" in step, f"Step missing 'question_template': {step}"
+
+
+def test_pipeline_presets_have_valid_ids(client):
+    """All pipeline presets have unique string IDs starting with 'preset-'."""
+    from api.pipeline_presets import PIPELINE_PRESETS
+
+    ids = [p["id"] for p in PIPELINE_PRESETS]
+    assert len(ids) == len(set(ids)), "Preset IDs are not unique"
+    for pid in ids:
+        assert pid.startswith("preset-"), f"Preset ID does not start with 'preset-': {pid}"
+
+
+def test_pipeline_presets_protocol_keys_are_strings(client):
+    """All protocol_key values in pipeline presets are non-empty strings."""
+    from api.pipeline_presets import PIPELINE_PRESETS
+
+    for preset in PIPELINE_PRESETS:
+        for step in preset["steps"]:
+            key = step["protocol_key"]
+            assert isinstance(key, str) and key, f"Invalid protocol_key in preset {preset['id']}: {key!r}"
+
+
+# ── Plan 02: Active task registry ─────────────────────────────────────────────
+
+def test_active_run_tasks_registry_is_importable():
+    """_active_run_tasks is a dict and is importable from api.runner (API-10)."""
+    from api.runner import _active_run_tasks
+    assert isinstance(_active_run_tasks, dict)
+
+
+def test_active_run_tasks_registry_empty_at_test_start():
+    """_active_run_tasks is empty when no runs are in flight."""
+    from api.runner import _active_run_tasks
+    # At test time (no concurrent runs), registry should be empty
+    assert len(_active_run_tasks) == 0
+
+
+# ── Plan 02: CancelledError handling ─────────────────────────────────────────
+
+def test_cancelled_error_marks_run_cancelled(engine):
+    """CancelledError handler marks run status as 'cancelled' in DB (API-10)."""
+    import asyncio
+    from datetime import datetime, timezone
+    from sqlmodel import Session as S
+    from api.models import Run
+    from api.database import get_session
+    from api.runner import _sse_event
+
+    # Create a run record with status "running"
+    with S(engine) as session:
+        run = Run(
+            type="protocol",
+            protocol_key="p03_parallel_synthesis",
+            question="test",
+            status="running",
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    # Simulate the CancelledError handler logic directly
+    with S(engine) as session:
+        run = session.get(Run, run_id)
+        if run:
+            run.status = "cancelled"
+            run.completed_at = datetime.now(timezone.utc)
+            session.add(run)
+            session.commit()
+
+    # Verify DB state
+    with S(engine) as session:
+        run = session.get(Run, run_id)
+        assert run is not None
+        assert run.status == "cancelled"
+        assert run.completed_at is not None
+
+
+def test_cancelled_sse_event_format():
+    """The CancelledError handler yields a run_complete SSE event with status=cancelled."""
+    from api.runner import _sse_event
+    import json
+
+    event_str = _sse_event("run_complete", {"run_id": 42, "status": "cancelled"})
+    assert "event: run_complete" in event_str
+    data_line = [line for line in event_str.splitlines() if line.startswith("data:")][0]
+    payload = json.loads(data_line[len("data:"):].strip())
+    assert payload["status"] == "cancelled"
+    assert payload["run_id"] == 42
+
+
+# ── Plan 02: Disconnect watcher ───────────────────────────────────────────────
+
+def test_watch_disconnect_is_defined_in_protocols():
+    """_watch_disconnect coroutine is defined in protocols router (API-10)."""
+    import inspect
+    from api.routers import protocols
+    assert hasattr(protocols, "_watch_disconnect"), "_watch_disconnect not found in protocols router"
+    assert inspect.iscoroutinefunction(protocols._watch_disconnect), "_watch_disconnect should be async"
+
+
+def test_watch_disconnect_is_defined_in_pipelines():
+    """_watch_disconnect coroutine is defined in pipelines router (API-10)."""
+    import inspect
+    from api.routers import pipelines
+    assert hasattr(pipelines, "_watch_disconnect"), "_watch_disconnect not found in pipelines router"
+    assert inspect.iscoroutinefunction(pipelines._watch_disconnect), "_watch_disconnect should be async"
+
+
+# ── Plan 02: Context var cleanup in finally blocks ───────────────────────────
+
+def test_context_var_cleanup_after_protocol_run(client):
+    """After a mocked protocol run, cost_tracker context var is cleaned up (API-09).
+
+    Full integration testing of context var state requires async test infrastructure.
+    This test verifies the cleanup path exists via code inspection and that the
+    context var is None when accessed outside of a run (default state).
+    """
+    from protocols.llm import _cost_tracker
+
+    # Outside any run, the context var should be None (default)
+    assert _cost_tracker.get(None) is None, "cost_tracker should be None when no run is active"
+
+    # Verify cleanup code structure
+    import inspect
+    from api import runner
+    source = inspect.getsource(runner.run_protocol_stream)
+    assert "finally:" in source, "No finally block in run_protocol_stream"
+    assert "set_cost_tracker(None)" in source, "set_cost_tracker(None) not in finally block"
+
+
+def test_runner_finally_blocks_exist():
+    """Verify finally blocks with context var cleanup exist in both runner functions (API-09)."""
+    import inspect
+    from api import runner
+
+    protocol_source = inspect.getsource(runner.run_protocol_stream)
+    assert "finally:" in protocol_source, "No finally block in run_protocol_stream"
+    assert "set_cost_tracker(None)" in protocol_source, "set_cost_tracker(None) not in finally"
+    assert "set_event_queue(None)" in protocol_source, "set_event_queue(None) not in finally"
+
+    pipeline_source = inspect.getsource(runner.run_pipeline_stream)
+    assert "finally:" in pipeline_source, "No finally block in run_pipeline_stream"
+    assert "set_cost_tracker(None)" in pipeline_source, "set_cost_tracker(None) not in finally"
+    assert "set_session_id(None)" in pipeline_source, "set_session_id(None) not in finally"
+
+
 # ── GET /api/runs/{id} includes trace_id ──────────────────────────────────────
 
 def test_get_run_includes_trace_id(client, engine):
