@@ -142,6 +142,6 @@ Plans:
 | 3. Token Estimation and Documentation | v1.0 | 4/4 | Complete | 2026-03-09 |
 | 4. Agent Provider | 1/1 | Complete   | 2026-03-10 | - |
 | 5. API Wiring | 2/2 | Complete   | 2026-03-10 | - |
-| 6. Structured Output and Reports | v1.1 | 0/2 | Not started | - |
+| 6. Structured Output and Reports | 1/2 | In Progress|  | - |
 | 7. Frontend and Auth | v1.1 | 0/3 | Not started | - |
 | 8. Deployment | v1.1 | 0/2 | Not started | - |

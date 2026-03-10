@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Full-Stack Integration
 status: planning
-stopped_at: Completed 05-api-wiring/05-02-PLAN.md
-last_updated: "2026-03-10T19:43:29.864Z"
+stopped_at: Completed 06-structured-output-and-reports/06-01-PLAN.md
+last_updated: "2026-03-10T20:19:48.791Z"
 last_activity: 2026-03-10 — Roadmap created for v1.1 Full-Stack Integration milestone
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 17
+  completed_plans: 16
   percent: 0
 ---
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 | Phase 04-agent-provider P01 | 6 | 2 tasks | 5 files |
 | Phase 05-api-wiring P01 | 8 | 2 tasks | 7 files |
 | Phase 05-api-wiring P02 | 8 | 2 tasks | 5 files |
+| Phase 06-structured-output-and-reports P01 | 6 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 - [Phase 05-api-wiring]: Re-raise asyncio.CancelledError after handling: required so asyncio task machinery marks the task as cancelled and propagates through awaiter chains
 - [Phase 05-api-wiring]: Disconnect watcher polls request.is_disconnected() every 0.5s: balances responsiveness with polling overhead for long-running protocol runs
 - [Phase 05-api-wiring]: Pipeline presets use verified protocol key names from actual protocols/ directory (p38_klein_premortem, p17_red_blue_white, p23_cynefin_probe)
+- [Phase Phase 06-01]: ProtocolReport lives in protocols/ not api/ — avoids circular dependency, UI layer is in api/
+- [Phase Phase 06-01]: protocol_report only populated for completed runs — pending/failed runs return null to avoid incomplete data
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 
 ## Session Continuity
 
-Last session: 2026-03-10T19:38:14.861Z
-Stopped at: Completed 05-api-wiring/05-02-PLAN.md
+Last session: 2026-03-10T20:19:48.783Z
+Stopped at: Completed 06-structured-output-and-reports/06-01-PLAN.md
 Resume file: None
