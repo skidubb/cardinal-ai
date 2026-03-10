@@ -15,13 +15,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### API Endpoints
 
-- [ ] **API-01**: POST /api/protocols/run accepts protocol name, question, and agent list, executes orchestrator, returns run ID
-- [ ] **API-02**: GET /api/runs/{id}/stream delivers SSE events (stage_start, stage_complete, tool_call, run_complete) with X-Accel-Buffering: no header
-- [ ] **API-03**: GET /api/protocols returns list of all available protocols with name, description, category, and stage metadata
-- [ ] **API-04**: GET /api/agents returns agent registry with name, role, category, and @group expansion
-- [ ] **API-05**: GET /api/runs returns paginated run history with protocol, question, cost, status, timestamp
-- [ ] **API-06**: GET /api/runs/{id} returns full run detail including result, agent outputs, cost breakdown, Langfuse trace link
-- [ ] **API-07**: POST /api/pipelines/run executes a protocol chain, passing each protocol's output as context to the next
+- [x] **API-01**: POST /api/protocols/run accepts protocol name, question, and agent list, executes orchestrator, returns run ID
+- [x] **API-02**: GET /api/runs/{id}/stream delivers SSE events (stage_start, stage_complete, tool_call, run_complete) with X-Accel-Buffering: no header
+- [x] **API-03**: GET /api/protocols returns list of all available protocols with name, description, category, and stage metadata
+- [x] **API-04**: GET /api/agents returns agent registry with name, role, category, and @group expansion
+- [x] **API-05**: GET /api/runs returns paginated run history with protocol, question, cost, status, timestamp
+- [x] **API-06**: GET /api/runs/{id} returns full run detail including result, agent outputs, cost breakdown, Langfuse trace link
+- [x] **API-07**: POST /api/pipelines/run executes a protocol chain, passing each protocol's output as context to the next
 - [ ] **API-08**: GET /api/pipelines returns available pipeline presets (curated chains)
 - [ ] **API-09**: Context vars (cost_tracker, event_queue) are set inside asyncio task, not in request handler
 - [ ] **API-10**: Client disconnect cancels the orchestrator asyncio task to stop burning API credits
@@ -115,13 +115,13 @@ Deferred to future release. Tracked but not in current roadmap.
 | AGNT-01 | Phase 4 | Complete |
 | AGNT-02 | Phase 4 | Complete |
 | AGNT-03 | Phase 4 | Complete |
-| API-01 | Phase 5 | Pending |
-| API-02 | Phase 5 | Pending |
-| API-03 | Phase 5 | Pending |
-| API-04 | Phase 5 | Pending |
-| API-05 | Phase 5 | Pending |
-| API-06 | Phase 5 | Pending |
-| API-07 | Phase 5 | Pending |
+| API-01 | Phase 5 | Complete |
+| API-02 | Phase 5 | Complete |
+| API-03 | Phase 5 | Complete |
+| API-04 | Phase 5 | Complete |
+| API-05 | Phase 5 | Complete |
+| API-06 | Phase 5 | Complete |
+| API-07 | Phase 5 | Complete |
 | API-08 | Phase 5 | Pending |
 | API-09 | Phase 5 | Pending |
 | API-10 | Phase 5 | Pending |

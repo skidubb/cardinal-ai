@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Full-Stack Integration
 status: planning
-stopped_at: Completed 04-agent-provider/04-01-PLAN.md
-last_updated: "2026-03-10T18:59:36.026Z"
+stopped_at: Completed 05-api-wiring/05-01-PLAN.md
+last_updated: "2026-03-10T19:27:47.253Z"
 last_activity: 2026-03-10 — Roadmap created for v1.1 Full-Stack Integration milestone
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 15
+  completed_plans: 14
   percent: 0
 ---
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 - Last 5 plans: 2, 2, 3, 2, 2 min
 - Trend: Stable
 | Phase 04-agent-provider P01 | 6 | 2 tasks | 5 files |
+| Phase 05-api-wiring P01 | 8 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,8 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 - [Phase 04-agent-provider]: Production is the default agent mode — research mode requires explicit opt-in via set_agent_mode() or AGENT_MODE env var
 - [Phase 04-agent-provider]: Hard failure on ANY agent instantiation error: all agents must load as SdkAgent, no partial results
 - [Phase 04-agent-provider]: CE_AGENT_BUILDER_PATH env var overrides computed sibling-directory path — enables Docker and non-standard layouts
+- [Phase 05-api-wiring]: POST /api/protocols/run and POST /api/pipelines/run are the canonical run URLs; old POST /api/runs/protocol and /pipeline removed
+- [Phase 05-api-wiring]: All SSE EventSourceResponse always include X-Accel-Buffering: no header to prevent proxy buffering
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 
 ## Session Continuity
 
-Last session: 2026-03-10T18:45:15.168Z
-Stopped at: Completed 04-agent-provider/04-01-PLAN.md
+Last session: 2026-03-10T19:27:47.251Z
+Stopped at: Completed 05-api-wiring/05-01-PLAN.md
 Resume file: None
