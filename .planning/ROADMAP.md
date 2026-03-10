@@ -74,11 +74,11 @@ Plans:
   3. Closing the browser tab or network connection stops the in-flight orchestrator task and stops burning API credits
   4. GET /api/runs returns a paginated list of past runs with cost, status, and timestamp
   5. POST /api/pipelines/run executes a protocol chain where each protocol's output feeds the next as context
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Implement protocol run and SSE streaming endpoints
-- [ ] 05-02: Implement run history, agent registry, and pipeline endpoints
+- [ ] 05-01: Canonical URL routing, SSE headers, trace_id, stream replay, and test infrastructure
+- [ ] 05-02: Client disconnect cancellation, context var isolation, and pipeline presets
 
 ### Phase 6: Structured Output and Reports
 **Goal**: Protocol results display as executive-readable ProtocolReports with scannable sections, disagreement highlighting, and confidence indicators; PDF export produces a client-deliverable document
