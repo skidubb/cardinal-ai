@@ -9,9 +9,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Agent Provider
 
-- [ ] **AGNT-01**: Agent provider uses absolute path (env var) instead of fragile sys.path.insert for SdkAgent imports
-- [ ] **AGNT-02**: API startup asserts SdkAgent import succeeds before accepting requests — fails loudly if production mode unavailable
-- [ ] **AGNT-03**: Production mode is the default agent mode; research mode requires explicit opt-in
+- [x] **AGNT-01**: Agent provider uses absolute path (env var) instead of fragile sys.path.insert for SdkAgent imports
+- [x] **AGNT-02**: API startup asserts SdkAgent import succeeds before accepting requests — fails loudly if production mode unavailable
+- [x] **AGNT-03**: Production mode is the default agent mode; research mode requires explicit opt-in
 
 ### API Endpoints
 
@@ -112,9 +112,9 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AGNT-01 | Phase 4 | Pending |
-| AGNT-02 | Phase 4 | Pending |
-| AGNT-03 | Phase 4 | Pending |
+| AGNT-01 | Phase 4 | Complete |
+| AGNT-02 | Phase 4 | Complete |
+| AGNT-03 | Phase 4 | Complete |
 | API-01 | Phase 5 | Pending |
 | API-02 | Phase 5 | Pending |
 | API-03 | Phase 5 | Pending |

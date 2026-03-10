@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Full-Stack Integration
 status: planning
-stopped_at: Phase 4 context gathered
-last_updated: "2026-03-10T17:54:43.626Z"
+stopped_at: Completed 04-agent-provider/04-01-PLAN.md
+last_updated: "2026-03-10T18:45:15.170Z"
 last_activity: 2026-03-10 — Roadmap created for v1.1 Full-Stack Integration milestone
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
+  completed_phases: 4
+  total_plans: 13
+  completed_plans: 13
   percent: 0
 ---
 
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 **Recent Trend:**
 - Last 5 plans: 2, 2, 3, 2, 2 min
 - Trend: Stable
+| Phase 04-agent-provider P01 | 6 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 - **2026-03-10:** Deployment target is Vercel (not Railway — user corrected during project init)
 - **2026-03-10:** Single Uvicorn worker required — SSE event queues are in-process asyncio.Queue, multi-worker silently drops events (INFR-07)
 - **2026-03-10:** Serve React SPA from FastAPI StaticFiles — eliminates CORS problem entirely for same-origin deployment
+- [Phase 04-agent-provider]: Production is the default agent mode — research mode requires explicit opt-in via set_agent_mode() or AGENT_MODE env var
+- [Phase 04-agent-provider]: Hard failure on ANY agent instantiation error: all agents must load as SdkAgent, no partial results
+- [Phase 04-agent-provider]: CE_AGENT_BUILDER_PATH env var overrides computed sibling-directory path — enables Docker and non-standard layouts
 
 ### Pending Todos
 
@@ -74,6 +78,6 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 
 ## Session Continuity
 
-Last session: 2026-03-10T17:54:43.616Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-agent-provider/04-CONTEXT.md
+Last session: 2026-03-10T18:45:15.168Z
+Stopped at: Completed 04-agent-provider/04-01-PLAN.md
+Resume file: None
