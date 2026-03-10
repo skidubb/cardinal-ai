@@ -89,12 +89,12 @@ Plans:
   2. Agent disagreement sections are visually distinct from consensus sections in the browser view
   3. Confidence score displays as a visual indicator — not a raw decimal number
   4. Clicking "Download PDF" on a run detail page produces a polished document ready to send to a client
-  5. Shareable URL for a run (GET /runs/{id}) renders the full ProtocolReport without requiring login
-**Plans**: 1 plan
+  5. Shareable URL for a run (GET /share/{id}) renders the full ProtocolReport without requiring login
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: Define ProtocolReport dataclass and transform all protocol result types
-- [ ] 06-02: Wire browser report view, PDF export endpoint, and shareable URL
+- [ ] 06-01-PLAN.md — ProtocolReport dataclass, from_envelope transform, judge_verdict persistence, DB helpers
+- [ ] 06-02-PLAN.md — Jinja2 template, PDF endpoint, shareable HTML route, React report component
 
 ### Phase 7: Frontend and Auth
 **Goal**: The React UI is fully connected to the live API with no mock data; login gate protects all routes; SSE streaming works through auth; CORS is environment-configured
@@ -106,7 +106,7 @@ Plans:
   3. Submitting the execution form starts a protocol run and shows live SSE stage progress in the browser without page reload
   4. Run history page loads real data; clicking a past run shows the full ProtocolReport without re-executing the protocol
   5. PDF download button on the run detail page saves a client-deliverable PDF to disk
-**Plans**: 1 plan
+**Plans**: 3 plans
 
 Plans:
 - [ ] 07-01: JWT auth backend and React auth context with protected routes
@@ -122,7 +122,7 @@ Plans:
   2. The Vercel deployment URL is accessible from any browser and all features work end-to-end through the cloud proxy
   3. SSE streaming delivers live events in the cloud deployment — verified through Vercel's proxy, not just localhost
   4. A new developer can complete first-time environment setup by following the getting-started doc without asking for help
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
 - [ ] 08-01: Multi-stage Dockerfile, docker-compose extension, and Makefile
