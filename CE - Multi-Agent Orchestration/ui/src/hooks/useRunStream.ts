@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import type { ToolCallEvent } from '../types'
+import type { ProtocolReportData } from '../components/ProtocolReport'
 
 export interface AgentOutputEvent {
   agent_key: string
@@ -51,6 +52,7 @@ export interface RunStreamState {
   cost: CostSummary | null
   traceId: string | null
   judgeVerdict: JudgeVerdict | null
+  protocolReport: ProtocolReportData | null
 }
 
 const initial: RunStreamState = {
@@ -67,6 +69,7 @@ const initial: RunStreamState = {
   cost: null,
   traceId: null,
   judgeVerdict: null,
+  protocolReport: null,
 }
 
 export function useRunStream() {
@@ -268,16 +271,29 @@ function handleEvent(
     case 'error':
       setState(s => ({ ...s, error: data.message }))
       break
-    case 'run_complete':
+    case 'run_complete': {
+      const isCompleted = data.status === 'completed'
       setState(s => ({
         ...s,
-        status: data.status === 'completed' ? 'completed' : 'failed',
+        status: isCompleted ? 'completed' : 'failed',
         elapsedSeconds: data.elapsed_seconds ?? null,
         currentStage: null,
         cost: data.cost ?? null,
         traceId: data.trace_id ?? null,
         judgeVerdict: data.judge_verdict ?? s.judgeVerdict,
       }))
+      // Fetch protocol_report from GET /api/runs/{id} after completion
+      if (isCompleted && data.run_id) {
+        fetch(`/api/runs/${data.run_id}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(run => {
+            if (run?.protocol_report) {
+              setState(s => ({ ...s, protocolReport: run.protocol_report }))
+            }
+          })
+          .catch(() => { /* non-critical */ })
+      }
       break
+    }
   }
 }

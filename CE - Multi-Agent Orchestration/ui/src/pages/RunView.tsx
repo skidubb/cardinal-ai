@@ -5,6 +5,8 @@ import { useProtocolStore } from '../stores/protocolStore'
 import { useTeamStore } from '../stores/teamStore'
 import { useAgentStore } from '../stores/agentStore'
 import { useRunStream, type CostSummary, type AgentOutputEvent, type JudgeVerdict } from '../hooks/useRunStream'
+import { ProtocolReport } from '../components/ProtocolReport'
+import type { ProtocolReportData } from '../components/ProtocolReport'
 
 export default function RunView() {
   const { protocols, fetch: fetchProtocols } = useProtocolStore()
@@ -259,6 +261,26 @@ export default function RunView() {
           {/* Judge verdict */}
           {stream.judgeVerdict && (
             <JudgeVerdictCard verdict={stream.judgeVerdict} />
+          )}
+
+          {/* Structured Protocol Report — primary content when available */}
+          {stream.status === 'completed' && stream.protocolReport && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-bold tracking-wider uppercase text-text-muted">Protocol Report</p>
+                {stream.runId && (
+                  <a
+                    href={`/share/${stream.runId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Share Report
+                  </a>
+                )}
+              </div>
+              <ProtocolReport report={stream.protocolReport as ProtocolReportData} />
+            </div>
           )}
 
           {/* Cost breakdown */}
