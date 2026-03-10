@@ -22,9 +22,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **API-05**: GET /api/runs returns paginated run history with protocol, question, cost, status, timestamp
 - [x] **API-06**: GET /api/runs/{id} returns full run detail including result, agent outputs, cost breakdown, Langfuse trace link
 - [x] **API-07**: POST /api/pipelines/run executes a protocol chain, passing each protocol's output as context to the next
-- [ ] **API-08**: GET /api/pipelines returns available pipeline presets (curated chains)
-- [ ] **API-09**: Context vars (cost_tracker, event_queue) are set inside asyncio task, not in request handler
-- [ ] **API-10**: Client disconnect cancels the orchestrator asyncio task to stop burning API credits
+- [x] **API-08**: GET /api/pipelines returns available pipeline presets (curated chains)
+- [x] **API-09**: Context vars (cost_tracker, event_queue) are set inside asyncio task, not in request handler
+- [x] **API-10**: Client disconnect cancels the orchestrator asyncio task to stop burning API credits
 
 ### Structured Output
 
@@ -122,9 +122,9 @@ Deferred to future release. Tracked but not in current roadmap.
 | API-05 | Phase 5 | Complete |
 | API-06 | Phase 5 | Complete |
 | API-07 | Phase 5 | Complete |
-| API-08 | Phase 5 | Pending |
-| API-09 | Phase 5 | Pending |
-| API-10 | Phase 5 | Pending |
+| API-08 | Phase 5 | Complete |
+| API-09 | Phase 5 | Complete |
+| API-10 | Phase 5 | Complete |
 | OUT-01 | Phase 6 | Pending |
 | OUT-02 | Phase 6 | Pending |
 | OUT-03 | Phase 6 | Pending |
