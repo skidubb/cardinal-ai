@@ -99,6 +99,9 @@ class Run(SQLModel, table=True):
     trace_id: Optional[str] = None
     started_at: datetime = Field(default_factory=_now)
     completed_at: Optional[datetime] = None
+    # NOTE: SQLite does not auto-add columns to existing tables.
+    # Delete orchestrator.db and restart the server to pick up this schema change.
+    judge_verdict_json: str = "{}"
 
 
 class RunStep(SQLModel, table=True):

@@ -378,6 +378,8 @@ async def run_protocol_stream(
                 run.completed_at = datetime.now(timezone.utc)
                 run.cost_usd = cost_tracker.total_cost
                 run.trace_id = envelope.trace_id
+                if judge_verdict_dict:
+                    run.judge_verdict_json = json.dumps(judge_verdict_dict)
                 if envelope.telemetry_degraded:
                     warning_json = json.dumps([w.as_dict() for w in envelope.warnings])[:4000]
                     run.error_message = warning_json

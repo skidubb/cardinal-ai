@@ -17,7 +17,9 @@ from sse_starlette.sse import EventSourceResponse
 
 from api.database import engine, get_session
 from api.models import AgentOutput, Run, RunStep
+from api.report_helpers import build_envelope_from_db
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
+from protocols.protocol_report import from_envelope as _report_from_envelope
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -165,7 +167,7 @@ def get_run(run_id: int, session: Session = Depends(get_session)) -> dict:
         select(AgentOutput).where(AgentOutput.run_id == run_id)
     ).all()
 
-    return {
+    response: dict = {
         "id": run.id,
         "type": run.type,
         "protocol_key": run.protocol_key,
@@ -203,3 +205,21 @@ def get_run(run_id: int, session: Session = Depends(get_session)) -> dict:
             for o in outputs
         ],
     }
+
+    # Attach structured protocol_report when run is completed
+    if run.status == "completed":
+        try:
+            envelope = build_envelope_from_db(run, session)
+            verdict: dict | None = None
+            raw_verdict = getattr(run, "judge_verdict_json", "{}")
+            if raw_verdict and raw_verdict != "{}":
+                try:
+                    verdict = json.loads(raw_verdict)
+                except (json.JSONDecodeError, ValueError):
+                    verdict = None
+            report = _report_from_envelope(envelope, verdict)
+            response["protocol_report"] = report.as_dict()
+        except Exception:
+            response["protocol_report"] = None
+
+    return response
