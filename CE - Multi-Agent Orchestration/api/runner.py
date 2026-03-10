@@ -20,6 +20,7 @@ from sqlmodel import Session
 
 from api.database import engine
 from api.models import AgentOutput, Run, RunStep
+from protocols.agent_provider import build_production_agents
 from protocols.config import ORCHESTRATION_MODEL, THINKING_MODEL
 from protocols.cost_tracker import ProtocolCostTracker
 from protocols.judge import QualityJudge
@@ -73,7 +74,12 @@ def _load_orchestrator_class(protocol_key: str):
 # ── Agent resolution ─────────────────────────────────────────────────────────
 
 def _resolve_agents(agent_keys: list[str]) -> list[dict]:
-    """Build full agent dicts from DB (rich) or registry (thin)."""
+    """Build full agent dicts from DB (rich) or registry (thin).
+
+    DEPRECATED: Use build_production_agents() from protocols.agent_provider instead.
+    This function returns plain dicts (research/fallback mode) and is retained for
+    reference only. It is no longer called by run_protocol_stream or run_pipeline_stream.
+    """
     from sqlmodel import select as sql_select
 
     from api.models import Agent as AgentModel
@@ -219,7 +225,7 @@ async def run_protocol_stream(
 
     try:
         OrchestratorClass = _load_orchestrator_class(protocol_key)
-        agents = _resolve_agents(agent_keys)
+        agents = build_production_agents(agent_keys)
 
         yield _sse_event("agent_roster", {
             "agents": [{"key": k, "name": a["name"]} for k, a in zip(agent_keys, agents)]
@@ -545,7 +551,7 @@ async def run_pipeline_stream(
                 step_id = run_step.id
 
             OrchestratorClass = _load_orchestrator_class(protocol_key)
-            agents = _resolve_agents(agent_keys)
+            agents = build_production_agents(agent_keys)
 
             kwargs: dict[str, Any] = {
                 "agents": agents,

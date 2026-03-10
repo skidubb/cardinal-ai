@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 
 from ce_shared.env import find_and_load_dotenv
@@ -16,10 +18,31 @@ from api.routers.agents import tools_router
 
 find_and_load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+
+    # Verify production agents are importable (AGNT-02)
+    try:
+        from protocols.agent_provider import _resolve_agent_builder_src
+        agent_src = _resolve_agent_builder_src()
+        if str(agent_src) not in sys.path:
+            sys.path.insert(0, str(agent_src))
+        from csuite.agents.sdk_agent import SdkAgent  # noqa: F401
+        logger.info("Production agent provider verified: SdkAgent importable from %s", agent_src)
+    except ImportError as exc:
+        raise RuntimeError(
+            f"FATAL: Production agent import failed: {exc}\n"
+            "The API requires production-mode agents (SdkAgent from Agent Builder).\n"
+            "Fix options:\n"
+            "  1. cd 'CE - Agent Builder' && pip install -e '.[sdk]'\n"
+            "  2. Set CE_AGENT_BUILDER_PATH=/absolute/path/to/CE - Agent Builder/src\n"
+            "Server cannot start without production agents."
+        ) from exc
+
     yield
 
 

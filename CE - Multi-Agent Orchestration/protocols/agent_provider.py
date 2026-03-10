@@ -1,25 +1,30 @@
 """Dual-mode agent provider — research (lightweight dicts) or production (real SDK agents).
 
-Research mode: Current behavior. Agents are plain dicts with name + system_prompt.
-Production mode: Agents are AgentBridge wrappers around SdkAgent from Agent Builder.
+Research mode: Agents are plain dicts with name + system_prompt. Requires explicit opt-in via
+    set_agent_mode("research") or AGENT_MODE=research env var.
+Production mode: Default. Agents are AgentBridge wrappers around SdkAgent from Agent Builder.
     These have real tools, Pinecone memory, and DuckDB learning.
 
 Usage:
     from protocols.agent_provider import set_agent_mode, get_agent_mode
 
-    set_agent_mode("production")  # Switch to real agents
-    agents = build_agents(["ceo", "cfo"], mode=get_agent_mode())
+    # Production is the default — no configuration needed
+    agents = build_production_agents(["ceo", "cfo"])
+
+    # Research mode requires explicit opt-in
+    set_agent_mode("research")  # or set AGENT_MODE=research env var
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_agent_mode: str = "research"
+_agent_mode: str = "production"
 
 
 def set_agent_mode(mode: str) -> None:
@@ -33,6 +38,20 @@ def set_agent_mode(mode: str) -> None:
 def get_agent_mode() -> str:
     """Get the current agent mode."""
     return _agent_mode
+
+
+def _resolve_agent_builder_src() -> Path:
+    """Resolve the Agent Builder src/ path.
+
+    Checks CE_AGENT_BUILDER_PATH env var first. Falls back to the computed
+    sibling directory relative to this file's location.
+    """
+    env_path = os.environ.get("CE_AGENT_BUILDER_PATH")
+    if env_path:
+        return Path(env_path).resolve()
+    # protocols/agent_provider.py → protocols/ → CE - Multi-Agent Orchestration/ → CE - AGENTS/
+    # then sibling CE - Agent Builder/src
+    return (Path(__file__).resolve().parents[2] / "CE - Agent Builder" / "src").resolve()
 
 
 class AgentBridge:
@@ -79,10 +98,12 @@ def build_production_agents(keys: list[str]) -> list[AgentBridge]:
 
     Adds Agent Builder's src/ to sys.path if needed, then creates
     SdkAgent instances wrapped in AgentBridge for protocol compatibility.
+
+    Raises RuntimeError (with all failed agent names listed) if ANY agent
+    fails to instantiate. No partial results — all agents must load as SdkAgent.
     """
-    # Ensure Agent Builder is importable
-    agent_builder_src = Path(__file__).resolve().parents[1] / ".." / "CE - Agent Builder" / "src"
-    agent_builder_src = agent_builder_src.resolve()
+    # Ensure Agent Builder is importable using env-var-overridable path resolution
+    agent_builder_src = _resolve_agent_builder_src()
     if str(agent_builder_src) not in sys.path:
         sys.path.insert(0, str(agent_builder_src))
 
@@ -102,6 +123,8 @@ def build_production_agents(keys: list[str]) -> list[AgentBridge]:
     from protocols.agents import BUILTIN_AGENTS
 
     agents: list[AgentBridge] = []
+    failed_agents: list[tuple[str, str]] = []
+
     for key in keys:
         key_lower = key.lower()
         if key_lower not in BUILTIN_AGENTS:
@@ -116,12 +139,17 @@ def build_production_agents(keys: list[str]) -> list[AgentBridge]:
             bridge = AgentBridge(sdk_agent, role=key_lower, system_prompt=system_prompt)
             agents.append(bridge)
             logger.info("Production agent created: %s (%s)", key_lower, sdk_agent.config.name)
-        except (ValueError, KeyError) as e:
-            logger.warning(
-                "Failed to create production agent '%s': %s. "
-                "Falling back to research mode for this agent.", key, e
-            )
-            # Return the dict directly — protocols handle dicts natively
-            agents.append(builtin)  # type: ignore[arg-type]
+        except Exception as e:  # noqa: BLE001
+            failed_agents.append((key_lower, str(e)))
+
+    if failed_agents:
+        names = ", ".join(k for k, _ in failed_agents)
+        details = "; ".join(f"{k}: {e}" for k, e in failed_agents)
+        raise RuntimeError(
+            f"Failed to instantiate production agents: [{names}]. "
+            f"Details: {details}. "
+            "All agents must load as SdkAgent — no partial results allowed. "
+            "Fix: verify ANTHROPIC_API_KEY is set and Agent Builder is installed."
+        )
 
     return agents
