@@ -16,6 +16,13 @@ from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
 from typing import Any
 
+
+# ── Active task registry ──────────────────────────────────────────────────────
+# Maps run_id -> asyncio.Task for the orchestrator coroutine.
+# Used by disconnect watchers to cancel in-flight runs when the client disconnects.
+
+_active_run_tasks: dict[int, asyncio.Task] = {}
+
 from sqlmodel import Session
 
 from api.database import engine
@@ -256,7 +263,14 @@ async def run_protocol_stream(
 
         t0 = time.time()
         orch_task = asyncio.create_task(orchestrator.run(question))
-        orch_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+        _active_run_tasks[run_id] = orch_task
+
+        def _cleanup_task(t: asyncio.Task) -> None:
+            _active_run_tasks.pop(run_id, None)
+            if not t.cancelled() and t.exception():
+                pass  # exceptions surfaced via await orch_task below
+
+        orch_task.add_done_callback(_cleanup_task)
 
         # Drain queue live, yielding SSE events as tools fire
         while not orch_task.done():
@@ -441,12 +455,22 @@ async def run_protocol_stream(
             run_complete_payload["judge_verdict"] = judge_verdict_dict
         yield _sse_event("run_complete", run_complete_payload)
 
-        # Clear tracker from context
-        set_cost_tracker(None)
+    except asyncio.CancelledError:
+        _active_run_tasks.pop(run_id, None)
+        with Session(engine) as session:
+            run = session.get(Run, run_id)
+            if run:
+                run.status = "cancelled"
+                run.completed_at = datetime.now(timezone.utc)
+                session.add(run)
+                session.commit()
+        yield _sse_event("run_complete", {"run_id": run_id, "status": "cancelled"})
+        raise  # Re-raise CancelledError so asyncio task machinery handles it properly
 
     except Exception as e:
         tb_str = traceback.format_exc()
         run_warnings: list[dict[str, Any]] = []
+        _active_run_tasks.pop(run_id, None)
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
@@ -477,7 +501,6 @@ async def run_protocol_stream(
                 }
             )
 
-        set_cost_tracker(None)
         yield _sse_event("error", {"message": str(e), "traceback": tb_str})
         yield _sse_event(
             "run_complete",
@@ -488,6 +511,11 @@ async def run_protocol_stream(
                 "warnings": run_warnings,
             },
         )
+
+    finally:
+        # Always clean up context vars, regardless of how the generator exits
+        set_cost_tracker(None)
+        set_event_queue(None)
 
 
 # ── Pipeline run ─────────────────────────────────────────────────────────────
@@ -574,7 +602,10 @@ async def run_pipeline_stream(
             step_started_at = datetime.now(timezone.utc)
             step_tool_events: list[dict[str, Any]] = []
             pip_task = asyncio.create_task(orchestrator.run(step_question))
-            pip_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+            _active_run_tasks[run_id] = pip_task
+            pip_task.add_done_callback(lambda t: _active_run_tasks.pop(run_id, None) or (
+                t.exception() if not t.cancelled() and t.exception() else None
+            ))
 
             while not pip_task.done():
                 try:
@@ -719,7 +750,6 @@ async def run_pipeline_stream(
                 }
             )
 
-        set_session_id(None)
         yield _sse_event(
             "run_complete",
             {
@@ -731,8 +761,21 @@ async def run_pipeline_stream(
             },
         )
 
+    except asyncio.CancelledError:
+        _active_run_tasks.pop(run_id, None)
+        with Session(engine) as session:
+            run = session.get(Run, run_id)
+            if run:
+                run.status = "cancelled"
+                run.completed_at = datetime.now(timezone.utc)
+                session.add(run)
+                session.commit()
+        yield _sse_event("run_complete", {"run_id": run_id, "status": "cancelled"})
+        raise  # Re-raise CancelledError so asyncio task machinery handles it properly
+
     except Exception as e:
         tb_str = traceback.format_exc()
+        _active_run_tasks.pop(run_id, None)
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
@@ -742,8 +785,6 @@ async def run_pipeline_stream(
                 session.add(run)
                 session.commit()
 
-        set_cost_tracker(None)
-        set_session_id(None)
         run_error_warnings: list[dict[str, Any]] = []
         try:
             outcome = await persist_run(
@@ -776,3 +817,8 @@ async def run_pipeline_stream(
                 "warnings": run_error_warnings,
             },
         )
+
+    finally:
+        # Always clean up context vars, regardless of how the generator exits
+        set_cost_tracker(None)
+        set_session_id(None)

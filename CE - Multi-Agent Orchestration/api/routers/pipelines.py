@@ -2,19 +2,31 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 from sse_starlette.sse import EventSourceResponse
 
 from api.database import engine, get_session
 from api.models import Pipeline, PipelineStep, Run
+from api.pipeline_presets import PIPELINE_PRESETS
 from api.routers.runs import PipelineRunRequest
-from api.runner import run_pipeline_stream
+from api.runner import _active_run_tasks, run_pipeline_stream
 
 router = APIRouter(prefix="/api/pipelines", tags=["pipelines"])
 
 
 # ── POST /run — start a pipeline run with SSE streaming ──────────────────────
+
+async def _watch_disconnect(request: Request, run_id: int) -> None:
+    """Poll for client disconnect and cancel the active orchestrator task when detected."""
+    while not await request.is_disconnected():
+        await asyncio.sleep(0.5)
+    task = _active_run_tasks.get(run_id)
+    if task and not task.done():
+        task.cancel()
+
 
 @router.post("/run")
 async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> EventSourceResponse:
@@ -43,21 +55,30 @@ async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> E
         for s in payload.steps
     ]
 
+    async def _guarded_stream():
+        disconnect_watcher = asyncio.create_task(_watch_disconnect(request, run_id))
+        try:
+            async for chunk in run_pipeline_stream(
+                run_id=run_id,
+                steps=steps,
+                question=payload.question,
+                agent_keys=payload.agent_keys,
+            ):
+                yield chunk
+        finally:
+            disconnect_watcher.cancel()
+
     return EventSourceResponse(
-        run_pipeline_stream(
-            run_id=run_id,
-            steps=steps,
-            question=payload.question,
-            agent_keys=payload.agent_keys,
-        ),
+        _guarded_stream(),
         media_type="text/event-stream",
         headers={"X-Accel-Buffering": "no"},
     )
 
 
 @router.get("")
-def list_pipelines(session: Session = Depends(get_session)) -> list[Pipeline]:
-    return list(session.exec(select(Pipeline)).all())
+def list_pipelines(session: Session = Depends(get_session)) -> list[dict]:
+    db_pipelines = [_pipeline_with_steps(p, session) for p in session.exec(select(Pipeline)).all()]
+    return PIPELINE_PRESETS + db_pipelines  # noqa: RUF005
 
 
 @router.post("", status_code=201)

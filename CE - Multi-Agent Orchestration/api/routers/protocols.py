@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import inspect
 import re
@@ -14,7 +15,7 @@ from api.database import engine
 from api.manifest import get_protocol_manifest
 from api.models import Run
 from api.routers.runs import ProtocolRunRequest
-from api.runner import run_protocol_stream
+from api.runner import _active_run_tasks, run_protocol_stream
 
 router = APIRouter(prefix="/api/protocols", tags=["protocols"])
 
@@ -25,6 +26,15 @@ def list_protocols() -> list[dict]:
 
 
 # ── POST /run — declared BEFORE GET /{key}/stages to avoid route conflict ─────
+
+async def _watch_disconnect(request: Request, run_id: int) -> None:
+    """Poll for client disconnect and cancel the active orchestrator task when detected."""
+    while not await request.is_disconnected():
+        await asyncio.sleep(0.5)
+    task = _active_run_tasks.get(run_id)
+    if task and not task.done():
+        task.cancel()
+
 
 @router.post("/run")
 async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> EventSourceResponse:
@@ -41,17 +51,25 @@ async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> E
         session.refresh(run)
         run_id = run.id
 
+    async def _guarded_stream():
+        disconnect_watcher = asyncio.create_task(_watch_disconnect(request, run_id))
+        try:
+            async for chunk in run_protocol_stream(
+                run_id=run_id,
+                protocol_key=payload.protocol_key,
+                question=payload.question,
+                agent_keys=payload.agent_keys,
+                thinking_model=payload.thinking_model,
+                orchestration_model=payload.orchestration_model,
+                rounds=payload.rounds,
+                no_tools=payload.no_tools,
+            ):
+                yield chunk
+        finally:
+            disconnect_watcher.cancel()
+
     return EventSourceResponse(
-        run_protocol_stream(
-            run_id=run_id,
-            protocol_key=payload.protocol_key,
-            question=payload.question,
-            agent_keys=payload.agent_keys,
-            thinking_model=payload.thinking_model,
-            orchestration_model=payload.orchestration_model,
-            rounds=payload.rounds,
-            no_tools=payload.no_tools,
-        ),
+        _guarded_stream(),
         media_type="text/event-stream",
         headers={"X-Accel-Buffering": "no"},
     )
