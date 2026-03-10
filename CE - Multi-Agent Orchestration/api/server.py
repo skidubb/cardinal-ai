@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.database import create_db_and_tables
-from api.routers import agents, integrations, knowledge, pipelines, protocols, runs, teams
+from api.routers import agents, integrations, knowledge, pipelines, protocols, reports, runs, teams
 from api.routers.agents import tools_router
 
 find_and_load_dotenv()
@@ -66,6 +66,8 @@ SKIP_AUTH = os.getenv("SKIP_AUTH", "true").lower() in ("1", "true", "yes")
 async def auth_middleware(request: Request, call_next):
     if SKIP_AUTH or request.method == "OPTIONS":
         return await call_next(request)
+    if request.url.path.startswith("/share/"):
+        return await call_next(request)
     key = request.headers.get("X-API-Key", "")
     if not API_KEY:
         return JSONResponse(status_code=500, content={"detail": "API_KEY not configured but auth is enabled. Set API_KEY or SKIP_AUTH=true."})
@@ -83,6 +85,7 @@ app.include_router(knowledge.router)
 app.include_router(protocols.router)
 app.include_router(teams.router)
 app.include_router(pipelines.router)
+app.include_router(reports.router)
 app.include_router(runs.router)
 
 
