@@ -59,7 +59,7 @@ Plans:
   1. API server starts and logs confirmed production mode with no manual path configuration
   2. API server fails immediately with a clear error message if SdkAgent cannot be imported — no silent fallback to research mode
   3. Running a protocol via CLI after the path fix produces the same output as before the change
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 04-01: Fix agent provider absolute path and add startup production assertion
@@ -74,7 +74,7 @@ Plans:
   3. Closing the browser tab or network connection stops the in-flight orchestrator task and stops burning API credits
   4. GET /api/runs returns a paginated list of past runs with cost, status, and timestamp
   5. POST /api/pipelines/run executes a protocol chain where each protocol's output feeds the next as context
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 05-01: Implement protocol run and SSE streaming endpoints
@@ -90,7 +90,7 @@ Plans:
   3. Confidence score displays as a visual indicator — not a raw decimal number
   4. Clicking "Download PDF" on a run detail page produces a polished document ready to send to a client
   5. Shareable URL for a run (GET /runs/{id}) renders the full ProtocolReport without requiring login
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 06-01: Define ProtocolReport dataclass and transform all protocol result types
@@ -106,7 +106,7 @@ Plans:
   3. Submitting the execution form starts a protocol run and shows live SSE stage progress in the browser without page reload
   4. Run history page loads real data; clicking a past run shows the full ProtocolReport without re-executing the protocol
   5. PDF download button on the run detail page saves a client-deliverable PDF to disk
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 07-01: JWT auth backend and React auth context with protected routes
@@ -122,7 +122,7 @@ Plans:
   2. The Vercel deployment URL is accessible from any browser and all features work end-to-end through the cloud proxy
   3. SSE streaming delivers live events in the cloud deployment — verified through Vercel's proxy, not just localhost
   4. A new developer can complete first-time environment setup by following the getting-started doc without asking for help
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 08-01: Multi-stage Dockerfile, docker-compose extension, and Makefile
