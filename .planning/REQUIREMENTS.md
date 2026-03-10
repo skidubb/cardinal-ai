@@ -1,120 +1,168 @@
-# Requirements: CE-AGENTS Critical Debt Remediation
+# Requirements: CE-AGENTS Full-Stack Integration
 
-**Defined:** 2026-03-09
-**Core Value:** Cost tracking and pricing data across the monorepo must be accurate and consistent
+**Defined:** 2026-03-10
+**Core Value:** A client question goes in, a structured multi-agent analysis comes out — viewable in a browser, exportable as a polished report, powered by production agents with tools and memory.
 
 ## v1 Requirements
 
-### Shared Package
+Requirements for initial release. Each maps to roadmap phases.
 
-- [ ] **SHPK-01**: `ce-shared` package exists at repo root with src layout, zero external dependencies
-- [ ] **SHPK-02**: `ce-shared` is installable via `file:` reference from all three sub-projects
-- [ ] **SHPK-03**: `ce-shared` uses editable installs so changes propagate without reinstall
+### Agent Provider
 
-### Pricing
+- [ ] **AGNT-01**: Agent provider uses absolute path (env var) instead of fragile sys.path.insert for SdkAgent imports
+- [ ] **AGNT-02**: API startup asserts SdkAgent import succeeds before accepting requests — fails loudly if production mode unavailable
+- [ ] **AGNT-03**: Production mode is the default agent mode; research mode requires explicit opt-in
 
-- [ ] **PRIC-01**: Single `pricing.py` module contains all Anthropic model pricing (Opus $5/$25, Sonnet $3/$15, Haiku $0.80/$4.00 per MTok)
-- [ ] **PRIC-02**: Pricing dict keyed by exact model ID with substring fallback matching
-- [ ] **PRIC-03**: Each pricing entry includes a "last verified" date stamp
-- [ ] **PRIC-04**: Cache read/write and batch discount multipliers consolidated in shared module
-- [ ] **PRIC-05**: Centralized model alias map resolves shorthand ("opus") to canonical model ID ("claude-opus-4-6")
-- [ ] **PRIC-06**: Pricing verification script compares local prices against actual billing data (requires Admin API key)
-- [ ] **PRIC-07**: Agent Builder cost tracker imports pricing from `ce-shared` instead of local constants
-- [ ] **PRIC-08**: Orchestration cost tracker imports pricing from `ce-shared` instead of local constants
+### API Endpoints
 
-### Environment
+- [ ] **API-01**: POST /api/protocols/run accepts protocol name, question, and agent list, executes orchestrator, returns run ID
+- [ ] **API-02**: GET /api/runs/{id}/stream delivers SSE events (stage_start, stage_complete, tool_call, run_complete) with X-Accel-Buffering: no header
+- [ ] **API-03**: GET /api/protocols returns list of all available protocols with name, description, category, and stage metadata
+- [ ] **API-04**: GET /api/agents returns agent registry with name, role, category, and @group expansion
+- [ ] **API-05**: GET /api/runs returns paginated run history with protocol, question, cost, status, timestamp
+- [ ] **API-06**: GET /api/runs/{id} returns full run detail including result, agent outputs, cost breakdown, Langfuse trace link
+- [ ] **API-07**: POST /api/pipelines/run executes a protocol chain, passing each protocol's output as context to the next
+- [ ] **API-08**: GET /api/pipelines returns available pipeline presets (curated chains)
+- [ ] **API-09**: Context vars (cost_tracker, event_queue) are set inside asyncio task, not in request handler
+- [ ] **API-10**: Client disconnect cancels the orchestrator asyncio task to stop burning API credits
 
-- [ ] **ENVR-01**: Single `.env` file at monorepo root contains all API keys
-- [ ] **ENVR-02**: `.env.example` at root documents all required/optional vars with project usage notes
-- [ ] **ENVR-03**: All `load_dotenv()` calls use absolute path computed from file location, not CWD
-- [ ] **ENVR-04**: Pydantic Settings classes across all projects load from root `.env` via explicit path
-- [ ] **ENVR-05**: Missing required keys cause immediate startup failure with clear error message
-- [ ] **ENVR-06**: Docker-compose.yml references `${POSTGRES_PASSWORD}` from root `.env` instead of hardcoded value
-- [ ] **ENVR-07**: Per-project `.env` files deleted after migration (no silent shadowing)
-- [ ] **ENVR-08**: Startup env report logs which `.env` file loaded and which keys are set (redacted values)
-- [ ] **ENVR-09**: Env validation CLI (`python -m ce_shared.env_check`) validates keys across all projects
+### Structured Output
 
-### Token Estimation
+- [ ] **OUT-01**: ProtocolReport shared dataclass with fields: participants, key_findings, disagreements, confidence_score, synthesis, agent_contributions, cost_summary, metadata
+- [ ] **OUT-02**: All protocol result dataclasses transform into ProtocolReport for consistent presentation
+- [ ] **OUT-03**: Browser view renders ProtocolReport with scannable sections — executive summary at top, agent detail on expand
+- [ ] **OUT-04**: Agent disagreement sections are visually highlighted in the browser view
+- [ ] **OUT-05**: Confidence/quality score displays as a visual indicator (not raw number)
+- [ ] **OUT-06**: Per-agent contribution cards show what each agent contributed to the analysis
 
-- [ ] **TOKN-01**: SDK Agent back-calculates input/output token counts from `total_cost_usd` using shared pricing
-- [ ] **TOKN-02**: SDK cost (`total_cost_usd`) is carried as the authoritative cost field
-- [ ] **TOKN-03**: All estimated token counts are flagged with `token_source: "estimated_from_cost"`
-- [ ] **TOKN-04**: Unknown model strings fall back to most expensive tier (Opus) for estimation
-- [ ] **TOKN-05**: Cost reconciliation logs SDK-reported cost alongside price-table-calculated cost
-- [ ] **TOKN-06**: Budget guardrails with configurable per-protocol cost ceiling (warn/halt behavior)
+### Report Export
 
-### Documentation
+- [ ] **REPT-01**: GET /api/reports/{run_id}/pdf generates a polished PDF from ProtocolReport via WeasyPrint + Jinja2 template
+- [ ] **REPT-02**: PDF report includes executive summary, key findings, disagreements, agent contributions, and cost metadata
+- [ ] **REPT-03**: Browser-viewable HTML report at a shareable URL (GET /runs/{id}) with read-only access for clients
 
-- [ ] **DOCS-01**: SDK Agent `bypassPermissions` usage documented as intentional design decision with risk assessment
-- [ ] **DOCS-02**: `ce-shared` package has README with usage examples for both projects
+### Frontend Integration
 
-## v2 Requirements
+- [ ] **UI-01**: Protocol library page loads real protocol data from API with search/filter by category
+- [ ] **UI-02**: Protocol execution form: select protocol, enter question, pick agents (with @category shortcuts), submit
+- [ ] **UI-03**: Live execution view shows streaming SSE events (stages progressing, tools being called)
+- [ ] **UI-04**: Run result view renders ProtocolReport structured output with all sections
+- [ ] **UI-05**: Run history page loads real data from API with search/filter
+- [ ] **UI-06**: Re-open past run shows full ProtocolReport without re-executing
+- [ ] **UI-07**: Cost displayed per run in history and detail views
+- [ ] **UI-08**: Curated "greatest hits" protocol collection surfaced prominently (8-10 best protocols for common consulting questions)
+- [ ] **UI-09**: Protocol chain builder or preset selector for packaged workflows
+- [ ] **UI-10**: Download PDF button on run detail page
 
-### Environment Enhancements
+### Authentication
 
-- **ENVR-10**: Per-environment `.env` layering (`.env.local` overrides for developer-specific settings)
-- **ENVR-11**: Admin API key provisioning for automated pricing verification
-
-### Cost Tracking Enhancements
-
-- **TOKN-07**: Input/output ratio heuristic for more accurate token splitting
-- **TOKN-08**: Per-turn cost attribution in multi-turn SDK sessions
+- [ ] **AUTH-01**: Users table with email + argon2 password hash (Alembic migration)
+- [ ] **AUTH-02**: POST /api/auth/login returns JWT access token + sets session cookie for SSE
+- [ ] **AUTH-03**: All API endpoints require valid JWT (except /api/auth/login and /api/health)
+- [ ] **AUTH-04**: SSE endpoints accept session cookie for auth (EventSource cannot send custom headers)
+- [ ] **AUTH-05**: CORS allowed origins loaded from environment variable, not hardcoded to localhost
+- [ ] **AUTH-06**: React auth context with login page, protected routes, and token refresh
 
 ### Infrastructure
 
-- **INFR-01**: uv workspace migration for single lockfile and workspace-native dependency resolution
-- **INFR-02**: Weekly CI step comparing pricing table against Admin API billing data
+- [ ] **INFR-01**: Dockerfile with multi-stage build — Python backend + React static build served by FastAPI StaticFiles
+- [ ] **INFR-02**: docker-compose.yml extended with API server + UI build for one-command local startup
+- [ ] **INFR-03**: Makefile with `make dev` (local full stack), `make build` (Docker), `make deploy` (Vercel)
+- [ ] **INFR-04**: Cloud deployment to Vercel with FastAPI backend + static frontend accessible via URL
+- [ ] **INFR-05**: Managed PostgreSQL accessible from Vercel deployment (Vercel Postgres or external)
+- [ ] **INFR-06**: Getting-started documentation: setup script or step-by-step for first-time environment config
+- [ ] **INFR-07**: Single Uvicorn worker enforced (asyncio.Queue SSE is in-process; multi-worker silently drops events)
+
+## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Advanced Output
+
+- **ADV-01**: Cost estimate before run (/api/protocols/estimate endpoint)
+- **ADV-02**: Protocol diagram view showing multi-stage flow before execution
+- **ADV-03**: Word/DOCX export option alongside PDF
+- **ADV-04**: Langfuse trace deep-link from run detail view
+
+### Multi-User
+
+- **MUSR-01**: Role-based access control (admin, analyst, client-viewer)
+- **MUSR-02**: Team workspaces with shared run history
+- **MUSR-03**: Client portal with read-only access to selected runs
+
+### Scale
+
+- **SCAL-01**: Redis pub/sub for cross-worker SSE (enables multi-worker deployment)
+- **SCAL-02**: Background job queue for protocol runs (not tied to request lifecycle)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Secrets manager integration (1Password, Vault) | Centralize first, encrypt later — per PROJECT.md |
-| Dynamic runtime pricing from Anthropic | No public pricing API; static table with verification is more reliable |
-| tiktoken-based token counting | SDK doesn't expose raw messages; `total_cost_usd` back-calculation is sufficient |
-| Centralized config microservice | Overengineered for single-developer monorepo |
-| `.env` encryption at rest | Files are gitignored on single machine; encryption adds key-management complexity |
-| Removing `bypassPermissions` | Intentional for automation speed; document risk instead |
-| Important/Minor CONCERNS.md items | Separate project |
+| Custom protocol builder UI | Protocols are complex multi-stage Python; a UI builder produces inferior output |
+| Real-time collaborative runs | SSE is single-subscriber; multi-user presence is a separate product |
+| Mobile / responsive UI | Client meetings use laptop browser; desktop-first is sufficient |
+| CE-Evals integration into UI | Evaluation is a separate research workflow |
+| Self-hosted Langfuse | Cloud Langfuse already working |
+| QuickBooks / billing integration | Billing handled outside platform |
+| Agent builder UI | Agent config is complex Python with MCP server wiring |
+| Real-time token streaming | Protocols are batch operations; stream stage events, not tokens |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SHPK-01 | 1 | Pending |
-| SHPK-02 | 1 | Pending |
-| SHPK-03 | 1 | Pending |
-| PRIC-01 | 1 | Pending |
-| PRIC-02 | 1 | Pending |
-| PRIC-03 | 1 | Pending |
-| PRIC-04 | 1 | Pending |
-| PRIC-05 | 1 | Pending |
-| PRIC-06 | 1 | Pending |
-| PRIC-07 | 1 | Pending |
-| PRIC-08 | 1 | Pending |
-| ENVR-01 | 2 | Pending |
-| ENVR-02 | 2 | Pending |
-| ENVR-03 | 2 | Pending |
-| ENVR-04 | 2 | Pending |
-| ENVR-05 | 2 | Pending |
-| ENVR-06 | 2 | Pending |
-| ENVR-07 | 2 | Pending |
-| ENVR-08 | 2 | Pending |
-| ENVR-09 | 2 | Pending |
-| TOKN-01 | 3 | Pending |
-| TOKN-02 | 3 | Pending |
-| TOKN-03 | 3 | Pending |
-| TOKN-04 | 3 | Pending |
-| TOKN-05 | 3 | Pending |
-| TOKN-06 | 3 | Pending |
-| DOCS-01 | 3 | Pending |
-| DOCS-02 | 3 | Pending |
+| AGNT-01 | Phase 1 | Pending |
+| AGNT-02 | Phase 1 | Pending |
+| AGNT-03 | Phase 1 | Pending |
+| API-01 | Phase 2 | Pending |
+| API-02 | Phase 2 | Pending |
+| API-03 | Phase 2 | Pending |
+| API-04 | Phase 2 | Pending |
+| API-05 | Phase 2 | Pending |
+| API-06 | Phase 2 | Pending |
+| API-07 | Phase 2 | Pending |
+| API-08 | Phase 2 | Pending |
+| API-09 | Phase 2 | Pending |
+| API-10 | Phase 2 | Pending |
+| OUT-01 | Phase 3 | Pending |
+| OUT-02 | Phase 3 | Pending |
+| OUT-03 | Phase 3 | Pending |
+| OUT-04 | Phase 3 | Pending |
+| OUT-05 | Phase 3 | Pending |
+| OUT-06 | Phase 3 | Pending |
+| REPT-01 | Phase 3 | Pending |
+| REPT-02 | Phase 3 | Pending |
+| REPT-03 | Phase 3 | Pending |
+| UI-01 | Phase 4 | Pending |
+| UI-02 | Phase 4 | Pending |
+| UI-03 | Phase 4 | Pending |
+| UI-04 | Phase 4 | Pending |
+| UI-05 | Phase 4 | Pending |
+| UI-06 | Phase 4 | Pending |
+| UI-07 | Phase 4 | Pending |
+| UI-08 | Phase 4 | Pending |
+| UI-09 | Phase 4 | Pending |
+| UI-10 | Phase 4 | Pending |
+| AUTH-01 | Phase 5 | Pending |
+| AUTH-02 | Phase 5 | Pending |
+| AUTH-03 | Phase 5 | Pending |
+| AUTH-04 | Phase 5 | Pending |
+| AUTH-05 | Phase 5 | Pending |
+| AUTH-06 | Phase 5 | Pending |
+| INFR-01 | Phase 6 | Pending |
+| INFR-02 | Phase 6 | Pending |
+| INFR-03 | Phase 6 | Pending |
+| INFR-04 | Phase 6 | Pending |
+| INFR-05 | Phase 6 | Pending |
+| INFR-06 | Phase 6 | Pending |
+| INFR-07 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 28 total
-- Mapped to phases: 28 ✓
-- Unmapped: 0
+- v1 requirements: 43 total
+- Mapped to phases: 43
+- Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after roadmap creation*
+*Requirements defined: 2026-03-10*
+*Last updated: 2026-03-10 after initial definition*
