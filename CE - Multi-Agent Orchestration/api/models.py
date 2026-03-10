@@ -96,6 +96,7 @@ class Run(SQLModel, table=True):
     status: str = "pending"
     cost_usd: float = 0.0
     error_message: Optional[str] = None
+    trace_id: Optional[str] = None
     started_at: datetime = Field(default_factory=_now)
     completed_at: Optional[datetime] = None
 

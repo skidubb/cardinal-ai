@@ -6,9 +6,15 @@ import importlib
 import inspect
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from sqlmodel import Session
+from sse_starlette.sse import EventSourceResponse
 
+from api.database import engine
 from api.manifest import get_protocol_manifest
+from api.models import Run
+from api.routers.runs import ProtocolRunRequest
+from api.runner import run_protocol_stream
 
 router = APIRouter(prefix="/api/protocols", tags=["protocols"])
 
@@ -16,6 +22,39 @@ router = APIRouter(prefix="/api/protocols", tags=["protocols"])
 @router.get("")
 def list_protocols() -> list[dict]:
     return get_protocol_manifest()
+
+
+# ── POST /run — declared BEFORE GET /{key}/stages to avoid route conflict ─────
+
+@router.post("/run")
+async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> EventSourceResponse:
+    """Start a protocol run and stream SSE events."""
+    with Session(engine) as session:
+        run = Run(
+            type="protocol",
+            protocol_key=payload.protocol_key,
+            question=payload.question,
+            status="pending",
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    return EventSourceResponse(
+        run_protocol_stream(
+            run_id=run_id,
+            protocol_key=payload.protocol_key,
+            question=payload.question,
+            agent_keys=payload.agent_keys,
+            thinking_model=payload.thinking_model,
+            orchestration_model=payload.orchestration_model,
+            rounds=payload.rounds,
+            no_tools=payload.no_tools,
+        ),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/{key}/stages")

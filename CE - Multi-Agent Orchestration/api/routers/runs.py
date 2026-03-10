@@ -1,8 +1,14 @@
-"""Run endpoints — start protocol/pipeline runs with SSE streaming."""
+"""Run endpoints — list/get runs and stream replay.
+
+POST /run endpoints have moved to:
+  POST /api/protocols/run  (api/routers/protocols.py)
+  POST /api/pipelines/run  (api/routers/pipelines.py)
+"""
 
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -11,7 +17,6 @@ from sse_starlette.sse import EventSourceResponse
 
 from api.database import engine, get_session
 from api.models import AgentOutput, Run, RunStep
-from api.runner import run_pipeline_stream, run_protocol_stream
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -81,6 +86,7 @@ def list_runs(
             "team_id": r.team_id,
             "status": r.status,
             "cost_usd": r.cost_usd,
+            "trace_id": r.trace_id,
             "error_message": r.error_message,
             "telemetry_warnings": _parse_telemetry_warnings(r.error_message),
             "started_at": r.started_at.isoformat() if r.started_at else None,
@@ -88,6 +94,62 @@ def list_runs(
         }
         for r in runs
     ]
+
+
+# ── GET /{run_id}/stream — MUST be declared before GET /{run_id} ──────────────
+
+async def _replay_completed_run(run: Run, session: Session) -> AsyncGenerator[str, None]:
+    """Yield SSE events replaying a completed run's stored outputs."""
+
+    def _sse(event: str, data: dict) -> str:
+        return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+    yield _sse("run_start", {"run_id": run.id, "protocol_key": run.protocol_key, "replay": True})
+
+    agent_outputs = session.exec(
+        select(AgentOutput).where(AgentOutput.run_id == run.id)
+    ).all()
+
+    for out in agent_outputs:
+        if out.agent_key == "_synthesis":
+            yield _sse("synthesis", {"text": out.output_text, "replay": True})
+        else:
+            payload = {
+                "agent_key": out.agent_key,
+                "model": out.model,
+                "output_text": out.output_text,
+                "input_tokens": out.input_tokens,
+                "output_tokens": out.output_tokens,
+                "cost_usd": out.cost_usd,
+                "replay": True,
+            }
+            yield _sse("agent_output", payload)
+
+    yield _sse(
+        "run_complete",
+        {
+            "run_id": run.id,
+            "status": run.status,
+            "cost_usd": run.cost_usd,
+            "trace_id": run.trace_id,
+            "replay": True,
+        },
+    )
+
+
+@router.get("/{run_id}/stream")
+async def stream_run(run_id: int, session: Session = Depends(get_session)) -> EventSourceResponse:
+    """Replay a completed run as SSE events."""
+    run = session.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.status not in ("completed", "failed", "cancelled"):
+        raise HTTPException(status_code=202, detail="Run still in progress")
+    return EventSourceResponse(
+        _replay_completed_run(run, session),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/{run_id}")
@@ -112,6 +174,7 @@ def get_run(run_id: int, session: Session = Depends(get_session)) -> dict:
         "team_id": run.team_id,
         "status": run.status,
         "cost_usd": run.cost_usd,
+        "trace_id": run.trace_id,
         "error_message": run.error_message,
         "telemetry_warnings": _parse_telemetry_warnings(run.error_message),
         "started_at": run.started_at.isoformat() if run.started_at else None,
@@ -140,74 +203,3 @@ def get_run(run_id: int, session: Session = Depends(get_session)) -> dict:
             for o in outputs
         ],
     }
-
-
-# ── Start protocol run (SSE) ────────────────────────────────────────────────
-
-@router.post("/protocol")
-async def start_protocol_run(payload: ProtocolRunRequest) -> EventSourceResponse:
-    # Create run record
-    with Session(engine) as session:
-        run = Run(
-            type="protocol",
-            protocol_key=payload.protocol_key,
-            question=payload.question,
-            status="pending",
-        )
-        session.add(run)
-        session.commit()
-        session.refresh(run)
-        run_id = run.id
-
-    return EventSourceResponse(
-        run_protocol_stream(
-            run_id=run_id,
-            protocol_key=payload.protocol_key,
-            question=payload.question,
-            agent_keys=payload.agent_keys,
-            thinking_model=payload.thinking_model,
-            orchestration_model=payload.orchestration_model,
-            rounds=payload.rounds,
-            no_tools=payload.no_tools,
-        ),
-        media_type="text/event-stream",
-    )
-
-
-# ── Start pipeline run (SSE) ────────────────────────────────────────────────
-
-@router.post("/pipeline")
-async def start_pipeline_run(payload: PipelineRunRequest) -> EventSourceResponse:
-    with Session(engine) as session:
-        run = Run(
-            type="pipeline",
-            question=payload.question,
-            status="pending",
-        )
-        session.add(run)
-        session.commit()
-        session.refresh(run)
-        run_id = run.id
-
-    steps = [
-        {
-            "protocol_key": s.protocol_key,
-            "question_template": s.question_template,
-            "thinking_model": s.thinking_model,
-            "orchestration_model": s.orchestration_model,
-            "rounds": s.rounds,
-            "output_passthrough": s.output_passthrough,
-            "no_tools": s.no_tools,
-        }
-        for s in payload.steps
-    ]
-
-    return EventSourceResponse(
-        run_pipeline_stream(
-            run_id=run_id,
-            steps=steps,
-            question=payload.question,
-            agent_keys=payload.agent_keys,
-        ),
-        media_type="text/event-stream",
-    )

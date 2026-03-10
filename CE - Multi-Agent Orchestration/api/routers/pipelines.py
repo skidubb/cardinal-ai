@@ -2,13 +2,57 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
+from sse_starlette.sse import EventSourceResponse
 
-from api.database import get_session
-from api.models import Pipeline, PipelineStep
+from api.database import engine, get_session
+from api.models import Pipeline, PipelineStep, Run
+from api.routers.runs import PipelineRunRequest
+from api.runner import run_pipeline_stream
 
 router = APIRouter(prefix="/api/pipelines", tags=["pipelines"])
+
+
+# ── POST /run — start a pipeline run with SSE streaming ──────────────────────
+
+@router.post("/run")
+async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> EventSourceResponse:
+    """Start a pipeline run and stream SSE events."""
+    with Session(engine) as session:
+        run = Run(
+            type="pipeline",
+            question=payload.question,
+            status="pending",
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    steps = [
+        {
+            "protocol_key": s.protocol_key,
+            "question_template": s.question_template,
+            "thinking_model": s.thinking_model,
+            "orchestration_model": s.orchestration_model,
+            "rounds": s.rounds,
+            "output_passthrough": s.output_passthrough,
+            "no_tools": s.no_tools,
+        }
+        for s in payload.steps
+    ]
+
+    return EventSourceResponse(
+        run_pipeline_stream(
+            run_id=run_id,
+            steps=steps,
+            question=payload.question,
+            agent_keys=payload.agent_keys,
+        ),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("")
