@@ -30,16 +30,16 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **OUT-01**: ProtocolReport shared dataclass with fields: participants, key_findings, disagreements, confidence_score, synthesis, agent_contributions, cost_summary, metadata
 - [x] **OUT-02**: All protocol result dataclasses transform into ProtocolReport for consistent presentation
-- [ ] **OUT-03**: Browser view renders ProtocolReport with scannable sections — executive summary at top, agent detail on expand
-- [ ] **OUT-04**: Agent disagreement sections are visually highlighted in the browser view
+- [x] **OUT-03**: Browser view renders ProtocolReport with scannable sections — executive summary at top, agent detail on expand
+- [x] **OUT-04**: Agent disagreement sections are visually highlighted in the browser view
 - [x] **OUT-05**: Confidence/quality score displays as a visual indicator (not raw number)
 - [x] **OUT-06**: Per-agent contribution cards show what each agent contributed to the analysis
 
 ### Report Export
 
-- [ ] **REPT-01**: GET /api/reports/{run_id}/pdf generates a polished PDF from ProtocolReport via WeasyPrint + Jinja2 template
-- [ ] **REPT-02**: PDF report includes executive summary, key findings, disagreements, agent contributions, and cost metadata
-- [ ] **REPT-03**: Browser-viewable HTML report at a shareable URL (GET /runs/{id}) with read-only access for clients
+- [x] **REPT-01**: GET /api/reports/{run_id}/pdf generates a polished PDF from ProtocolReport via WeasyPrint + Jinja2 template
+- [x] **REPT-02**: PDF report includes executive summary, key findings, disagreements, agent contributions, and cost metadata
+- [x] **REPT-03**: Browser-viewable HTML report at a shareable URL (GET /runs/{id}) with read-only access for clients
 
 ### Frontend Integration
 
@@ -127,13 +127,13 @@ Deferred to future release. Tracked but not in current roadmap.
 | API-10 | Phase 5 | Complete |
 | OUT-01 | Phase 6 | Complete |
 | OUT-02 | Phase 6 | Complete |
-| OUT-03 | Phase 6 | Pending |
-| OUT-04 | Phase 6 | Pending |
+| OUT-03 | Phase 6 | Complete |
+| OUT-04 | Phase 6 | Complete |
 | OUT-05 | Phase 6 | Complete |
 | OUT-06 | Phase 6 | Complete |
-| REPT-01 | Phase 6 | Pending |
-| REPT-02 | Phase 6 | Pending |
-| REPT-03 | Phase 6 | Pending |
+| REPT-01 | Phase 6 | Complete |
+| REPT-02 | Phase 6 | Complete |
+| REPT-03 | Phase 6 | Complete |
 | UI-01 | Phase 7 | Pending |
 | UI-02 | Phase 7 | Pending |
 | UI-03 | Phase 7 | Pending |

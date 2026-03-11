@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Full-Stack Integration
 status: planning
-stopped_at: Completed 06-structured-output-and-reports/06-01-PLAN.md
-last_updated: "2026-03-10T20:19:48.791Z"
+stopped_at: Completed 06-structured-output-and-reports/06-02-PLAN.md — awaiting human-verify checkpoint
+last_updated: "2026-03-11T00:13:58.913Z"
 last_activity: 2026-03-10 — Roadmap created for v1.1 Full-Stack Integration milestone
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
   percent: 0
 ---
 
@@ -74,6 +74,8 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 - [Phase 05-api-wiring]: Pipeline presets use verified protocol key names from actual protocols/ directory (p38_klein_premortem, p17_red_blue_white, p23_cynefin_probe)
 - [Phase Phase 06-01]: ProtocolReport lives in protocols/ not api/ — avoids circular dependency, UI layer is in api/
 - [Phase Phase 06-01]: protocol_report only populated for completed runs — pending/failed runs return null to avoid incomplete data
+- [Phase Phase 06-02]: asyncio.to_thread() for WeasyPrint write_pdf() — avoids blocking FastAPI event loop during PDF generation
+- [Phase Phase 06-02]: protocolReport fetched separately after SSE run_complete event — keeps SSE stream format clean, avoids protocol_report in stream payload
 
 ### Pending Todos
 
@@ -88,6 +90,6 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone; v1.0 was 12/12 pl
 
 ## Session Continuity
 
-Last session: 2026-03-10T20:19:48.783Z
-Stopped at: Completed 06-structured-output-and-reports/06-01-PLAN.md
+Last session: 2026-03-11T00:13:53.492Z
+Stopped at: Completed 06-structured-output-and-reports/06-02-PLAN.md — awaiting human-verify checkpoint
 Resume file: None
