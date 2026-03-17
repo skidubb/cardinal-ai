@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo:record": "node ./scripts/record_demo.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -34,6 +35,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "jsdom": "^28.1.0",
+    "playwright": "^1.58.2",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",

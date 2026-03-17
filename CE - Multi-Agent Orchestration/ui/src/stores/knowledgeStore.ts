@@ -10,11 +10,13 @@ interface KnowledgeState {
   searching: boolean
   loading: boolean
   searchError: string | null
+  uploadMessage: string | null
   fetch: () => Promise<void>
   select: (ns: string | null) => void
   search: (query: string) => Promise<void>
   setSearchQuery: (q: string) => void
   upload: (file: File) => Promise<void>
+  clearUploadMessage: () => void
 }
 
 export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
@@ -25,6 +27,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   searching: false,
   loading: false,
   searchError: null,
+  uploadMessage: null,
   fetch: async () => {
     set({ loading: true })
     try {
@@ -50,7 +53,11 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   upload: async (file: File) => {
     const { selectedNamespace, fetch: refetch } = get()
     if (!selectedNamespace) return
-    await api.knowledge.upload(selectedNamespace, file)
+    const result = await api.knowledge.upload(selectedNamespace, file)
+    if (result?.message) {
+      set({ uploadMessage: result.message })
+    }
     refetch()
   },
+  clearUploadMessage: () => set({ uploadMessage: null }),
 }))

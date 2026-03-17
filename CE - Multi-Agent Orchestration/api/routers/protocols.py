@@ -8,8 +8,8 @@ import inspect
 import re
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session
-from sse_starlette.sse import EventSourceResponse
 
 from api.database import engine
 from api.manifest import get_protocol_manifest
@@ -37,7 +37,7 @@ async def _watch_disconnect(request: Request, run_id: int) -> None:
 
 
 @router.post("/run")
-async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> EventSourceResponse:
+async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> StreamingResponse:
     """Start a protocol run and stream SSE events."""
     with Session(engine) as session:
         run = Run(
@@ -68,10 +68,10 @@ async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> E
         finally:
             disconnect_watcher.cancel()
 
-    return EventSourceResponse(
+    return StreamingResponse(
         _guarded_stream(),
         media_type="text/event-stream",
-        headers={"X-Accel-Buffering": "no"},
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

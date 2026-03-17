@@ -107,6 +107,13 @@ def get_event_queue() -> asyncio.Queue | None:
     return _event_queue.get()
 
 
+async def emit_stage(message: str) -> None:
+    """Push a stage event to the live SSE queue (no-op if no queue)."""
+    eq = _event_queue.get()
+    if eq is not None:
+        await eq.put({"event": "stage", "message": message})
+
+
 def set_cost_tracker(tracker: Any) -> None:
     """Attach a ProtocolCostTracker to the current context. Pass None to clear."""
     _cost_tracker.set(tracker)
@@ -255,6 +262,40 @@ async def agent_complete(
     Returns:
         Response text as a string.
     """
+    # Resolve agent name for lifecycle events
+    agent_name = getattr(agent, "name", None) or (agent.get("name") if isinstance(agent, dict) else None) or "unknown"
+    eq = get_event_queue()
+
+    # Emit agent_start event
+    if eq is not None:
+        await eq.put({"event": "agent_start", "agent_name": agent_name})
+
+    try:
+        return await _agent_complete_inner(
+            agent, fallback_model, messages, thinking_budget,
+            max_tokens, anthropic_client, system, tools, no_tools,
+            agent_name,
+        )
+    finally:
+        # Emit agent_done event (fires even on error)
+        if eq is not None:
+            await eq.put({"event": "agent_done", "agent_name": agent_name})
+
+
+async def _agent_complete_inner(
+    agent: dict,
+    fallback_model: str,
+    messages: list[dict],
+    thinking_budget: int,
+    max_tokens: int,
+    anthropic_client: anthropic.AsyncAnthropic | None,
+    system: str | None,
+    tools: list[dict] | None,
+    no_tools: bool,
+    agent_name: str,
+) -> str:
+    """Inner dispatch logic for agent_complete (separated for lifecycle events)."""
+
     # Production agent detection: if agent has chat(), use it directly
     if hasattr(agent, "chat") and callable(agent.chat):
         user_msg = messages[-1]["content"] if messages else ""

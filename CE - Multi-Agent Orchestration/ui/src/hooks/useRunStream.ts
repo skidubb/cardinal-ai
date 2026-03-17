@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import type { ToolCallEvent } from '../types'
 import type { ProtocolReportData } from '../components/ProtocolReport'
+import { getApiKey } from '../api'
 
 export interface AgentOutputEvent {
   agent_key: string
@@ -42,6 +43,7 @@ export interface RunStreamState {
   runId: number | null
   status: 'idle' | 'starting' | 'running' | 'completed' | 'failed'
   agents: { key: string; name: string }[]
+  activeAgents: string[]
   outputs: AgentOutputEvent[]
   toolCalls: ToolCallEvent[]
   synthesis: string
@@ -59,6 +61,7 @@ const initial: RunStreamState = {
   runId: null,
   status: 'idle',
   agents: [],
+  activeAgents: [],
   outputs: [],
   toolCalls: [],
   synthesis: '',
@@ -92,9 +95,10 @@ export function useRunStream() {
     setState({ ...initial, status: 'starting' })
 
     try {
-      const res = await fetch('/api/runs/protocol', {
+      const apiKey = getApiKey()
+      const res = await fetch('/api/protocols/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'X-API-Key': apiKey } : {}) },
         body: JSON.stringify(payload),
         signal: controller.signal,
       })
@@ -159,9 +163,10 @@ export function useRunStream() {
     setState({ ...initial, status: 'starting' })
 
     try {
-      const res = await fetch('/api/runs/pipeline', {
+      const apiKey2 = getApiKey()
+      const res = await fetch('/api/pipelines/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(apiKey2 ? { 'X-API-Key': apiKey2 } : {}) },
         body: JSON.stringify(payload),
         signal: controller.signal,
       })
@@ -226,6 +231,18 @@ function handleEvent(
     case 'agent_roster':
       setState(s => ({ ...s, agents: data.agents }))
       break
+    case 'agent_start':
+      setState(s => ({
+        ...s,
+        activeAgents: [...s.activeAgents, data.agent_name],
+      }))
+      break
+    case 'agent_done':
+      setState(s => ({
+        ...s,
+        activeAgents: s.activeAgents.filter(n => n !== data.agent_name),
+      }))
+      break
     case 'stage':
       setState(s => ({ ...s, currentStage: data.message ?? null }))
       break
@@ -278,13 +295,17 @@ function handleEvent(
         status: isCompleted ? 'completed' : 'failed',
         elapsedSeconds: data.elapsed_seconds ?? null,
         currentStage: null,
+        activeAgents: [],
         cost: data.cost ?? null,
         traceId: data.trace_id ?? null,
         judgeVerdict: data.judge_verdict ?? s.judgeVerdict,
       }))
       // Fetch protocol_report from GET /api/runs/{id} after completion
       if (isCompleted && data.run_id) {
-        fetch(`/api/runs/${data.run_id}`)
+        const apiKey = getApiKey()
+        fetch(`/api/runs/${data.run_id}`, {
+          headers: apiKey ? { 'X-API-Key': apiKey } : {},
+        })
           .then(r => r.ok ? r.json() : null)
           .then(run => {
             if (run?.protocol_report) {

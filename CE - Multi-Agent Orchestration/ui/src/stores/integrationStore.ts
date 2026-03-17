@@ -8,7 +8,7 @@ interface IntegrationState {
   searchQuery: string
   fetch: () => Promise<void>
   toggle: (name: string) => Promise<void>
-  updateConfig: (name: string, config: Record<string, string>) => Promise<void>
+  updateConfig: (name: string, config: Record<string, string> | string) => Promise<void>
   addMcpServer: (data: { name: string; description?: string; url?: string; transport?: string }) => Promise<void>
   remove: (name: string) => Promise<void>
   setSearch: (q: string) => void
@@ -34,8 +34,9 @@ export const useIntegrationStore = create<IntegrationState>((set, get) => ({
     await api.integrations.update(name, { enabled: !item.enabled } as Partial<Integration>)
     await get().fetch()
   },
-  updateConfig: async (name: string, config: Record<string, string>) => {
-    await api.integrations.update(name, { config_json: JSON.stringify(config) } as any)
+  updateConfig: async (name: string, config: Record<string, string> | string) => {
+    const configStr = typeof config === 'string' ? config : JSON.stringify(config)
+    await api.integrations.update(name, { config_json: configStr } as any)
     await get().fetch()
   },
   addMcpServer: async (data) => {

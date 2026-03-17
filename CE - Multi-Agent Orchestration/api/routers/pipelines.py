@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
-from sse_starlette.sse import EventSourceResponse
 
 from api.database import engine, get_session
 from api.models import Pipeline, PipelineStep, Run
@@ -68,10 +68,10 @@ async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> E
         finally:
             disconnect_watcher.cancel()
 
-    return EventSourceResponse(
+    return StreamingResponse(
         _guarded_stream(),
         media_type="text/event-stream",
-        headers={"X-Accel-Buffering": "no"},
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
@@ -99,6 +99,20 @@ def create_pipeline(
     session.refresh(pipeline)
 
     return _pipeline_with_steps(pipeline, session)
+
+
+@router.delete("/{pipeline_id}", status_code=204)
+def delete_pipeline(pipeline_id: int, session: Session = Depends(get_session)):
+    pipeline = session.get(Pipeline, pipeline_id)
+    if not pipeline:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    steps = session.exec(
+        select(PipelineStep).where(PipelineStep.pipeline_id == pipeline_id)
+    ).all()
+    for step in steps:
+        session.delete(step)
+    session.delete(pipeline)
+    session.commit()
 
 
 @router.get("/{pipeline_id}")
@@ -132,6 +146,7 @@ def _pipeline_with_steps(pipeline: Pipeline, session: Session) -> dict:
                 "thinking_model": s.thinking_model,
                 "orchestration_model": s.orchestration_model,
                 "output_passthrough": s.output_passthrough,
+                "no_tools": s.no_tools,
             }
             for s in steps
         ],

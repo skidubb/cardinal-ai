@@ -272,7 +272,8 @@ async def run_protocol_stream(
 
         orch_task.add_done_callback(_cleanup_task)
 
-        # Drain queue live, yielding SSE events as tools fire
+        # Drain queue live, yielding SSE events as they fire
+        last_heartbeat = time.time()
         while not orch_task.done():
             try:
                 evt = await asyncio.wait_for(queue.get(), timeout=0.1)
@@ -280,7 +281,13 @@ async def run_protocol_stream(
                     break
                 tool_events.append(evt)
                 yield _sse_event(evt["event"], evt)
+                last_heartbeat = time.time()
             except asyncio.TimeoutError:
+                # SSE heartbeat every 5s to keep connection alive
+                now = time.time()
+                if now - last_heartbeat >= 5.0:
+                    yield f": heartbeat {int(now - t0)}s\n\n"
+                    last_heartbeat = now
                 continue
 
         result = await orch_task
@@ -609,6 +616,8 @@ async def run_pipeline_stream(
                 t.exception() if not t.cancelled() and t.exception() else None
             ))
 
+            pip_t0 = time.time()
+            pip_last_heartbeat = time.time()
             while not pip_task.done():
                 try:
                     evt = await asyncio.wait_for(pip_queue.get(), timeout=0.1)
@@ -616,7 +625,12 @@ async def run_pipeline_stream(
                         break
                     step_tool_events.append(evt)
                     yield _sse_event(evt["event"], {**evt, "step": i})
+                    pip_last_heartbeat = time.time()
                 except asyncio.TimeoutError:
+                    now = time.time()
+                    if now - pip_last_heartbeat >= 5.0:
+                        yield f": heartbeat {int(now - pip_t0)}s\n\n"
+                        pip_last_heartbeat = now
                     continue
 
             result = await pip_task

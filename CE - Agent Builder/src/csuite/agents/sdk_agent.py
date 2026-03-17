@@ -16,6 +16,8 @@ from rich.panel import Panel
 from csuite.agents.mcp_config import get_mcp_servers
 from csuite.config import AgentConfig, get_agent_config, get_settings
 from csuite.learning.experience_log import ExperienceLog
+from csuite.learning.preferences import PreferenceTracker
+from csuite.memory.store import MemoryStore
 from csuite.prompts import (
     CEO_SYSTEM_PROMPT,
     CFO_SYSTEM_PROMPT,
@@ -234,13 +236,55 @@ class SdkAgent:
         self.cost: float = 0.0
         self._cost_tracker = cost_tracker
         self._experience_log = ExperienceLog()
+        self._memory_store = MemoryStore()
+        self._preference_tracker = PreferenceTracker()
 
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(self, query: str = "") -> str:
         base = _ROLE_PROMPTS.get(self.role, "")
+        sections = [base]
+
         ctx = _load_business_context()
         if ctx:
-            return f"{base}\n\n## Business Context\n\n{ctx}"
-        return base
+            sections.append(
+                "## Business Context\n\n"
+                "The following is specific context about the business "
+                "you are advising:\n\n" + ctx
+            )
+
+        # Retrieve relevant memories from Pinecone
+        if query and self._memory_store.enabled:
+            try:
+                memories = self._memory_store.retrieve(self.role, query, top_k=5)
+                if memories:
+                    mem_lines = [
+                        f"- [{m['memory_type']}] {m['summary']}"
+                        for m in memories
+                    ]
+                    sections.append(
+                        "## Institutional Memory\n\n"
+                        "Relevant past analyses and decisions:\n\n"
+                        + "\n".join(mem_lines)
+                    )
+            except Exception:
+                logger.debug("Memory retrieval failed", exc_info=True)
+
+        # Experience log lessons
+        try:
+            lessons = self._experience_log.get_lessons(self.role, limit=20)
+            if lessons:
+                sections.append(f"## Lessons Learned\n\n{lessons}")
+        except Exception:
+            logger.debug("Lesson retrieval failed", exc_info=True)
+
+        # User preferences
+        try:
+            pref_ctx = self._preference_tracker.get_preference_context(self.role)
+            if pref_ctx:
+                sections.append(f"## User Preferences\n\n{pref_ctx}")
+        except Exception:
+            logger.debug("Preference retrieval failed", exc_info=True)
+
+        return "\n\n".join(sections)
 
     async def chat(self, user_message: str, **kwargs) -> str:
         """Send a message and get a response via Agent SDK.
@@ -259,7 +303,7 @@ class SdkAgent:
         )
 
         options = ClaudeAgentOptions(
-            system_prompt=self._build_system_prompt(),
+            system_prompt=self._build_system_prompt(query=user_message),
             model=self.config.model or get_settings().default_model,
             mcp_servers=self.mcp_servers,
             max_turns=15,

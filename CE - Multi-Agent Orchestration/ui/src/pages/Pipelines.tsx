@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProtocolStore } from '../stores/protocolStore'
+import { useTeamStore } from '../stores/teamStore'
 import { api } from '../api'
 import type { Pipeline } from '../types'
 
@@ -27,12 +29,16 @@ function emptyStep(): StepDraft {
 
 export default function Pipelines() {
   const { protocols, fetch: fetchProtocols } = useProtocolStore()
+  const { currentTeamKeys } = useTeamStore()
+  const navigate = useNavigate()
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [name, setName] = useState('Untitled Pipeline')
   const [steps, setSteps] = useState<StepDraft[]>([emptyStep()])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [runModalPipeline, setRunModalPipeline] = useState<Pipeline | null>(null)
+  const [runQuestion, setRunQuestion] = useState('')
 
   useEffect(() => { fetchProtocols(); loadPipelines() }, [fetchProtocols])
 
@@ -213,6 +219,62 @@ export default function Pipelines() {
         })}
       </div>
 
+      {/* Run question modal */}
+      {runModalPipeline && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setRunModalPipeline(null)}>
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-text mb-1">Run: {runModalPipeline.name}</h3>
+            <p className="text-xs text-text-muted mb-4">{runModalPipeline.steps?.length || 0} steps &middot; {currentTeamKeys.length} agents in current team</p>
+            {currentTeamKeys.length === 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 mb-3">
+                No team selected. Go to Teams to add agents first.
+              </div>
+            )}
+            <textarea
+              value={runQuestion}
+              onChange={(e) => setRunQuestion(e.target.value)}
+              placeholder="What strategic question should the pipeline analyze?"
+              rows={3}
+              autoFocus
+              className="w-full mb-4 px-3 py-2 rounded-lg bg-white border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setRunModalPipeline(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-text-muted border border-border hover:bg-elevated transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!runQuestion.trim() || currentTeamKeys.length === 0) return
+                  // Store pipeline run config and navigate to RunView
+                  sessionStorage.setItem('pipeline_run', JSON.stringify({
+                    question: runQuestion,
+                    agent_keys: currentTeamKeys,
+                    steps: runModalPipeline.steps?.map((s, i) => ({
+                      protocol_key: s.protocol_key,
+                      question_template: s.question_template,
+                      thinking_model: s.thinking_model,
+                      orchestration_model: s.orchestration_model,
+                      rounds: s.rounds,
+                      output_passthrough: s.output_passthrough,
+                      no_tools: s.no_tools,
+                    })) || [],
+                  }))
+                  setRunModalPipeline(null)
+                  navigate('/run?mode=pipeline')
+                }}
+                disabled={!runQuestion.trim() || currentTeamKeys.length === 0}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-hover shadow-lg shadow-primary/20 transition disabled:opacity-50"
+              >
+                Start Pipeline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Saved pipelines */}
       {pipelines.length > 0 && (
         <>
@@ -237,21 +299,33 @@ export default function Pipelines() {
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={async () => {
-                      setDeleting(p.id)
-                      try {
-                        await api.pipelines.delete(p.id)
-                        loadPipelines()
-                      } finally {
-                        setDeleting(null)
-                      }
-                    }}
-                    disabled={deleting === p.id}
-                    className="shrink-0 ml-2 px-2 py-1 rounded-lg text-xs text-text-muted hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 transition disabled:opacity-50"
-                  >
-                    {deleting === p.id ? 'Deleting...' : 'Delete'}
-                  </button>
+                  <div className="flex flex-col gap-1 shrink-0 ml-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setRunModalPipeline(p)
+                        setRunQuestion('')
+                      }}
+                      className="px-2 py-1 rounded-lg text-xs font-medium text-primary hover:bg-primary/5 border border-primary/20 hover:border-primary/30 transition"
+                    >
+                      Run
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setDeleting(p.id)
+                        try {
+                          await api.pipelines.delete(p.id)
+                          loadPipelines()
+                        } finally {
+                          setDeleting(null)
+                        }
+                      }}
+                      disabled={deleting === p.id}
+                      className="px-2 py-1 rounded-lg text-xs text-text-muted hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 transition disabled:opacity-50"
+                    >
+                      {deleting === p.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

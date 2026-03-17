@@ -50,5 +50,28 @@ services:
   #   ports:
   #     - "3000:3000"
 
+  backend:
+    build:
+      context: ./CE - Multi-Agent Orchestration
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        WORKDIR /app
+        COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt uvicorn[standard] sse-starlette
+        COPY . .
+        CMD ["uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./CE - Multi-Agent Orchestration/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ce}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ce_platform}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./CE - Multi-Agent Orchestration:/app
+    restart: unless-stopped
+
 volumes:
   pgdata:

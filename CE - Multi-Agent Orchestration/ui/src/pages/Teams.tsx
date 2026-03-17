@@ -4,8 +4,8 @@ import { useAgentStore } from '../stores/agentStore'
 
 export default function Teams() {
   const {
-    teams, currentTeamKeys, currentTeamName, editingTeamId, loading,
-    fetch: fetchTeams, addAgent, removeAgent, setTeamName, clearTeam,
+    teams, currentTeamKeys, currentTeamName, currentTeamDescription, editingTeamId, loading,
+    fetch: fetchTeams, addAgent, removeAgent, setTeamName, setTeamDescription, clearTeam,
     saveTeam, updateTeam, startEditing, cancelEditing, deleteTeam,
   } = useTeamStore()
   const { agents, fetch: fetchAgents } = useAgentStore()
@@ -70,6 +70,13 @@ export default function Teams() {
               </span>
             )}
           </div>
+          <textarea
+            value={currentTeamDescription}
+            onChange={(e) => setTeamDescription(e.target.value)}
+            placeholder="Team description (optional)"
+            rows={2}
+            className="w-full mb-4 px-3 py-2 rounded-lg bg-white border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          />
           <div className="flex gap-2">
             {editingTeamId && (
               <button

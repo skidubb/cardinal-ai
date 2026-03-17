@@ -2,6 +2,7 @@ import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import { useUIStore } from './stores/uiStore'
 import { useTeamStore } from './stores/teamStore'
 import { useAgentStore } from './stores/agentStore'
+import LoginGate, { useAuth } from './components/LoginGate'
 import Dashboard from './pages/Dashboard'
 import AgentRegistry from './pages/AgentRegistry'
 import Teams from './pages/Teams'
@@ -168,27 +169,31 @@ function TeamTray() {
 }
 
 export default function App() {
+  const auth = useAuth()
+
   return (
-    <div className="h-screen flex flex-col bg-bg">
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-auto p-8">
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/agents" element={<AgentRegistry />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/tools" element={<ToolsHub />} />
-            <Route path="/knowledge" element={<KnowledgeExplorer />} />
-            <Route path="/protocols" element={<ProtocolLibrary />} />
-            <Route path="/pipelines" element={<Pipelines />} />
-            <Route path="/run" element={<RunView />} />
-            <Route path="/runs" element={<RunHistory />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
-        </main>
+    <LoginGate {...auth}>
+      <div className="h-screen flex flex-col bg-bg">
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-auto p-8">
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/agents" element={<AgentRegistry />} />
+              <Route path="/teams" element={<Teams />} />
+              <Route path="/tools" element={<ToolsHub />} />
+              <Route path="/knowledge" element={<KnowledgeExplorer />} />
+              <Route path="/protocols" element={<ProtocolLibrary />} />
+              <Route path="/pipelines" element={<Pipelines />} />
+              <Route path="/run" element={<RunView />} />
+              <Route path="/runs" element={<RunHistory />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </main>
+        </div>
+        <TeamTray />
       </div>
-      <TeamTray />
-    </div>
+    </LoginGate>
   )
 }

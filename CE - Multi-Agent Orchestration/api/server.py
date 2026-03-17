@@ -6,11 +6,13 @@ import logging
 import os
 import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from ce_shared.env import find_and_load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from api.database import create_db_and_tables
 from api.routers import agents, integrations, knowledge, pipelines, protocols, reports, runs, teams
@@ -92,3 +94,18 @@ app.include_router(runs.router)
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# ── Serve built frontend (production) ─────────────────────────────────────────
+
+_ui_dist = Path(__file__).resolve().parent.parent / "ui" / "dist"
+if _ui_dist.is_dir():
+    app.mount("/assets", StaticFiles(directory=_ui_dist / "assets"), name="static")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve the React SPA for any non-API route."""
+        file = _ui_dist / full_path
+        if file.is_file():
+            return FileResponse(file)
+        return FileResponse(_ui_dist / "index.html")

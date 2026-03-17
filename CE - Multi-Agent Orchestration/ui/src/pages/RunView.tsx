@@ -7,6 +7,7 @@ import { useAgentStore } from '../stores/agentStore'
 import { useRunStream, type CostSummary, type AgentOutputEvent, type JudgeVerdict } from '../hooks/useRunStream'
 import { ProtocolReport } from '../components/ProtocolReport'
 import type { ProtocolReportData } from '../components/ProtocolReport'
+import { getApiKey } from '../api'
 
 export default function RunView() {
   const { protocols, fetch: fetchProtocols } = useProtocolStore()
@@ -32,6 +33,22 @@ export default function RunView() {
       setProtocolKey(preselect)
     }
   }, [searchParams, protocols, protocolKey])
+
+  // Auto-start pipeline run from Pipelines page
+  useEffect(() => {
+    if (searchParams.get('mode') !== 'pipeline') return
+    const raw = sessionStorage.getItem('pipeline_run')
+    if (!raw) return
+    sessionStorage.removeItem('pipeline_run')
+    try {
+      const config = JSON.parse(raw)
+      if (config.question && config.steps?.length > 0 && config.agent_keys?.length > 0) {
+        setQuestion(config.question)
+        stream.startPipelineRun(config)
+      }
+    } catch { /* ignore bad data */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const proto = protocols.find(p => p.key === protocolKey)
   const teamAgents = allAgents.filter(a => currentTeamKeys.includes(a.key))
@@ -208,12 +225,25 @@ export default function RunView() {
             </div>
           )}
 
-          {/* Running indicator */}
-          {isActive && stream.outputs.length === 0 && stream.toolCalls.length === 0 && (
-            <div className="bg-card border border-border rounded-xl p-8 text-center mb-4">
-              <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-              <p className="text-sm text-text-muted">Agents are thinking...</p>
-              <p className="text-xs text-text-muted mt-1">This may take several minutes depending on the protocol</p>
+          {/* Active agents indicator */}
+          {isActive && (
+            <div className="bg-card border border-border rounded-xl p-4 mb-4">
+              {stream.activeAgents.length > 0 ? (
+                <div className="space-y-2">
+                  {stream.activeAgents.map(name => (
+                    <div key={name} className="flex items-center gap-2 text-sm">
+                      <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      <span className="font-medium text-text">{name}</span>
+                      <span className="text-xs text-text-muted">thinking...</span>
+                    </div>
+                  ))}
+                </div>
+              ) : stream.outputs.length === 0 && stream.toolCalls.length === 0 ? (
+                <div className="text-center py-4">
+                  <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-sm text-text-muted">Initializing agents...</p>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -290,7 +320,7 @@ export default function RunView() {
 
           {/* Download report */}
           {stream.status === 'completed' && (
-            <div className="mt-4">
+            <div className="mt-4 flex gap-3">
               <button
                 onClick={() => downloadReport({
                   protocolName: proto?.name || protocolKey,
@@ -309,6 +339,30 @@ export default function RunView() {
               >
                 Download Report (.md)
               </button>
+              {stream.runId && (
+                <button
+                  onClick={async () => {
+                    const apiKey = getApiKey()
+                    const res = await fetch(`/api/reports/${stream.runId}/pdf`, {
+                      headers: apiKey ? { 'X-API-Key': apiKey } : {},
+                    })
+                    if (!res.ok) {
+                      alert(`PDF generation failed: ${res.status} ${res.statusText}`)
+                      return
+                    }
+                    const blob = await res.blob()
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `run-${protocolKey}-${stream.runId}.pdf`
+                    a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-elevated border border-border text-text hover:bg-white transition"
+                >
+                  Download PDF
+                </button>
+              )}
             </div>
           )}
         </div>
