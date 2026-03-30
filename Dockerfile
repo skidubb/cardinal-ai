@@ -16,9 +16,10 @@ RUN npm run build
 # ============================================================
 FROM python:3.11-slim AS runtime
 
-# System deps for grpc (pinecone) and postgres (psycopg/asyncpg)
+# System deps for grpc (pinecone), postgres (psycopg/asyncpg), and WeasyPrint (PDF reports)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev \
+    libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
