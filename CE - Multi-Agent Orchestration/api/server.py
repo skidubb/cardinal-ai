@@ -97,10 +97,24 @@ app.include_router(runs.router)
 
 @app.get("/api/health")
 def health():
+    import os
     from api.database import DATABASE_URL
     db_type = "postgres" if "postgresql" in DATABASE_URL else "sqlite"
     db_host = DATABASE_URL.split("@")[-1].split("/")[0] if "@" in DATABASE_URL else "local"
-    return {"status": "ok", "db": db_type, "db_host": db_host}
+    # Diagnostic: show what the server actually sees for DATABASE_URL
+    raw_env = os.environ.get("DATABASE_URL", "")
+    env_present = bool(raw_env)
+    env_scheme = raw_env.split("://")[0] if "://" in raw_env else None
+    env_host = raw_env.split("@")[-1].split("/")[0] if "@" in raw_env else None
+    return {
+        "status": "ok",
+        "db": db_type,
+        "db_host": db_host,
+        "env_DATABASE_URL_set": env_present,
+        "env_scheme": env_scheme,
+        "env_host": env_host,
+        "langfuse_key_set": bool(os.environ.get("LANGFUSE_SECRET_KEY")),
+    }
 
 
 # ── Serve built frontend (production) ─────────────────────────────────────────
