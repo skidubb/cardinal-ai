@@ -51,8 +51,10 @@ RUN sed -i 's|ce-db @ file:../ce-db|# ce-db (already installed)|' /app/orchestra
 
 RUN pip install --no-cache-dir -r /app/orchestration-requirements.txt -r /app/api-requirements.txt
 
-# Postgres driver for Railway (SQLModel uses SQLAlchemy under the hood)
-RUN pip install --no-cache-dir psycopg2-binary
+# Postgres drivers for Railway
+# psycopg2-binary: sync driver for SQLModel (api/database.py)
+# asyncpg: async driver for ce-db persistence layer (protocols/persistence.py)
+RUN pip install --no-cache-dir psycopg2-binary asyncpg
 
 # Copy orchestration source
 COPY ["CE - Multi-Agent Orchestration/", "/app/orchestration/"]
