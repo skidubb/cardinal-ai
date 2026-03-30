@@ -4,7 +4,7 @@ Provides decorators and context management for instrumenting protocol
 orchestrators and agent calls with Langfuse spans. Gracefully degrades
 to no-ops when Langfuse is not configured (LANGFUSE_SECRET_KEY not set).
 
-Compatible with Langfuse SDK v3 (start_span / start_observation API).
+Compatible with Langfuse SDK v3 and v4 (uses start_observation API).
 
 Usage:
     from protocols.langfuse_tracing import trace_protocol, get_trace_id
@@ -44,14 +44,12 @@ try:
     if os.environ.get("LANGFUSE_SECRET_KEY"):
         host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL")
         _langfuse_client = Langfuse(host=host) if host else Langfuse()
-        # Langfuse SDKs have changed over time; we only enable tracing if the
-        # client exposes the span APIs we rely on.
-        if hasattr(_langfuse_client, "start_span"):
+        if hasattr(_langfuse_client, "start_observation"):
             _langfuse_available = True
-            _log.info("Langfuse tracing enabled")
+            _log.info("Langfuse tracing enabled (SDK %s)", getattr(Langfuse, '__version__', 'unknown'))
         else:
             _langfuse_available = False
-            _log.warning("Langfuse client missing start_span — tracing disabled (SDK mismatch)")
+            _log.warning("Langfuse client missing start_observation — tracing disabled (SDK too old)")
     else:
         _log.debug("LANGFUSE_SECRET_KEY not set — Langfuse tracing disabled")
 except ImportError:
@@ -139,7 +137,7 @@ def _create_trace_via_ingestion(
     """Create a trace via the ingestion API with all attributes baked in.
 
     This is the only reliable way to set tags, session_id, and user_id
-    on traces in Langfuse SDK v3. OTel-created traces (via start_span)
+    on traces in Langfuse SDK v3+. OTel-created traces (via start_observation)
     cannot be patched with these attributes after the fact.
     """
     try:
@@ -205,7 +203,8 @@ def trace_protocol(protocol_key: str):
                     metadata={"protocol_key": protocol_key},
                 )
 
-                root = _langfuse_client.start_span(
+                root = _langfuse_client.start_observation(
+                    as_type="span",
                     trace_context={"trace_id": trace_id},
                     name=protocol_key,
                     metadata={"protocol_key": protocol_key},
@@ -411,7 +410,8 @@ def record_generation(
     except Exception as e:
         _log.debug("start_observation(generation) failed, falling back to span: %s", e)
         try:
-            gen = _langfuse_client.start_span(
+            gen = _langfuse_client.start_observation(
+                as_type="span",
                 name=name,
                 trace_context={"trace_id": trace_id},
                 metadata={**metadata, "model": model, "input_tokens": input_tokens, "output_tokens": output_tokens},
@@ -434,7 +434,8 @@ def create_span(name: str, metadata: dict | None = None) -> Any:
     if not trace_id:
         return None
     try:
-        return _langfuse_client.start_span(
+        return _langfuse_client.start_observation(
+            as_type="span",
             name=name,
             trace_context={"trace_id": trace_id},
             metadata=metadata or {},
