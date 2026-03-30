@@ -50,9 +50,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="CE Orchestrator API", version="0.1.0", lifespan=lifespan)
 
+_default_origins = ["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"]
+_cors_env = os.getenv("CORS_ORIGINS", "")
+_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else _default_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

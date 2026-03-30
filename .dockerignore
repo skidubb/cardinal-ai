@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Python venvs
+**/venv/
+**/venv_fresh/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.egg-info/
+**/build/
+
+# Node
+**/node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# Research PDFs & large files
+Multi-Agent Research/
+**/*.pdf
+**/*.m4a
+**/*.zip
+**/*.docx
+
+# Runtime data
+**/data/
+**/sessions/
+**/*.duckdb
+**/orchestrator.db
+**/smoke-tests/
+
+# Planning & docs (not needed at runtime)
+.planning/
+protocol-diagrams/
+
+# Docker / CI
+.dockerignore
+Dockerfile
+
+# Lock files & misc
+**/.~lock.*
+**/_archive/
