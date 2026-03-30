@@ -59,6 +59,10 @@ COPY ["CE - Multi-Agent Orchestration/", "/app/orchestration/"]
 # Copy built UI into the place FastAPI expects
 COPY --from=ui-build /build/ui/dist /app/orchestration/ui/dist
 
+# Remove any .env files that leaked past .dockerignore — they contain
+# local dev credentials (POSTGRES_HOST=localhost) that poison DATABASE_URL
+RUN find /app -name ".env" -o -name ".env.*" | xargs rm -f 2>/dev/null; true
+
 # Point Python at the Agent Builder source for imports
 ENV CE_AGENT_BUILDER_PATH=/app/CE-Agent-Builder/src
 ENV PYTHONPATH=/app/orchestration

@@ -9,15 +9,23 @@ from sqlmodel import Session, SQLModel, create_engine
 
 logger = logging.getLogger(__name__)
 
-_DB_URL_ENV = os.getenv("DATABASE_URL", "")
-
-# --- Diagnostic: always print to stderr so Railway deploy logs capture it ---
 def _log(msg: str) -> None:
     print(f"[database.py] {msg}", file=sys.stderr, flush=True)
 
+# Read DATABASE_URL early, before any find_and_load_dotenv() can contaminate os.environ
+# with local dev values from a .env file that leaked into the Docker image.
+_DB_URL_ENV = os.getenv("DATABASE_URL", "")
+
+# Reject localhost Postgres URLs when running in Railway (or any container without local PG).
+# The ce_db package and langfuse_tracing both call find_and_load_dotenv() at import time,
+# which can load POSTGRES_HOST=localhost from a dev .env, contaminating DATABASE_URL.
+_in_railway = bool(os.getenv("RAILWAY_ENVIRONMENT_ID") or os.getenv("RAILWAY_PROJECT_ID") or os.getenv("PORT"))
+if _DB_URL_ENV and "localhost" in _DB_URL_ENV and _in_railway:
+    _log(f"Ignoring localhost DATABASE_URL in Railway: {_DB_URL_ENV[:40]}...")
+    _DB_URL_ENV = ""
+
 _log(f"DATABASE_URL present: {bool(_DB_URL_ENV)}, length: {len(_DB_URL_ENV)}")
 if _DB_URL_ENV:
-    # Show scheme + host (mask credentials)
     _parts = _DB_URL_ENV.split("@")
     _host_part = _parts[-1] if len(_parts) > 1 else "(no @ found)"
     _scheme = _DB_URL_ENV.split("://")[0] if "://" in _DB_URL_ENV else "(no scheme)"

@@ -34,16 +34,9 @@ _log = logging.getLogger(__name__)
 _langfuse_available = False
 _langfuse_client = None
 
-# Load .env so CLI runs pick up LANGFUSE_* keys automatically
-try:
-    from ce_shared.env import find_and_load_dotenv
-    find_and_load_dotenv()
-except ImportError:
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-    except ImportError:
-        pass
+# .env loading moved to CLI entry points (run.py files) and server.py lifespan.
+# Loading .env at module import time contaminated os.environ with local dev
+# values (POSTGRES_HOST=localhost) when imported by the API server in Docker.
 
 try:
     from langfuse import Langfuse
