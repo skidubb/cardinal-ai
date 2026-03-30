@@ -29,13 +29,15 @@ WORKDIR /app
 COPY ce-shared/ /app/ce-shared/
 RUN pip install --no-cache-dir /app/ce-shared
 
-# ce-db
+# ce-db (strip file:// ref to ce-shared — already installed above)
 COPY ce-db/ /app/ce-db/
-RUN pip install --no-cache-dir /app/ce-db
+RUN sed -i '/ce-shared @ file:/d' /app/ce-db/pyproject.toml \
+    && pip install --no-cache-dir /app/ce-db
 
-# Agent Builder (production agents)
+# Agent Builder (strip file:// ref to ce-shared — already installed above)
 COPY ["CE - Agent Builder/", "/app/CE-Agent-Builder/"]
-RUN pip install --no-cache-dir -e "/app/CE-Agent-Builder[sdk]"
+RUN sed -i '/ce-shared @ file:/d' /app/CE-Agent-Builder/pyproject.toml \
+    && pip install --no-cache-dir -e "/app/CE-Agent-Builder[sdk]"
 
 # --- Orchestration project ---
 
