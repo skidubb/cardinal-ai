@@ -4,10 +4,10 @@
 FROM node:22-slim AS ui-build
 
 WORKDIR /build/ui
-COPY CE\ -\ Multi-Agent\ Orchestration/ui/package.json CE\ -\ Multi-Agent\ Orchestration/ui/package-lock.json* ./
+COPY ["CE - Multi-Agent Orchestration/ui/package.json", "CE - Multi-Agent Orchestration/ui/package-lock.json*", "./"]
 RUN npm ci --ignore-scripts
 
-COPY CE\ -\ Multi-Agent\ Orchestration/ui/ ./
+COPY ["CE - Multi-Agent Orchestration/ui/", "./"]
 RUN npm run build
 
 
@@ -34,13 +34,13 @@ COPY ce-db/ /app/ce-db/
 RUN pip install --no-cache-dir /app/ce-db
 
 # Agent Builder (production agents)
-COPY CE\ -\ Agent\ Builder/ /app/CE-Agent-Builder/
+COPY ["CE - Agent Builder/", "/app/CE-Agent-Builder/"]
 RUN pip install --no-cache-dir -e "/app/CE-Agent-Builder[sdk]"
 
 # --- Orchestration project ---
 
-COPY CE\ -\ Multi-Agent\ Orchestration/requirements.txt /app/orchestration-requirements.txt
-COPY CE\ -\ Multi-Agent\ Orchestration/api/requirements.txt /app/api-requirements.txt
+COPY ["CE - Multi-Agent Orchestration/requirements.txt", "/app/orchestration-requirements.txt"]
+COPY ["CE - Multi-Agent Orchestration/api/requirements.txt", "/app/api-requirements.txt"]
 
 # Rewrite file:// refs to absolute paths inside the container
 RUN sed -i 's|ce-db @ file:../ce-db|# ce-db (already installed)|' /app/orchestration-requirements.txt \
@@ -52,7 +52,7 @@ RUN pip install --no-cache-dir -r /app/orchestration-requirements.txt -r /app/ap
 RUN pip install --no-cache-dir psycopg2-binary
 
 # Copy orchestration source
-COPY CE\ -\ Multi-Agent\ Orchestration/ /app/orchestration/
+COPY ["CE - Multi-Agent Orchestration/", "/app/orchestration/"]
 
 # Copy built UI into the place FastAPI expects
 COPY --from=ui-build /build/ui/dist /app/orchestration/ui/dist
