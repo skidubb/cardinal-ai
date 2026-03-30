@@ -97,7 +97,10 @@ app.include_router(runs.router)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    from api.database import DATABASE_URL
+    db_type = "postgres" if "postgresql" in DATABASE_URL else "sqlite"
+    db_host = DATABASE_URL.split("@")[-1].split("/")[0] if "@" in DATABASE_URL else "local"
+    return {"status": "ok", "db": db_type, "db_host": db_host}
 
 
 # ── Serve built frontend (production) ─────────────────────────────────────────
