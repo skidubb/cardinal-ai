@@ -17,9 +17,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from dotenv import load_dotenv
+from ce_shared.env import find_and_load_dotenv
 
-load_dotenv()
+find_and_load_dotenv()
 
 NAMESPACE = "airport-5g"
 

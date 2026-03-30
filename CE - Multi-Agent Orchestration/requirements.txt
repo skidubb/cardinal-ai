@@ -1,11 +1,14 @@
 anthropic>=0.83.0
 litellm>=1.40.0
-langfuse>=2.0.0
+langfuse>=3.0.0
 python-dotenv>=1.0.0
 pyyaml>=6.0
 
 # Observability data layer (local package)
 ce-db @ file:../ce-db
+
+# Shared pricing and utilities (local package)
+ce-shared @ file:../ce-shared
 
 # Only needed for scripts/ingest_papers.py:
 PyMuPDF>=1.25.0

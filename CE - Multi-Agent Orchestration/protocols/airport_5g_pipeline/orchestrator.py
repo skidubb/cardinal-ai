@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
-load_dotenv()
+from ce_shared.env import find_and_load_dotenv
+find_and_load_dotenv()
 
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
 from protocols.llm import extract_text, llm_complete, filter_exceptions

@@ -11,14 +11,18 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from ce_shared.env import find_and_load_dotenv
+
 HAIKU_MODEL = os.getenv("HAIKU_MODEL", "claude-haiku-4-5-20251001")
+
+# Module-level flag to ensure env is loaded exactly once
+_env_loaded = False
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -509,7 +513,11 @@ AGENT_CONFIGS = {
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Get application settings singleton."""
-    return Settings()  # type: ignore[call-arg]  # pydantic-settings loads from .env
+    global _env_loaded
+    if not _env_loaded:
+        find_and_load_dotenv(project="agent-builder")
+        _env_loaded = True
+    return Settings()  # type: ignore[call-arg]  # env vars loaded by ce_shared
 
 
 def get_agent_config(role: str) -> AgentConfig:

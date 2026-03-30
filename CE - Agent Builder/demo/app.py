@@ -30,7 +30,7 @@ from typing import Any
 
 import pandas as pd
 import streamlit as st
-from dotenv import load_dotenv
+from ce_shared.env import find_and_load_dotenv
 
 from csuite.agents.cfo import CFOAgent
 from csuite.agents.cmo import CMOAgent
@@ -52,8 +52,8 @@ from demo_data import (
     list_demo_companies,
 )
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from monorepo root .env
+find_and_load_dotenv(project="agent-builder")
 
 # ============================================================================
 # Constants

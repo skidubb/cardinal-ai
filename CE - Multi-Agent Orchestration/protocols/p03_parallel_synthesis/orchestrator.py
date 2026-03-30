@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions
+from protocols.llm import agent_complete, emit_stage, extract_text, filter_exceptions
 from protocols.synthesis import SynthesisEngine
 from protocols.tracing import make_client
 from .prompts import SYNTHESIS_SYSTEM_PROMPT
@@ -71,6 +71,7 @@ class SynthesisOrchestrator:
 
         # Stage 1: Parallel query — all agents answer independently
         print(f"Stage 1: Querying {len(self.agents)} agents in parallel...")
+        await emit_stage(f"Querying {len(self.agents)} agents in parallel...")
         span = create_span("stage:parallel_query", {"agent_count": len(self.agents)})
         try:
             responses = await self._parallel_query(question)
@@ -85,6 +86,7 @@ class SynthesisOrchestrator:
 
         # Stage 2: Synthesis — merge all perspectives
         print("Stage 2: Synthesizing perspectives...")
+        await emit_stage("Synthesizing perspectives...")
         span = create_span("stage:synthesis", {"perspective_count": len(result.perspectives)})
         try:
             result.synthesis = await self._synthesize(question, result.perspectives)

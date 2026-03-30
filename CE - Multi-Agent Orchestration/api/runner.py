@@ -16,10 +16,18 @@ from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
 from typing import Any
 
+
+# ── Active task registry ──────────────────────────────────────────────────────
+# Maps run_id -> asyncio.Task for the orchestrator coroutine.
+# Used by disconnect watchers to cancel in-flight runs when the client disconnects.
+
+_active_run_tasks: dict[int, asyncio.Task] = {}
+
 from sqlmodel import Session
 
 from api.database import engine
 from api.models import AgentOutput, Run, RunStep
+from protocols.agent_provider import build_production_agents
 from protocols.config import ORCHESTRATION_MODEL, THINKING_MODEL
 from protocols.cost_tracker import ProtocolCostTracker
 from protocols.judge import QualityJudge
@@ -73,7 +81,12 @@ def _load_orchestrator_class(protocol_key: str):
 # ── Agent resolution ─────────────────────────────────────────────────────────
 
 def _resolve_agents(agent_keys: list[str]) -> list[dict]:
-    """Build full agent dicts from DB (rich) or registry (thin)."""
+    """Build full agent dicts from DB (rich) or registry (thin).
+
+    DEPRECATED: Use build_production_agents() from protocols.agent_provider instead.
+    This function returns plain dicts (research/fallback mode) and is retained for
+    reference only. It is no longer called by run_protocol_stream or run_pipeline_stream.
+    """
     from sqlmodel import select as sql_select
 
     from api.models import Agent as AgentModel
@@ -219,7 +232,7 @@ async def run_protocol_stream(
 
     try:
         OrchestratorClass = _load_orchestrator_class(protocol_key)
-        agents = _resolve_agents(agent_keys)
+        agents = build_production_agents(agent_keys)
 
         yield _sse_event("agent_roster", {
             "agents": [{"key": k, "name": a["name"]} for k, a in zip(agent_keys, agents)]
@@ -250,9 +263,17 @@ async def run_protocol_stream(
 
         t0 = time.time()
         orch_task = asyncio.create_task(orchestrator.run(question))
-        orch_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+        _active_run_tasks[run_id] = orch_task
 
-        # Drain queue live, yielding SSE events as tools fire
+        def _cleanup_task(t: asyncio.Task) -> None:
+            _active_run_tasks.pop(run_id, None)
+            if not t.cancelled() and t.exception():
+                pass  # exceptions surfaced via await orch_task below
+
+        orch_task.add_done_callback(_cleanup_task)
+
+        # Drain queue live, yielding SSE events as they fire
+        last_heartbeat = time.time()
         while not orch_task.done():
             try:
                 evt = await asyncio.wait_for(queue.get(), timeout=0.1)
@@ -260,7 +281,13 @@ async def run_protocol_stream(
                     break
                 tool_events.append(evt)
                 yield _sse_event(evt["event"], evt)
+                last_heartbeat = time.time()
             except asyncio.TimeoutError:
+                # SSE heartbeat every 5s to keep connection alive
+                now = time.time()
+                if now - last_heartbeat >= 5.0:
+                    yield f": heartbeat {int(now - t0)}s\n\n"
+                    last_heartbeat = now
                 continue
 
         result = await orch_task
@@ -357,6 +384,9 @@ async def run_protocol_stream(
                 run.status = "completed"
                 run.completed_at = datetime.now(timezone.utc)
                 run.cost_usd = cost_tracker.total_cost
+                run.trace_id = envelope.trace_id
+                if judge_verdict_dict:
+                    run.judge_verdict_json = json.dumps(judge_verdict_dict)
                 if envelope.telemetry_degraded:
                     warning_json = json.dumps([w.as_dict() for w in envelope.warnings])[:4000]
                     run.error_message = warning_json
@@ -434,12 +464,22 @@ async def run_protocol_stream(
             run_complete_payload["judge_verdict"] = judge_verdict_dict
         yield _sse_event("run_complete", run_complete_payload)
 
-        # Clear tracker from context
-        set_cost_tracker(None)
+    except asyncio.CancelledError:
+        _active_run_tasks.pop(run_id, None)
+        with Session(engine) as session:
+            run = session.get(Run, run_id)
+            if run:
+                run.status = "cancelled"
+                run.completed_at = datetime.now(timezone.utc)
+                session.add(run)
+                session.commit()
+        yield _sse_event("run_complete", {"run_id": run_id, "status": "cancelled"})
+        raise  # Re-raise CancelledError so asyncio task machinery handles it properly
 
     except Exception as e:
         tb_str = traceback.format_exc()
         run_warnings: list[dict[str, Any]] = []
+        _active_run_tasks.pop(run_id, None)
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
@@ -470,7 +510,6 @@ async def run_protocol_stream(
                 }
             )
 
-        set_cost_tracker(None)
         yield _sse_event("error", {"message": str(e), "traceback": tb_str})
         yield _sse_event(
             "run_complete",
@@ -481,6 +520,11 @@ async def run_protocol_stream(
                 "warnings": run_warnings,
             },
         )
+
+    finally:
+        # Always clean up context vars, regardless of how the generator exits
+        set_cost_tracker(None)
+        set_event_queue(None)
 
 
 # ── Pipeline run ─────────────────────────────────────────────────────────────
@@ -545,7 +589,7 @@ async def run_pipeline_stream(
                 step_id = run_step.id
 
             OrchestratorClass = _load_orchestrator_class(protocol_key)
-            agents = _resolve_agents(agent_keys)
+            agents = build_production_agents(agent_keys)
 
             kwargs: dict[str, Any] = {
                 "agents": agents,
@@ -567,8 +611,13 @@ async def run_pipeline_stream(
             step_started_at = datetime.now(timezone.utc)
             step_tool_events: list[dict[str, Any]] = []
             pip_task = asyncio.create_task(orchestrator.run(step_question))
-            pip_task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+            _active_run_tasks[run_id] = pip_task
+            pip_task.add_done_callback(lambda t: _active_run_tasks.pop(run_id, None) or (
+                t.exception() if not t.cancelled() and t.exception() else None
+            ))
 
+            pip_t0 = time.time()
+            pip_last_heartbeat = time.time()
             while not pip_task.done():
                 try:
                     evt = await asyncio.wait_for(pip_queue.get(), timeout=0.1)
@@ -576,7 +625,12 @@ async def run_pipeline_stream(
                         break
                     step_tool_events.append(evt)
                     yield _sse_event(evt["event"], {**evt, "step": i})
+                    pip_last_heartbeat = time.time()
                 except asyncio.TimeoutError:
+                    now = time.time()
+                    if now - pip_last_heartbeat >= 5.0:
+                        yield f": heartbeat {int(now - pip_t0)}s\n\n"
+                        pip_last_heartbeat = now
                     continue
 
             result = await pip_task
@@ -645,7 +699,7 @@ async def run_pipeline_stream(
                 "cost": step_cost_summary,
             })
 
-        # Mark run complete
+        # Mark run complete and persist agent outputs for report generation
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
@@ -659,6 +713,36 @@ async def run_pipeline_stream(
                     ]
                     run.error_message = json.dumps(warning_payload)[:4000]
                 session.add(run)
+
+                # Save agent outputs from each step so reports can reconstruct them
+                for step_env in step_envelopes:
+                    for out in step_env.agent_outputs:
+                        session.add(
+                            AgentOutput(
+                                run_id=run_id,
+                                run_step_id=None,
+                                agent_key=out.agent_key,
+                                model=out.model or "",
+                                output_text=out.text,
+                                tool_calls_json=json.dumps(out.tool_calls) if out.tool_calls else "[]",
+                                input_tokens=out.input_tokens,
+                                output_tokens=out.output_tokens,
+                                cost_usd=out.cost_usd,
+                                started_at=out.started_at,
+                                completed_at=out.completed_at,
+                            )
+                        )
+
+                # Save final synthesis (last step's synthesis or accumulated prev_output)
+                if prev_output:
+                    session.add(
+                        AgentOutput(
+                            run_id=run_id,
+                            agent_key="_synthesis",
+                            model="",
+                            output_text=prev_output,
+                        )
+                    )
                 session.commit()
 
         pipeline_cost_summary = _merge_cost_summaries(step_cost_summaries)
@@ -712,7 +796,6 @@ async def run_pipeline_stream(
                 }
             )
 
-        set_session_id(None)
         yield _sse_event(
             "run_complete",
             {
@@ -724,8 +807,21 @@ async def run_pipeline_stream(
             },
         )
 
+    except asyncio.CancelledError:
+        _active_run_tasks.pop(run_id, None)
+        with Session(engine) as session:
+            run = session.get(Run, run_id)
+            if run:
+                run.status = "cancelled"
+                run.completed_at = datetime.now(timezone.utc)
+                session.add(run)
+                session.commit()
+        yield _sse_event("run_complete", {"run_id": run_id, "status": "cancelled"})
+        raise  # Re-raise CancelledError so asyncio task machinery handles it properly
+
     except Exception as e:
         tb_str = traceback.format_exc()
+        _active_run_tasks.pop(run_id, None)
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
@@ -735,8 +831,6 @@ async def run_pipeline_stream(
                 session.add(run)
                 session.commit()
 
-        set_cost_tracker(None)
-        set_session_id(None)
         run_error_warnings: list[dict[str, Any]] = []
         try:
             outcome = await persist_run(
@@ -769,3 +863,8 @@ async def run_pipeline_stream(
                 "warnings": run_error_warnings,
             },
         )
+
+    finally:
+        # Always clean up context vars, regardless of how the generator exits
+        set_cost_tracker(None)
+        set_session_id(None)

@@ -6,8 +6,8 @@ import json
 import re
 from typing import Any
 
-from dotenv import load_dotenv
-load_dotenv()
+from ce_shared.env import find_and_load_dotenv
+find_and_load_dotenv()
 
 import anthropic
 

@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import inspect
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from sqlmodel import Session
 
+from api.database import engine
 from api.manifest import get_protocol_manifest
+from api.models import Run
+from api.routers.runs import ProtocolRunRequest
+from api.runner import _active_run_tasks, run_protocol_stream
 
 router = APIRouter(prefix="/api/protocols", tags=["protocols"])
 
@@ -16,6 +23,56 @@ router = APIRouter(prefix="/api/protocols", tags=["protocols"])
 @router.get("")
 def list_protocols() -> list[dict]:
     return get_protocol_manifest()
+
+
+# ── POST /run — declared BEFORE GET /{key}/stages to avoid route conflict ─────
+
+async def _watch_disconnect(request: Request, run_id: int) -> None:
+    """Poll for client disconnect and cancel the active orchestrator task when detected."""
+    while not await request.is_disconnected():
+        await asyncio.sleep(0.5)
+    task = _active_run_tasks.get(run_id)
+    if task and not task.done():
+        task.cancel()
+
+
+@router.post("/run")
+async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> StreamingResponse:
+    """Start a protocol run and stream SSE events."""
+    with Session(engine) as session:
+        run = Run(
+            type="protocol",
+            protocol_key=payload.protocol_key,
+            question=payload.question,
+            status="pending",
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    async def _guarded_stream():
+        disconnect_watcher = asyncio.create_task(_watch_disconnect(request, run_id))
+        try:
+            async for chunk in run_protocol_stream(
+                run_id=run_id,
+                protocol_key=payload.protocol_key,
+                question=payload.question,
+                agent_keys=payload.agent_keys,
+                thinking_model=payload.thinking_model,
+                orchestration_model=payload.orchestration_model,
+                rounds=payload.rounds,
+                no_tools=payload.no_tools,
+            ):
+                yield chunk
+        finally:
+            disconnect_watcher.cancel()
+
+    return StreamingResponse(
+        _guarded_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/{key}/stages")

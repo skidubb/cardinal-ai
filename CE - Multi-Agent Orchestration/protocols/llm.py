@@ -107,6 +107,13 @@ def get_event_queue() -> asyncio.Queue | None:
     return _event_queue.get()
 
 
+async def emit_stage(message: str) -> None:
+    """Push a stage event to the live SSE queue (no-op if no queue)."""
+    eq = _event_queue.get()
+    if eq is not None:
+        await eq.put({"event": "stage", "message": message})
+
+
 def set_cost_tracker(tracker: Any) -> None:
     """Attach a ProtocolCostTracker to the current context. Pass None to clear."""
     _cost_tracker.set(tracker)
@@ -122,19 +129,33 @@ def _record_usage(
     response: Any,
     agent_name: str | None = None,
     input_messages: list[dict] | str | None = None,
+    estimated_tokens: dict | None = None,
+    cost_usd: float | None = None,
 ) -> None:
     """Extract token counts from an API response and forward to the active tracker.
 
     Also records a Langfuse generation span if tracing is active.
     ``input_messages`` is the prompt sent to the LLM (for Langfuse eval visibility).
+
+    When ``estimated_tokens`` is provided (and ``response`` is None), uses the
+    estimated values instead of extracting from an SDK response. This supports
+    production SDK agents where only cumulative cost is available.
     """
-    usage = getattr(response, "usage", None)
-    if usage is None:
-        return
-    input_tokens = getattr(usage, "input_tokens", 0) or 0
-    output_tokens = getattr(usage, "output_tokens", 0) or 0
-    # cache_read_input_tokens is Anthropic SDK's attribute name for prompt-cache hits
-    cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+    if estimated_tokens is not None and response is None:
+        # Estimated path — production SDK agent with cost-based estimation
+        input_tokens = estimated_tokens.get("input_tokens", 0)
+        output_tokens = estimated_tokens.get("output_tokens", 0)
+        cached_tokens = 0
+        token_source = "estimated_from_cost"
+    else:
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return
+        input_tokens = getattr(usage, "input_tokens", 0) or 0
+        output_tokens = getattr(usage, "output_tokens", 0) or 0
+        # cache_read_input_tokens is Anthropic SDK's attribute name for prompt-cache hits
+        cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+        token_source = "sdk_response"
 
     tracker = _cost_tracker.get()
     if tracker is None:
@@ -160,21 +181,25 @@ def _record_usage(
 
     # Extract response text for Langfuse eval visibility
     response_text: str | None = None
-    try:
-        response_text = extract_text(response)
-    except Exception:
-        pass
+    if response is not None:
+        try:
+            response_text = extract_text(response)
+        except Exception:
+            pass
 
     # Langfuse generation span (no-op if not configured)
     try:
         from protocols.langfuse_tracing import record_generation
         from protocols.cost_tracker import _compute_cost
-        call_cost = _compute_cost(model, input_tokens, output_tokens, cached_tokens)
+        call_cost = cost_usd if cost_usd is not None else _compute_cost(
+            model, input_tokens, output_tokens, cached_tokens
+        )
         record_generation(
             model, input_tokens, output_tokens, cached_tokens, agent_name,
             cost_usd=call_cost,
             input_content=input_messages,
             output_content=response_text,
+            token_source=token_source,
         )
     except ImportError:
         pass
@@ -237,10 +262,64 @@ async def agent_complete(
     Returns:
         Response text as a string.
     """
+    # Resolve agent name for lifecycle events
+    agent_name = getattr(agent, "name", None) or (agent.get("name") if isinstance(agent, dict) else None) or "unknown"
+    eq = get_event_queue()
+
+    # Emit agent_start event
+    if eq is not None:
+        await eq.put({"event": "agent_start", "agent_name": agent_name})
+
+    try:
+        return await _agent_complete_inner(
+            agent, fallback_model, messages, thinking_budget,
+            max_tokens, anthropic_client, system, tools, no_tools,
+            agent_name,
+        )
+    finally:
+        # Emit agent_done event (fires even on error)
+        if eq is not None:
+            await eq.put({"event": "agent_done", "agent_name": agent_name})
+
+
+async def _agent_complete_inner(
+    agent: dict,
+    fallback_model: str,
+    messages: list[dict],
+    thinking_budget: int,
+    max_tokens: int,
+    anthropic_client: anthropic.AsyncAnthropic | None,
+    system: str | None,
+    tools: list[dict] | None,
+    no_tools: bool,
+    agent_name: str,
+) -> str:
+    """Inner dispatch logic for agent_complete (separated for lifecycle events)."""
+
     # Production agent detection: if agent has chat(), use it directly
     if hasattr(agent, "chat") and callable(agent.chat):
         user_msg = messages[-1]["content"] if messages else ""
-        return await agent.chat(user_msg)
+        result = await agent.chat(user_msg)
+        cost_usd = getattr(agent, "cost", 0.0)
+        if cost_usd and cost_usd > 0:
+            from ce_shared.pricing import estimate_tokens_from_cost
+            est = estimate_tokens_from_cost(fallback_model, cost_usd)
+            agent_name_val = getattr(agent, "name", None)
+            tracker = _cost_tracker.get()
+            _record_usage(
+                response=None,
+                model=fallback_model,
+                agent_name=agent_name_val,
+                estimated_tokens=est,
+                cost_usd=cost_usd,
+                input_messages=user_msg,
+            )
+        else:
+            _log.warning(
+                "Production agent %s returned zero cost — skipping token estimation",
+                getattr(agent, "name", "unknown"),
+            )
+        return result
 
     effective_no_tools = no_tools or _no_tools.get()
     system_prompt = system or agent.get("system_prompt", "")

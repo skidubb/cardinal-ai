@@ -9,7 +9,7 @@ import asyncio
 from pathlib import Path
 
 import click
-from dotenv import load_dotenv
+from ce_shared.env import find_and_load_dotenv
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -21,8 +21,8 @@ from csuite.agents.base import BaseAgent
 from csuite.agents.factory import create_agent
 from csuite.session import SessionManager
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from monorepo root .env
+find_and_load_dotenv(project="agent-builder")
 
 console = Console()
 

@@ -26,34 +26,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-# =============================================================================
-# Cost Model Constants (Anthropic Pricing - February 2026)
-# =============================================================================
-
-class ModelTier(StrEnum):
-    """Model tiers with associated pricing."""
-    OPUS = "claude-opus-4-6"
-    SONNET = "claude-sonnet-4-5-20250929"
-    HAIKU = "claude-haiku-4-5-20251001"
-
-
-# Pricing per million tokens (MTok)
-MODEL_PRICING = {
-    ModelTier.OPUS: {"input": 5.00, "output": 25.00},
-    ModelTier.SONNET: {"input": 3.00, "output": 15.00},
-    ModelTier.HAIKU: {"input": 1.00, "output": 5.00},
-    # Fallback for any model containing these substrings
-    "opus": {"input": 5.00, "output": 25.00},
-    "sonnet": {"input": 3.00, "output": 15.00},
-    "haiku": {"input": 1.00, "output": 5.00},
-}
-
-# Batch API discount: 50% off
-BATCH_DISCOUNT = 0.50
-
-# Cache pricing: writes 1.25x, reads 0.1x
-CACHE_WRITE_MULTIPLIER = 1.25
-CACHE_READ_MULTIPLIER = 0.10
+from ce_shared.pricing import (
+    BATCH_DISCOUNT,
+    CACHE_READ_MULTIPLIER,
+    CACHE_WRITE_MULTIPLIER,
+    MODEL_PRICING,
+    ModelTier,
+    get_pricing,
+)
 
 
 # =============================================================================
@@ -155,20 +135,13 @@ class UsageRecord(BaseModel):
         self.total_cost = self.input_cost + self.output_cost
 
     def _get_pricing(self) -> dict[str, float]:
-        """Get pricing for this record's model."""
-        # Try exact match first
-        model_lower = self.model.lower()
-        for tier in ModelTier:
-            if tier.value == self.model:
-                return MODEL_PRICING[tier]
+        """Get pricing for this record's model.
 
-        # Fallback to substring match
-        for key in ["opus", "sonnet", "haiku"]:
-            if key in model_lower:
-                return MODEL_PRICING[key]
-
-        # Default to Opus pricing (conservative)
-        return MODEL_PRICING["opus"]
+        Delegates to ce_shared.pricing.get_pricing() which handles exact match,
+        substring fallback, and conservative defaults.
+        """
+        input_rate, output_rate = get_pricing(self.model)
+        return {"input": input_rate, "output": output_rate}
 
 
 class AggregatedMetrics(BaseModel):
@@ -1035,10 +1008,10 @@ def calculate_model_tier_cost(
     Returns:
         Cost breakdown
     """
-    pricing = MODEL_PRICING.get(model_tier.lower(), MODEL_PRICING["opus"])
+    input_per_mtok, output_per_mtok = get_pricing(model_tier)
 
-    input_rate = pricing["input"] / 1_000_000
-    output_rate = pricing["output"] / 1_000_000
+    input_rate = input_per_mtok / 1_000_000
+    output_rate = output_per_mtok / 1_000_000
 
     # Non-cached input at full rate
     non_cached_input = max(0, input_tokens - cached_tokens)

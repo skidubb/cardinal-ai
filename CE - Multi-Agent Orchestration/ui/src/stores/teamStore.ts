@@ -6,12 +6,14 @@ interface TeamState {
   teams: Team[]
   currentTeamKeys: string[]
   currentTeamName: string
+  currentTeamDescription: string
   editingTeamId: number | null
   loading: boolean
   fetch: () => Promise<void>
   addAgent: (key: string) => void
   removeAgent: (key: string) => void
   setTeamName: (name: string) => void
+  setTeamDescription: (desc: string) => void
   clearTeam: () => void
   saveTeam: () => Promise<void>
   updateTeam: () => Promise<void>
@@ -24,6 +26,7 @@ export const useTeamStore = create<TeamState>((set, get) => ({
   teams: [],
   currentTeamKeys: [],
   currentTeamName: 'Untitled Team',
+  currentTeamDescription: '',
   editingTeamId: null,
   loading: false,
   fetch: async () => {
@@ -45,18 +48,19 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     set({ currentTeamKeys: get().currentTeamKeys.filter((k) => k !== key) })
   },
   setTeamName: (name) => set({ currentTeamName: name }),
-  clearTeam: () => set({ currentTeamKeys: [], currentTeamName: 'Untitled Team', editingTeamId: null }),
+  setTeamDescription: (desc) => set({ currentTeamDescription: desc }),
+  clearTeam: () => set({ currentTeamKeys: [], currentTeamName: 'Untitled Team', currentTeamDescription: '', editingTeamId: null }),
   saveTeam: async () => {
-    const { currentTeamName, currentTeamKeys, fetch: refetch } = get()
+    const { currentTeamName, currentTeamDescription, currentTeamKeys, fetch: refetch } = get()
     if (currentTeamKeys.length === 0) return
-    await api.teams.create({ name: currentTeamName, agent_keys: currentTeamKeys } as Parameters<typeof api.teams.create>[0])
+    await api.teams.create({ name: currentTeamName, description: currentTeamDescription, agent_keys: currentTeamKeys } as Parameters<typeof api.teams.create>[0])
     set({ editingTeamId: null })
     refetch()
   },
   updateTeam: async () => {
-    const { editingTeamId, currentTeamName, currentTeamKeys, fetch: refetch } = get()
+    const { editingTeamId, currentTeamName, currentTeamDescription, currentTeamKeys, fetch: refetch } = get()
     if (!editingTeamId || currentTeamKeys.length === 0) return
-    await api.teams.update(editingTeamId, { name: currentTeamName, agent_keys: currentTeamKeys } as Parameters<typeof api.teams.update>[1])
+    await api.teams.update(editingTeamId, { name: currentTeamName, description: currentTeamDescription, agent_keys: currentTeamKeys } as Parameters<typeof api.teams.update>[1])
     set({ editingTeamId: null })
     refetch()
   },
@@ -64,11 +68,12 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     set({
       editingTeamId: team.id,
       currentTeamName: team.name,
+      currentTeamDescription: team.description || '',
       currentTeamKeys: [...team.agent_keys],
     })
   },
   cancelEditing: () => {
-    set({ editingTeamId: null, currentTeamKeys: [], currentTeamName: 'Untitled Team' })
+    set({ editingTeamId: null, currentTeamKeys: [], currentTeamName: 'Untitled Team', currentTeamDescription: '' })
   },
   deleteTeam: async (id) => {
     await api.teams.delete(id)

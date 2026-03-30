@@ -24,11 +24,11 @@ import time
 from pathlib import Path
 
 import click
-from dotenv import load_dotenv
+from ce_shared.env import find_and_load_dotenv
 from notion_client import Client
 import os
 
-load_dotenv()
+find_and_load_dotenv()
 
 notion = Client(auth=os.environ["NOTION_API_KEY"])
 

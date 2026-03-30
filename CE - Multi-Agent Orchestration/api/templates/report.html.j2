@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardinal Element Protocol Report — {{ report.metadata.protocol_key | default('Protocol') }}</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1a1a2e;
+    background: #ffffff;
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* ── Page Header ───────────────────────────────────────────────── */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #2d3a5e;
+    padding-bottom: 16px;
+    margin-bottom: 28px;
+  }
+
+  .brand {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 22px;
+    font-weight: bold;
+    color: #2d3a5e;
+    letter-spacing: -0.5px;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: #6b7280;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+
+  .header-meta {
+    text-align: right;
+    font-size: 11px;
+    color: #6b7280;
+  }
+
+  .header-meta .protocol-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 3px;
+  }
+
+  /* ── Section Layout ────────────────────────────────────────────── */
+  .section {
+    margin-bottom: 28px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 4px;
+  }
+
+  /* ── Executive Summary ─────────────────────────────────────────── */
+  .executive-summary {
+    background: #f0f4ff;
+    border-left: 4px solid #2d3a5e;
+    border-radius: 0 6px 6px 0;
+    padding: 16px 20px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #1f2937;
+  }
+
+  /* ── Confidence Score ──────────────────────────────────────────── */
+  .confidence-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .confidence-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .dot-filled-green  { background: #22c55e; }
+  .dot-filled-yellow { background: #eab308; }
+  .dot-filled-red    { background: #ef4444; }
+  .dot-filled-gray   { background: #9ca3af; }
+  .dot-empty         { background: #e5e7eb; border: 1px solid #d1d5db; }
+
+  .confidence-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .confidence-score-num {
+    font-size: 11px;
+    color: #6b7280;
+  }
+
+  /* ── Key Findings ───────────────────────────────────────────────── */
+  .findings-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .findings-list li {
+    padding: 6px 0 6px 20px;
+    position: relative;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 13px;
+    color: #374151;
+  }
+
+  .findings-list li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: #2d3a5e;
+    font-size: 10px;
+    top: 8px;
+  }
+
+  /* ── Disagreements ──────────────────────────────────────────────── */
+  .disagreements-box {
+    border: 1px solid #f59e0b;
+    border-left: 4px solid #f59e0b;
+    background: #fffbeb;
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+  }
+
+  .disagreements-box .section-label {
+    color: #b45309;
+    border-bottom-color: #fcd34d;
+    margin-bottom: 10px;
+  }
+
+  .disagreement-item {
+    font-size: 13px;
+    color: #78350f;
+    padding: 5px 0;
+    border-bottom: 1px solid #fde68a;
+    line-height: 1.5;
+  }
+
+  .disagreement-item:last-child {
+    border-bottom: none;
+  }
+
+  /* ── Synthesis ──────────────────────────────────────────────────── */
+  .synthesis-text {
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.75;
+    white-space: pre-wrap;
+  }
+
+  /* ── Agent Contribution Cards ───────────────────────────────────── */
+  .agent-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+
+  .agent-card-header {
+    background: #f9fafb;
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .agent-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1f2937;
+  }
+
+  .agent-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 11px;
+    color: #6b7280;
+  }
+
+  .agent-meta .model-badge {
+    background: #ede9fe;
+    color: #5b21b6;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-weight: 500;
+  }
+
+  .agent-meta .cost-badge {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-weight: 500;
+  }
+
+  .agent-card-body {
+    padding: 14px 16px;
+    font-size: 12px;
+    color: #4b5563;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  /* ── Cost Summary Footer ─────────────────────────────────────────── */
+  .cost-summary {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .cost-item {
+    text-align: center;
+  }
+
+  .cost-item .cost-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .cost-item .cost-label {
+    font-size: 10px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+
+  /* ── Metadata Footer ─────────────────────────────────────────────── */
+  .page-footer {
+    margin-top: 36px;
+    padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 10px;
+    color: #9ca3af;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .participants-list {
+    font-size: 11px;
+    color: #6b7280;
+  }
+
+  .participant-tag {
+    display: inline-block;
+    background: #ede9fe;
+    color: #5b21b6;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 500;
+    margin: 2px 3px 2px 0;
+  }
+
+  /* ── Question Block ──────────────────────────────────────────────── */
+  .question-block {
+    font-style: italic;
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 24px;
+    padding: 10px 16px;
+    border-left: 3px solid #d1d5db;
+    background: #f9fafb;
+    border-radius: 0 4px 4px 0;
+  }
+
+  @media print {
+    body { padding: 20px; }
+    .agent-card-body { max-height: none; overflow: visible; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <div class="brand">Cardinal Element</div>
+    <div class="brand-sub">Multi-Agent Protocol Analysis</div>
+  </div>
+  <div class="header-meta">
+    <div class="protocol-name">{{ report.metadata.protocol_key | upper | default('Protocol') }}</div>
+    <div>{{ report.metadata.completed_at | default('') | truncate(10, true, '') }}</div>
+    {% if report.metadata.run_id %}
+    <div>Run #{{ report.metadata.run_id }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Question -->
+{% if report.metadata.question %}
+<div class="question-block">
+  "{{ report.metadata.question }}"
+</div>
+{% endif %}
+
+<!-- Participants -->
+{% if report.participants %}
+<div class="section">
+  <div class="section-label">Participants</div>
+  <div class="participants-list">
+    {% for p in report.participants %}
+    <span class="participant-tag">{{ p }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Executive Summary -->
+<div class="section">
+  <div class="section-label">Executive Summary</div>
+  <div class="executive-summary">{{ report.executive_summary }}</div>
+</div>
+
+<!-- Confidence Score -->
+<div class="section">
+  <div class="section-label">Confidence Assessment</div>
+  <div class="confidence-row">
+    <div class="confidence-dots">
+      {% set score = report.confidence_score %}
+      {% for i in range(1, 6) %}
+        {% if score >= 4 %}
+          {% if i <= score %}<span class="dot dot-filled-green"></span>{% else %}<span class="dot dot-empty"></span>{% endif %}
+        {% elif score == 3 %}
+          {% if i <= score %}<span class="dot dot-filled-yellow"></span>{% else %}<span class="dot dot-empty"></span>{% endif %}
+        {% elif score >= 1 %}
+          {% if i <= score %}<span class="dot dot-filled-red"></span>{% else %}<span class="dot dot-empty"></span>{% endif %}
+        {% else %}
+          <span class="dot dot-filled-gray"></span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <span class="confidence-label">{{ report.confidence_label }}</span>
+    <span class="confidence-score-num">({{ score }}/5)</span>
+  </div>
+</div>
+
+<!-- Key Findings -->
+{% if report.key_findings %}
+<div class="section">
+  <div class="section-label">Key Findings</div>
+  <ul class="findings-list">
+    {% for finding in report.key_findings %}
+    <li>{{ finding }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Disagreements -->
+{% if report.disagreements %}
+<div class="section">
+  <div class="disagreements-box">
+    <div class="section-label">Areas of Disagreement</div>
+    {% for d in report.disagreements %}
+    <div class="disagreement-item">{{ d }}</div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Synthesis -->
+{% if report.synthesis %}
+<div class="section">
+  <div class="section-label">Full Synthesis</div>
+  <div class="synthesis-text">{{ report.synthesis }}</div>
+</div>
+{% endif %}
+
+<!-- Agent Contributions -->
+{% if report.agent_contributions %}
+<div class="section">
+  <div class="section-label">Agent Contributions</div>
+  {% for contribution in report.agent_contributions %}
+  <div class="agent-card">
+    <div class="agent-card-header">
+      <div class="agent-name">{{ contribution.agent_name or contribution.agent_key }}</div>
+      <div class="agent-meta">
+        {% if contribution.model %}
+        <span class="model-badge">{{ contribution.model | truncate(30, true, '...') }}</span>
+        {% endif %}
+        {% if contribution.cost_usd > 0 %}
+        <span class="cost-badge">${{ "%.4f" | format(contribution.cost_usd) }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="agent-card-body">{{ contribution.text }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Cost Summary -->
+<div class="section">
+  <div class="section-label">Cost Summary</div>
+  <div class="cost-summary">
+    <div class="cost-item">
+      <div class="cost-value">${{ "%.4f" | format(report.cost_summary.total_usd | default(0)) }}</div>
+      <div class="cost-label">Total Cost</div>
+    </div>
+    <div class="cost-item">
+      <div class="cost-value">{{ report.cost_summary.calls | default(0) }}</div>
+      <div class="cost-label">API Calls</div>
+    </div>
+    {% if report.agent_contributions %}
+    <div class="cost-item">
+      <div class="cost-value">{{ report.agent_contributions | length }}</div>
+      <div class="cost-label">Agents</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="page-footer">
+  <div>
+    {% if report.metadata.trace_id %}
+    Trace: {{ report.metadata.trace_id }}
+    {% endif %}
+  </div>
+  <div>
+    {% if report.metadata.started_at %}Started: {{ report.metadata.started_at | truncate(19, true, '') }}{% endif %}
+    {% if report.metadata.completed_at %} — Completed: {{ report.metadata.completed_at | truncate(19, true, '') }}{% endif %}
+  </div>
+</div>
+
+</body>
+</html>

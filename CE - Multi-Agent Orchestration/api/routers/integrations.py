@@ -82,10 +82,13 @@ class McpServerCreate(BaseModel):
 
 @router.get("")
 def list_integrations(session: Session = Depends(get_session)) -> list[dict]:
-    # Seed on first call if table is empty
+    # Seed on first call if table is empty (race-safe: ignore duplicate errors)
     count = session.exec(select(Integration)).first()
     if count is None:
-        _seed_integrations(session)
+        try:
+            _seed_integrations(session)
+        except Exception:
+            session.rollback()
 
     rows = session.exec(select(Integration)).all()
     return [

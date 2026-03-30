@@ -2,11 +2,33 @@ import type { Agent, Integration, KBNamespace, KBSearchResult, Protocol, Protoco
 
 const BASE = '/api'
 
+export function getApiKey(): string {
+  return localStorage.getItem('ce_api_key') || ''
+}
+
+export function setApiKey(key: string) {
+  localStorage.setItem('ce_api_key', key)
+}
+
+export function clearApiKey() {
+  localStorage.removeItem('ce_api_key')
+}
+
+function authHeaders(): Record<string, string> {
+  const key = getApiKey()
+  return key ? { 'X-API-Key': key } : {}
+}
+
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...init?.headers },
   })
+  if (res.status === 401) {
+    clearApiKey()
+    window.location.reload()
+    throw new Error('Session expired — please log in again')
+  }
   if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
   return res.json()
 }
@@ -65,7 +87,7 @@ export const api = {
     upload: async (ns: string, file: File) => {
       const form = new FormData()
       form.append('file', file)
-      const res = await fetch(`/api/knowledge/namespaces/${ns}/upload`, { method: 'POST', body: form })
+      const res = await fetch(`/api/knowledge/namespaces/${ns}/upload`, { method: 'POST', body: form, headers: authHeaders() })
       if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
       return res.json()
     },

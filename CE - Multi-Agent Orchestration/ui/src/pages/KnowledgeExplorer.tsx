@@ -4,7 +4,7 @@ import { useKnowledgeStore } from '../stores/knowledgeStore'
 export default function KnowledgeExplorer() {
   const {
     namespaces, selectedNamespace, searchResults, searchQuery, searching, loading, searchError,
-    fetch, select, search, setSearchQuery, upload,
+    uploadMessage, fetch, select, search, setSearchQuery, upload, clearUploadMessage,
   } = useKnowledgeStore()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -149,6 +149,12 @@ export default function KnowledgeExplorer() {
                   className="text-sm text-text-muted"
                 />
               </div>
+              {uploadMessage && (
+                <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start justify-between">
+                  <p className="text-sm text-amber-700">{uploadMessage}</p>
+                  <button onClick={clearUploadMessage} className="text-amber-400 hover:text-amber-600 ml-2 shrink-0">&times;</button>
+                </div>
+              )}
             </div>
 
             {/* Assigned Agents */}

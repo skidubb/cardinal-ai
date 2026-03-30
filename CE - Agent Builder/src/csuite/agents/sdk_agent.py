@@ -15,6 +15,9 @@ from rich.panel import Panel
 
 from csuite.agents.mcp_config import get_mcp_servers
 from csuite.config import AgentConfig, get_agent_config, get_settings
+from csuite.learning.experience_log import ExperienceLog
+from csuite.learning.preferences import PreferenceTracker
+from csuite.memory.store import MemoryStore
 from csuite.prompts import (
     CEO_SYSTEM_PROMPT,
     CFO_SYSTEM_PROMPT,
@@ -30,22 +33,6 @@ from csuite.prompts.airport_cro_prompt import AIRPORT_CRO_SYSTEM_PROMPT
 from csuite.prompts.att_carrier_rep_prompt import ATT_CARRIER_REP_SYSTEM_PROMPT
 from csuite.prompts.cargo_ops_director_prompt import CARGO_OPS_DIRECTOR_SYSTEM_PROMPT
 from csuite.prompts.concessions_tech_lead_prompt import CONCESSIONS_TECH_LEAD_SYSTEM_PROMPT
-from csuite.prompts.walk_agents import (
-    WALK_ADVERSARIAL_SYSTEM_PROMPT,
-    WALK_ANALOGY_SYSTEM_PROMPT,
-    WALK_COMPLEXITY_SYSTEM_PROMPT,
-    WALK_CONSTRAINT_SYSTEM_PROMPT,
-    WALK_ECONOMIST_SYSTEM_PROMPT,
-    WALK_FRAMER_SYSTEM_PROMPT,
-    WALK_HISTORIAN_SYSTEM_PROMPT,
-    WALK_NARRATIVE_SYSTEM_PROMPT,
-    WALK_POET_SYSTEM_PROMPT,
-    WALK_SALIENCE_JUDGE_SYSTEM_PROMPT,
-    WALK_SEMIOTICIAN_SYSTEM_PROMPT,
-    WALK_STATISTICIAN_SYSTEM_PROMPT,
-    WALK_SYNTHESIZER_SYSTEM_PROMPT,
-    WALK_SYSTEMS_SYSTEM_PROMPT,
-)
 from csuite.prompts.sub_agents import (
     BRAND_ESSENCE_SYSTEM_PROMPT,
     CEO_BOARD_PREP_SYSTEM_PROMPT,
@@ -100,6 +87,22 @@ from csuite.prompts.sub_agents import (
     GTM_VP_SUCCESS_SYSTEM_PROMPT,
     VC_APP_INVESTOR_SYSTEM_PROMPT,
     VC_INFRA_INVESTOR_SYSTEM_PROMPT,
+)
+from csuite.prompts.walk_agents import (
+    WALK_ADVERSARIAL_SYSTEM_PROMPT,
+    WALK_ANALOGY_SYSTEM_PROMPT,
+    WALK_COMPLEXITY_SYSTEM_PROMPT,
+    WALK_CONSTRAINT_SYSTEM_PROMPT,
+    WALK_ECONOMIST_SYSTEM_PROMPT,
+    WALK_FRAMER_SYSTEM_PROMPT,
+    WALK_HISTORIAN_SYSTEM_PROMPT,
+    WALK_NARRATIVE_SYSTEM_PROMPT,
+    WALK_POET_SYSTEM_PROMPT,
+    WALK_SALIENCE_JUDGE_SYSTEM_PROMPT,
+    WALK_SEMIOTICIAN_SYSTEM_PROMPT,
+    WALK_STATISTICIAN_SYSTEM_PROMPT,
+    WALK_SYNTHESIZER_SYSTEM_PROMPT,
+    WALK_SYSTEMS_SYSTEM_PROMPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -232,13 +235,56 @@ class SdkAgent:
         self.console = Console()
         self.cost: float = 0.0
         self._cost_tracker = cost_tracker
+        self._experience_log = ExperienceLog()
+        self._memory_store = MemoryStore()
+        self._preference_tracker = PreferenceTracker()
 
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(self, query: str = "") -> str:
         base = _ROLE_PROMPTS.get(self.role, "")
+        sections = [base]
+
         ctx = _load_business_context()
         if ctx:
-            return f"{base}\n\n## Business Context\n\n{ctx}"
-        return base
+            sections.append(
+                "## Business Context\n\n"
+                "The following is specific context about the business "
+                "you are advising:\n\n" + ctx
+            )
+
+        # Retrieve relevant memories from Pinecone
+        if query and self._memory_store.enabled:
+            try:
+                memories = self._memory_store.retrieve(self.role, query, top_k=5)
+                if memories:
+                    mem_lines = [
+                        f"- [{m['memory_type']}] {m['summary']}"
+                        for m in memories
+                    ]
+                    sections.append(
+                        "## Institutional Memory\n\n"
+                        "Relevant past analyses and decisions:\n\n"
+                        + "\n".join(mem_lines)
+                    )
+            except Exception:
+                logger.debug("Memory retrieval failed", exc_info=True)
+
+        # Experience log lessons
+        try:
+            lessons = self._experience_log.get_lessons(self.role, limit=20)
+            if lessons:
+                sections.append(f"## Lessons Learned\n\n{lessons}")
+        except Exception:
+            logger.debug("Lesson retrieval failed", exc_info=True)
+
+        # User preferences
+        try:
+            pref_ctx = self._preference_tracker.get_preference_context(self.role)
+            if pref_ctx:
+                sections.append(f"## User Preferences\n\n{pref_ctx}")
+        except Exception:
+            logger.debug("Preference retrieval failed", exc_info=True)
+
+        return "\n\n".join(sections)
 
     async def chat(self, user_message: str, **kwargs) -> str:
         """Send a message and get a response via Agent SDK.
@@ -257,7 +303,7 @@ class SdkAgent:
         )
 
         options = ClaudeAgentOptions(
-            system_prompt=self._build_system_prompt(),
+            system_prompt=self._build_system_prompt(query=user_message),
             model=self.config.model or get_settings().default_model,
             mcp_servers=self.mcp_servers,
             max_turns=15,
@@ -317,7 +363,32 @@ class SdkAgent:
         if not result_text:
             result_text = "[SDK agent returned no result]"
 
+        self._post_response_learning(user_message, result_text)
+
         return result_text
+
+    def _post_response_learning(self, user_message: str, assistant_message: str) -> None:
+        """Detect corrections and run self-evaluation after a response."""
+        try:
+            if ExperienceLog.detect_correction(user_message):
+                self._experience_log.add_lesson(
+                    self.role, f"User correction: {user_message[:300]}"
+                )
+        except Exception:
+            logger.warning("Post-response correction detection failed", exc_info=True)
+
+        try:
+            from csuite.learning.feedback_loop import FeedbackStore, SelfEvaluator
+            evaluator = SelfEvaluator()
+            score = evaluator.evaluate(
+                artifact_text=assistant_message,
+                event_type="agent_response",
+                agent_role=self.role,
+            )
+            store = FeedbackStore()
+            store.store_score(score, assistant_message)
+        except Exception:
+            logger.debug("Self-evaluation skipped", exc_info=True)
 
     def display_response(self, response: str) -> None:
         """Display a response with rich formatting."""
