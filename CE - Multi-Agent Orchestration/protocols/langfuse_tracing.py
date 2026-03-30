@@ -44,8 +44,14 @@ try:
     if os.environ.get("LANGFUSE_SECRET_KEY"):
         host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL")
         _langfuse_client = Langfuse(host=host) if host else Langfuse()
-        _langfuse_available = True
-        _log.info("Langfuse tracing enabled")
+        # Langfuse SDKs have changed over time; we only enable tracing if the
+        # client exposes the span APIs we rely on.
+        if hasattr(_langfuse_client, "start_span"):
+            _langfuse_available = True
+            _log.info("Langfuse tracing enabled")
+        else:
+            _langfuse_available = False
+            _log.warning("Langfuse client missing start_span — tracing disabled (SDK mismatch)")
     else:
         _log.debug("LANGFUSE_SECRET_KEY not set — Langfuse tracing disabled")
 except ImportError:
@@ -174,46 +180,60 @@ def trace_protocol(protocol_key: str):
 
         @functools.wraps(fn)
         async def wrapper(*args, **kwargs):
-            tags = [
-                f"category:{_category(protocol_key)}",
-                f"env:{os.getenv('ENV', 'dev')}",
-                f"mode:{os.getenv('AGENT_MODE', 'production')}",
-            ]
-            trace_id = _langfuse_client.create_trace_id()
-            session_id = _current_session_id.get()
-            user_id = _current_user_id.get()
+            # Attempt to set up tracing — but NEVER let tracing failures
+            # prevent the protocol from running. Tracing is observability,
+            # not a gate.
+            trace_id = None
+            root = None
+            tracing_active = False
+            try:
+                tags = [
+                    f"category:{_category(protocol_key)}",
+                    f"env:{os.getenv('ENV', 'dev')}",
+                    f"mode:{os.getenv('AGENT_MODE', 'production')}",
+                ]
+                trace_id = _langfuse_client.create_trace_id()
+                session_id = _current_session_id.get()
+                user_id = _current_user_id.get()
 
-            # Create trace via ingestion FIRST — this is the only way
-            # to reliably set tags, session_id, and user_id in SDK v3.
-            _create_trace_via_ingestion(
-                trace_id=trace_id,
-                name=protocol_key,
-                tags=tags,
-                session_id=session_id,
-                user_id=user_id,
-                metadata={"protocol_key": protocol_key},
-            )
+                _create_trace_via_ingestion(
+                    trace_id=trace_id,
+                    name=protocol_key,
+                    tags=tags,
+                    session_id=session_id,
+                    user_id=user_id,
+                    metadata={"protocol_key": protocol_key},
+                )
 
-            # Attach root span for timing and output capture
-            root = _langfuse_client.start_span(
-                trace_context={"trace_id": trace_id},
-                name=protocol_key,
-                metadata={"protocol_key": protocol_key},
-            )
+                root = _langfuse_client.start_span(
+                    trace_context={"trace_id": trace_id},
+                    name=protocol_key,
+                    metadata={"protocol_key": protocol_key},
+                )
+                tracing_active = True
+            except Exception as trace_err:
+                _log.warning("Langfuse tracing setup failed (run will continue): %s", trace_err)
+                trace_id = None
+                root = None
 
             tok_id = _current_trace_id.set(trace_id)
             tok_root = _current_root_span.set(root)
             tok_proto = _current_protocol.set(protocol_key)
             try:
                 result = await fn(*args, **kwargs)
-                try:
-                    result._langfuse_trace_id = trace_id
-                except (AttributeError, TypeError):
-                    pass
-                root.update(
-                    output=str(result)[:2000],
-                    metadata={"protocol_key": protocol_key, "status": "completed"},
-                )
+                if trace_id:
+                    try:
+                        result._langfuse_trace_id = trace_id
+                    except (AttributeError, TypeError):
+                        pass
+                if root:
+                    try:
+                        root.update(
+                            output=str(result)[:2000],
+                            metadata={"protocol_key": protocol_key, "status": "completed"},
+                        )
+                    except Exception:
+                        pass
 
                 # Run multi-agent evals (non-blocking, best-effort)
                 if not os.getenv("SKIP_MULTIAGENT_EVALS"):
@@ -235,18 +255,30 @@ def trace_protocol(protocol_key: str):
 
                 return result
             except Exception as e:
-                root.update(
-                    level="ERROR",
-                    status_message=str(e)[:500],
-                    metadata={"protocol_key": protocol_key, "status": "failed"},
-                )
+                if root:
+                    try:
+                        root.update(
+                            level="ERROR",
+                            status_message=str(e)[:500],
+                            metadata={"protocol_key": protocol_key, "status": "failed"},
+                        )
+                    except Exception:
+                        pass
                 raise
             finally:
-                root.end()
+                if root:
+                    try:
+                        root.end()
+                    except Exception:
+                        pass
                 _current_trace_id.reset(tok_id)
                 _current_root_span.reset(tok_root)
                 _current_protocol.reset(tok_proto)
-                _langfuse_client.flush()
+                if tracing_active:
+                    try:
+                        _langfuse_client.flush()
+                    except Exception:
+                        pass
 
         return wrapper
     return decorator
@@ -378,13 +410,16 @@ def record_generation(
         gen.end()
     except Exception as e:
         _log.debug("start_observation(generation) failed, falling back to span: %s", e)
-        gen = _langfuse_client.start_span(
-            name=name,
-            trace_context={"trace_id": trace_id},
-            metadata={**metadata, "model": model, "input_tokens": input_tokens, "output_tokens": output_tokens},
-        )
-        gen.update(output=gen_output or f"model={model} in={input_tokens} out={output_tokens}")
-        gen.end()
+        try:
+            gen = _langfuse_client.start_span(
+                name=name,
+                trace_context={"trace_id": trace_id},
+                metadata={**metadata, "model": model, "input_tokens": input_tokens, "output_tokens": output_tokens},
+            )
+            gen.update(output=gen_output or f"model={model} in={input_tokens} out={output_tokens}")
+            gen.end()
+        except Exception as span_err:
+            _log.debug("Langfuse span fallback also failed: %s", span_err)
 
 
 # ---------------------------------------------------------------------------
@@ -398,11 +433,15 @@ def create_span(name: str, metadata: dict | None = None) -> Any:
     trace_id = _current_trace_id.get()
     if not trace_id:
         return None
-    return _langfuse_client.start_span(
-        name=name,
-        trace_context={"trace_id": trace_id},
-        metadata=metadata or {},
-    )
+    try:
+        return _langfuse_client.start_span(
+            name=name,
+            trace_context={"trace_id": trace_id},
+            metadata=metadata or {},
+        )
+    except Exception as e:
+        _log.debug("create_span failed: %s", e)
+        return None
 
 
 def end_span(span: Any, output: str | None = None, error: str | None = None) -> None:
