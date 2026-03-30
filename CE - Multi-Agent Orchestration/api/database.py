@@ -14,7 +14,9 @@ def _log(msg: str) -> None:
 
 # Read DATABASE_URL early, before any find_and_load_dotenv() can contaminate os.environ
 # with local dev values from a .env file that leaked into the Docker image.
-_DB_URL_ENV = os.getenv("DATABASE_URL", "")
+# Sanitize: Railway's variable editor can introduce newlines and leading spaces
+# when users paste multi-line URLs. Strip them so psycopg2 can resolve the host.
+_DB_URL_ENV = "".join(os.getenv("DATABASE_URL", "").split())
 
 # Reject localhost Postgres URLs when running in Railway (or any container without local PG).
 # The ce_db package and langfuse_tracing both call find_and_load_dotenv() at import time,
