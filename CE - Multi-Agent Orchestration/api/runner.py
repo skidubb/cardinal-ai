@@ -699,7 +699,7 @@ async def run_pipeline_stream(
                 "cost": step_cost_summary,
             })
 
-        # Mark run complete
+        # Mark run complete and persist agent outputs for report generation
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
@@ -713,6 +713,36 @@ async def run_pipeline_stream(
                     ]
                     run.error_message = json.dumps(warning_payload)[:4000]
                 session.add(run)
+
+                # Save agent outputs from each step so reports can reconstruct them
+                for step_env in step_envelopes:
+                    for out in step_env.agent_outputs:
+                        session.add(
+                            AgentOutput(
+                                run_id=run_id,
+                                run_step_id=None,
+                                agent_key=out.agent_key,
+                                model=out.model or "",
+                                output_text=out.text,
+                                tool_calls_json=json.dumps(out.tool_calls) if out.tool_calls else "[]",
+                                input_tokens=out.input_tokens,
+                                output_tokens=out.output_tokens,
+                                cost_usd=out.cost_usd,
+                                started_at=out.started_at,
+                                completed_at=out.completed_at,
+                            )
+                        )
+
+                # Save final synthesis (last step's synthesis or accumulated prev_output)
+                if prev_output:
+                    session.add(
+                        AgentOutput(
+                            run_id=run_id,
+                            agent_key="_synthesis",
+                            model="",
+                            output_text=prev_output,
+                        )
+                    )
                 session.commit()
 
         pipeline_cost_summary = _merge_cost_summaries(step_cost_summaries)
