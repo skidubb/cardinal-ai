@@ -36,6 +36,12 @@ Multi-Agent Research/
 .planning/
 protocol-diagrams/
 
+# Env files (Railway injects env vars — .env would override with localhost values)
+**/.env
+**/.env.local
+.env
+.env.*
+
 # Docker / CI
 .dockerignore
 Dockerfile
