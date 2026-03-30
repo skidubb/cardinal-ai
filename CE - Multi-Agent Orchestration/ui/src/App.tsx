@@ -11,6 +11,7 @@ import KnowledgeExplorer from './pages/KnowledgeExplorer'
 import ProtocolLibrary from './pages/ProtocolLibrary'
 import Pipelines from './pages/Pipelines'
 import RunHistory from './pages/RunHistory'
+import RunDetail from './pages/RunDetail'
 import RunView from './pages/RunView'
 import Settings from './pages/Settings'
 
@@ -188,6 +189,7 @@ export default function App() {
               <Route path="/pipelines" element={<Pipelines />} />
               <Route path="/run" element={<RunView />} />
               <Route path="/runs" element={<RunHistory />} />
+              <Route path="/runs/:id" element={<RunDetail />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </main>
