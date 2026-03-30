@@ -252,7 +252,7 @@ export default function Pipelines() {
                   sessionStorage.setItem('pipeline_run', JSON.stringify({
                     question: runQuestion,
                     agent_keys: currentTeamKeys,
-                    steps: runModalPipeline.steps?.map((s, i) => ({
+                    steps: runModalPipeline.steps?.map((s) => ({
                       protocol_key: s.protocol_key,
                       question_template: s.question_template,
                       thinking_model: s.thinking_model,

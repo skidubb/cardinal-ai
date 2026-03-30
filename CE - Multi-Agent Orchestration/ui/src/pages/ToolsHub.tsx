@@ -34,7 +34,7 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
 }
 
 function ToolDomainCard({ item, onToggle }: { item: Integration; onToggle: () => void }) {
-  const toolCount = item.config?.tool_count ?? 0
+  const toolCount = Number(item.config?.tool_count ?? 0)
   return (
     <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
