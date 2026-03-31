@@ -300,12 +300,34 @@ async def _agent_complete_inner(
     if hasattr(agent, "chat") and callable(agent.chat):
         user_msg = messages[-1]["content"] if messages else ""
         result = await agent.chat(user_msg)
+        agent_name_val = getattr(agent, "name", None)
+
+        # ServerAgent provides real token counts; legacy SdkAgent only has cost
+        real_input = getattr(agent, "input_tokens", 0)
+        real_output = getattr(agent, "output_tokens", 0)
+        real_cached = getattr(agent, "cached_tokens", 0)
         cost_usd = getattr(agent, "cost", 0.0)
-        if cost_usd and cost_usd > 0:
-            from ce_shared.pricing import estimate_tokens_from_cost
-            est = estimate_tokens_from_cost(fallback_model, cost_usd)
-            agent_name_val = getattr(agent, "name", None)
-            tracker = _cost_tracker.get()
+
+        if real_input > 0 or real_output > 0:
+            # Real token counts from ServerAgent — use directly
+            _record_usage(
+                response=None,
+                model=getattr(agent, "model", fallback_model),
+                agent_name=agent_name_val,
+                estimated_tokens={
+                    "input_tokens": real_input,
+                    "output_tokens": real_output,
+                },
+                cost_usd=cost_usd,
+                input_messages=user_msg,
+            )
+        elif cost_usd and cost_usd > 0:
+            # Legacy SDK agent — estimate tokens from cost
+            try:
+                from ce_shared.pricing import estimate_tokens_from_cost
+                est = estimate_tokens_from_cost(fallback_model, cost_usd)
+            except ImportError:
+                est = {"input_tokens": 0, "output_tokens": 0}
             _record_usage(
                 response=None,
                 model=fallback_model,
