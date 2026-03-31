@@ -19,6 +19,8 @@ export default function RunView() {
   const [question, setQuestion] = useState('')
   const [rounds, setRounds] = useState<number>(3)
   const [toolsEnabled, setToolsEnabled] = useState(true)
+  const [contextFiles, setContextFiles] = useState<File[]>([])
+  const [dragOver, setDragOver] = useState(false)
 
   const [searchParams] = useSearchParams()
 
@@ -63,6 +65,7 @@ export default function RunView() {
       agent_keys: currentTeamKeys,
       rounds: proto?.supports_rounds ? rounds : undefined,
       no_tools: !toolsEnabled,
+      files: contextFiles.length > 0 ? contextFiles : undefined,
     })
   }
 
@@ -141,6 +144,61 @@ export default function RunView() {
               rows={3}
               className="w-full px-3 py-2 rounded-lg bg-white border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             />
+          </div>
+
+          {/* Context files upload */}
+          <div className="mb-4">
+            <label className="text-xs text-text-muted mb-1 block">Context Files (optional)</label>
+            <div
+              className={`border-2 border-dashed rounded-lg p-4 text-center transition ${
+                dragOver ? 'border-primary bg-primary/5' : 'border-border'
+              }`}
+              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => {
+                e.preventDefault()
+                setDragOver(false)
+                const dropped = Array.from(e.dataTransfer.files)
+                setContextFiles(prev => [...prev, ...dropped])
+              }}
+            >
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.docx,.txt,.md,.csv,.png,.jpg,.jpeg,.mp3,.wav,.mp4,.mov"
+                onChange={e => {
+                  const selected = Array.from(e.target.files || [])
+                  setContextFiles(prev => [...prev, ...selected])
+                  e.target.value = ''  // allow re-selecting same file
+                }}
+                className="hidden"
+                id="context-files"
+              />
+              <label htmlFor="context-files" className="cursor-pointer text-sm text-primary hover:underline">
+                Choose files or drag &amp; drop
+              </label>
+              <p className="text-xs text-text-muted mt-1">
+                PDF, DOCX, TXT, CSV, images, audio, video &middot; 50MB per file
+              </p>
+            </div>
+            {contextFiles.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {contextFiles.map((f, i) => (
+                  <div key={`${f.name}-${i}`} className="flex items-center justify-between text-xs px-2 py-1 bg-surface rounded">
+                    <span className="text-text truncate mr-2">{f.name}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-text-muted">{(f.size / 1024).toFixed(0)} KB</span>
+                      <button
+                        onClick={() => setContextFiles(contextFiles.filter((_, j) => j !== i))}
+                        className="text-red-400 hover:text-red-600"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {proto && (

@@ -87,6 +87,7 @@ export function useRunStream() {
     orchestration_model?: string
     rounds?: number | null
     no_tools?: boolean
+    files?: File[]
   }) => {
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -96,12 +97,38 @@ export function useRunStream() {
 
     try {
       const apiKey = getApiKey()
-      const res = await fetch('/api/protocols/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'X-API-Key': apiKey } : {}) },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      })
+      const hasFiles = payload.files && payload.files.length > 0
+      let res: Response
+
+      if (hasFiles) {
+        // Multipart upload to /run/with-context
+        const form = new FormData()
+        form.append('protocol_key', payload.protocol_key)
+        form.append('question', payload.question)
+        form.append('agent_keys', JSON.stringify(payload.agent_keys))
+        if (payload.thinking_model) form.append('thinking_model', payload.thinking_model)
+        if (payload.orchestration_model) form.append('orchestration_model', payload.orchestration_model)
+        if (payload.rounds != null) form.append('rounds', String(payload.rounds))
+        form.append('no_tools', String(payload.no_tools ?? false))
+        for (const file of payload.files!) {
+          form.append('files', file)
+        }
+        res = await fetch('/api/protocols/run/with-context', {
+          method: 'POST',
+          headers: apiKey ? { 'X-API-Key': apiKey } : {},
+          body: form,
+          signal: controller.signal,
+        })
+      } else {
+        // Standard JSON path (no files)
+        const { files: _files, ...jsonPayload } = payload
+        res = await fetch('/api/protocols/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'X-API-Key': apiKey } : {}) },
+          body: JSON.stringify(jsonPayload),
+          signal: controller.signal,
+        })
+      }
 
       if (!res.ok) {
         const err = await res.text()
@@ -245,6 +272,9 @@ function handleEvent(
       break
     case 'stage':
       setState(s => ({ ...s, currentStage: data.message ?? null }))
+      break
+    case 'context_processing':
+      setState(s => ({ ...s, currentStage: data.message ?? 'Processing context files...' }))
       break
     case 'step_start':
       setState(s => ({ ...s, currentStep: data.step }))

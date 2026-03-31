@@ -102,6 +102,10 @@ class Run(SQLModel, table=True):
     # NOTE: SQLite does not auto-add columns to existing tables.
     # Delete orchestrator.db and restart the server to pick up this schema change.
     judge_verdict_json: str = "{}"
+    context_mode: Optional[str] = None  # "inline" | "rag" | None
+    context_files_json: str = "[]"  # [{filename, content_type, size_bytes}]
+    agent_keys_json: str = "[]"  # Agent keys used for this run (for pipeline resume)
+    steps_json: str = "[]"  # Pipeline step definitions (for pipeline resume)
 
 
 class RunStep(SQLModel, table=True):
@@ -113,6 +117,7 @@ class RunStep(SQLModel, table=True):
     cost_usd: float = 0.0
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    output_text: str = ""  # Checkpoint: synthesis output for resume
 
 
 class AgentOutput(SQLModel, table=True):

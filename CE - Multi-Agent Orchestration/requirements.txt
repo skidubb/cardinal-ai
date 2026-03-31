@@ -13,3 +13,8 @@ ce-shared @ file:../ce-shared
 # Only needed for scripts/ingest_papers.py:
 PyMuPDF>=1.25.0
 pinecone>=5.0.0
+
+# Run context upload support
+python-docx>=1.1.0
+python-multipart>=0.0.6
+google-genai>=1.0.0

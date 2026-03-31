@@ -215,8 +215,10 @@ async def run_protocol_stream(
     orchestration_model: str = ORCHESTRATION_MODEL,
     rounds: int | None = None,
     no_tools: bool = False,
+    context: "RunContext | None" = None,
 ) -> AsyncGenerator[str, None]:
     """Execute a protocol and yield SSE events."""
+    from api.context_pipeline import RunContext, build_effective_question, cleanup_run_context
 
     yield _sse_event("run_start", {"run_id": run_id, "protocol_key": protocol_key})
 
@@ -251,6 +253,16 @@ async def run_protocol_stream(
 
         yield _sse_event("stage", {"message": "Running protocol..."})
 
+        # Inject uploaded context into the question
+        effective_question = question
+        if context is not None:
+            yield _sse_event("context_processing", {
+                "message": f"Processing {len(context.files)} context file(s)...",
+                "mode": context.mode,
+                "files": [f.metadata_dict() for f in context.files],
+            })
+            effective_question = await build_effective_question(question, context)
+
         # Set up cost tracker for this run
         cost_tracker = ProtocolCostTracker()
         set_cost_tracker(cost_tracker)
@@ -262,7 +274,7 @@ async def run_protocol_stream(
         tool_events: list[dict] = []
 
         t0 = time.time()
-        orch_task = asyncio.create_task(orchestrator.run(question))
+        orch_task = asyncio.create_task(orchestrator.run(effective_question))
         _active_run_tasks[run_id] = orch_task
 
         def _cleanup_task(t: asyncio.Task) -> None:
@@ -525,6 +537,9 @@ async def run_protocol_stream(
         # Always clean up context vars, regardless of how the generator exits
         set_cost_tracker(None)
         set_event_queue(None)
+        # Clean up ephemeral Pinecone namespace for run context
+        if context is not None and context.pinecone_namespace:
+            await cleanup_run_context(context.pinecone_namespace)
 
 
 # ── Pipeline run ─────────────────────────────────────────────────────────────
@@ -534,10 +549,16 @@ async def run_pipeline_stream(
     steps: list[dict],
     question: str,
     agent_keys: list[str],
+    start_from_step: int = 0,
+    initial_prev_output: str = "",
 ) -> AsyncGenerator[str, None]:
-    """Execute a pipeline (sequence of protocols) and yield SSE events."""
+    """Execute a pipeline (sequence of protocols) and yield SSE events.
 
-    yield _sse_event("run_start", {"run_id": run_id, "type": "pipeline", "step_count": len(steps)})
+    Supports resume: pass start_from_step and initial_prev_output to skip
+    already-completed steps and continue from the last checkpoint.
+    """
+
+    yield _sse_event("run_start", {"run_id": run_id, "type": "pipeline", "step_count": len(steps), "resuming_from": start_from_step})
 
     # Set session_id so all protocol traces in this pipeline are grouped
     pipeline_session_id = f"pipeline-{run_id}"
@@ -550,7 +571,7 @@ async def run_pipeline_stream(
             session.add(run)
             session.commit()
 
-    prev_output = ""
+    prev_output = initial_prev_output
     pipeline_total_cost = 0.0
     pipeline_started_at = datetime.now(timezone.utc)
     step_envelopes: list[StepEnvelope] = []
@@ -568,6 +589,8 @@ async def run_pipeline_stream(
 
     try:
         for i, step in enumerate(steps):
+            if i < start_from_step:
+                continue  # Skip already-completed steps (resume)
             step_question = step["question_template"]
             if "{prev_output}" in step_question and prev_output:
                 step_question = step_question.replace("{prev_output}", prev_output)
@@ -668,13 +691,14 @@ async def run_pipeline_stream(
             if step.get("output_passthrough", True):
                 prev_output = step_env.result_summary or (step_env.agent_outputs[-1].text if step_env.agent_outputs else "")
 
-            # Update step record
+            # Update step record with checkpoint for resume
             with Session(engine) as session:
                 rs = session.get(RunStep, step_id)
                 if rs:
                     rs.status = "completed"
                     rs.completed_at = datetime.now(timezone.utc)
                     rs.cost_usd = step_tracker.total_cost
+                    rs.output_text = prev_output[:50_000] if prev_output else ""
                     session.add(rs)
                     session.commit()
 

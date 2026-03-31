@@ -2,46 +2,30 @@
 
 from __future__ import annotations
 
-import asyncio
+import json as _json
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from api.database import engine, get_session
-from api.models import Pipeline, PipelineStep, Run
+from api.models import Pipeline, PipelineStep, Run, RunStep
 from api.pipeline_presets import PIPELINE_PRESETS
 from api.routers.runs import PipelineRunRequest
-from api.runner import _active_run_tasks, run_pipeline_stream
+from api.runner import run_pipeline_stream
 
 router = APIRouter(prefix="/api/pipelines", tags=["pipelines"])
 
 
 # ── POST /run — start a pipeline run with SSE streaming ──────────────────────
 
-async def _watch_disconnect(request: Request, run_id: int) -> None:
-    """Poll for client disconnect and cancel the active orchestrator task when detected."""
-    while not await request.is_disconnected():
-        await asyncio.sleep(0.5)
-    task = _active_run_tasks.get(run_id)
-    if task and not task.done():
-        task.cancel()
-
-
 @router.post("/run")
-async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> EventSourceResponse:
-    """Start a pipeline run and stream SSE events."""
-    with Session(engine) as session:
-        run = Run(
-            type="pipeline",
-            question=payload.question,
-            status="pending",
-        )
-        session.add(run)
-        session.commit()
-        session.refresh(run)
-        run_id = run.id
+async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> StreamingResponse:
+    """Start a pipeline run and stream SSE events.
 
+    Runs complete server-side regardless of client disconnect. Close the
+    browser tab and the run keeps going — check Run History for results.
+    """
     steps = [
         {
             "protocol_key": s.protocol_key,
@@ -55,21 +39,89 @@ async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> E
         for s in payload.steps
     ]
 
-    async def _guarded_stream():
-        disconnect_watcher = asyncio.create_task(_watch_disconnect(request, run_id))
-        try:
-            async for chunk in run_pipeline_stream(
-                run_id=run_id,
-                steps=steps,
-                question=payload.question,
-                agent_keys=payload.agent_keys,
-            ):
-                yield chunk
-        finally:
-            disconnect_watcher.cancel()
+    with Session(engine) as session:
+        run = Run(
+            type="pipeline",
+            question=payload.question,
+            status="pending",
+            agent_keys_json=_json.dumps(payload.agent_keys),
+            steps_json=_json.dumps(steps),
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    async def _stream():
+        async for chunk in run_pipeline_stream(
+            run_id=run_id,
+            steps=steps,
+            question=payload.question,
+            agent_keys=payload.agent_keys,
+        ):
+            yield chunk
 
     return StreamingResponse(
-        _guarded_stream(),
+        _stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── POST /resume/{run_id} — resume a failed/cancelled pipeline ──────────────
+
+@router.post("/resume/{run_id}")
+async def resume_pipeline_run(run_id: int, request: Request) -> StreamingResponse:
+    """Resume a failed or cancelled pipeline from the last completed step."""
+    with Session(engine) as session:
+        run = session.get(Run, run_id)
+        if not run or run.type != "pipeline":
+            raise HTTPException(status_code=404, detail="Pipeline run not found")
+        if run.status not in ("failed", "cancelled"):
+            raise HTTPException(status_code=400, detail=f"Run is {run.status}, not resumable")
+
+        # Load original config
+        steps = _json.loads(run.steps_json) if run.steps_json and run.steps_json != "[]" else []
+        agent_keys = _json.loads(run.agent_keys_json) if run.agent_keys_json and run.agent_keys_json != "[]" else []
+        if not steps or not agent_keys:
+            raise HTTPException(status_code=400, detail="Run missing step/agent config — cannot resume")
+
+        # Find last completed step
+        completed_steps = list(session.exec(
+            select(RunStep)
+            .where(RunStep.run_id == run_id, RunStep.status == "completed")
+            .order_by(col(RunStep.step_order).desc())
+        ).all())
+
+        start_from = 0
+        prev_output = ""
+        if completed_steps:
+            last = completed_steps[0]
+            start_from = last.step_order + 1
+            prev_output = last.output_text or ""
+
+        if start_from >= len(steps):
+            raise HTTPException(status_code=400, detail="All steps already completed")
+
+        # Reset run status
+        run.status = "running"
+        run.error_message = None
+        session.add(run)
+        session.commit()
+
+    async def _stream():
+        async for chunk in run_pipeline_stream(
+            run_id=run_id,
+            steps=steps,
+            question=run.question,
+            agent_keys=agent_keys,
+            start_from_step=start_from,
+            initial_prev_output=prev_output,
+        ):
+            yield chunk
+
+    return StreamingResponse(
+        _stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
