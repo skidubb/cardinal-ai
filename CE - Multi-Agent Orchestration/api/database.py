@@ -95,8 +95,12 @@ def create_db_and_tables() -> None:
             with engine.begin() as conn:
                 conn.execute(sa_text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
             _log(f"  migrated: {table}.{col}")
-        except Exception:
-            pass  # column already exists
+        except Exception as e:
+            err_str = str(e).lower()
+            if "already exists" in err_str or "duplicate column" in err_str:
+                _log(f"  {table}.{col} already exists")
+            else:
+                _log(f"  migration FAILED for {table}.{col}: {e}")
 
 
 def get_session():
