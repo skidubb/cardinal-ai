@@ -215,8 +215,10 @@ async def run_protocol_stream(
     orchestration_model: str = ORCHESTRATION_MODEL,
     rounds: int | None = None,
     no_tools: bool = False,
+    context: "RunContext | None" = None,
 ) -> AsyncGenerator[str, None]:
     """Execute a protocol and yield SSE events."""
+    from api.context_pipeline import RunContext, build_effective_question, cleanup_run_context
 
     yield _sse_event("run_start", {"run_id": run_id, "protocol_key": protocol_key})
 
@@ -251,6 +253,16 @@ async def run_protocol_stream(
 
         yield _sse_event("stage", {"message": "Running protocol..."})
 
+        # Inject uploaded context into the question
+        effective_question = question
+        if context is not None:
+            yield _sse_event("context_processing", {
+                "message": f"Processing {len(context.files)} context file(s)...",
+                "mode": context.mode,
+                "files": [f.metadata_dict() for f in context.files],
+            })
+            effective_question = await build_effective_question(question, context)
+
         # Set up cost tracker for this run
         cost_tracker = ProtocolCostTracker()
         set_cost_tracker(cost_tracker)
@@ -262,7 +274,7 @@ async def run_protocol_stream(
         tool_events: list[dict] = []
 
         t0 = time.time()
-        orch_task = asyncio.create_task(orchestrator.run(question))
+        orch_task = asyncio.create_task(orchestrator.run(effective_question))
         _active_run_tasks[run_id] = orch_task
 
         def _cleanup_task(t: asyncio.Task) -> None:
@@ -525,6 +537,9 @@ async def run_protocol_stream(
         # Always clean up context vars, regardless of how the generator exits
         set_cost_tracker(None)
         set_event_queue(None)
+        # Clean up ephemeral Pinecone namespace for run context
+        if context is not None and context.pinecone_namespace:
+            await cleanup_run_context(context.pinecone_namespace)
 
 
 # ── Pipeline run ─────────────────────────────────────────────────────────────

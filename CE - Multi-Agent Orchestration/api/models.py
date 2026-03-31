@@ -102,6 +102,8 @@ class Run(SQLModel, table=True):
     # NOTE: SQLite does not auto-add columns to existing tables.
     # Delete orchestrator.db and restart the server to pick up this schema change.
     judge_verdict_json: str = "{}"
+    context_mode: Optional[str] = None  # "inline" | "rag" | None
+    context_files_json: str = "[]"  # [{filename, content_type, size_bytes}]
 
 
 class RunStep(SQLModel, table=True):

@@ -7,15 +7,26 @@ import importlib
 import inspect
 import re
 
-from fastapi import APIRouter, HTTPException, Request
+import json as _json
+import logging
+
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session
 
+from api.context_pipeline import (
+    MAX_FILE_SIZE,
+    MAX_TOTAL_SIZE,
+    RunContext,
+    process_uploaded_files,
+)
 from api.database import engine
 from api.manifest import get_protocol_manifest
 from api.models import Run
 from api.routers.runs import ProtocolRunRequest
 from api.runner import _active_run_tasks, run_protocol_stream
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/protocols", tags=["protocols"])
 
@@ -63,6 +74,96 @@ async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> S
                 orchestration_model=payload.orchestration_model,
                 rounds=payload.rounds,
                 no_tools=payload.no_tools,
+            ):
+                yield chunk
+        finally:
+            disconnect_watcher.cancel()
+
+    return StreamingResponse(
+        _guarded_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── POST /run/with-context — multipart file upload + run config ────────────
+
+@router.post("/run/with-context")
+async def start_protocol_run_with_context(
+    request: Request,
+    protocol_key: str = Form(...),
+    question: str = Form(...),
+    agent_keys: str = Form(...),  # JSON-encoded list
+    thinking_model: str = Form("claude-opus-4-6"),
+    orchestration_model: str = Form("claude-haiku-4-5-20251001"),
+    rounds: int | None = Form(None),
+    no_tools: bool = Form(False),
+    files: list[UploadFile] = File(default=[]),
+) -> StreamingResponse:
+    """Start a protocol run with uploaded context files and stream SSE events."""
+    # Parse agent_keys from JSON string
+    try:
+        parsed_agent_keys: list[str] = _json.loads(agent_keys)
+    except _json.JSONDecodeError:
+        raise HTTPException(400, "agent_keys must be a JSON-encoded list of strings")
+
+    # Validate file sizes
+    total_size = 0
+    for f in files:
+        content = await f.read()
+        size = len(content)
+        if size > MAX_FILE_SIZE:
+            raise HTTPException(
+                413,
+                f"File '{f.filename}' ({size // (1024 * 1024)}MB) exceeds 50MB limit",
+            )
+        total_size += size
+        await f.seek(0)  # reset for downstream read
+    if total_size > MAX_TOTAL_SIZE:
+        raise HTTPException(
+            413,
+            f"Total upload size ({total_size // (1024 * 1024)}MB) exceeds 200MB limit",
+        )
+
+    # Create Run record
+    with Session(engine) as session:
+        run = Run(
+            type="protocol",
+            protocol_key=protocol_key,
+            question=question,
+            status="pending",
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    # Process uploaded files into RunContext
+    run_context: RunContext | None = None
+    if files:
+        run_context = await process_uploaded_files(run_id, files)
+        # Persist context metadata to the Run record
+        with Session(engine) as session:
+            run = session.get(Run, run_id)
+            if run:
+                run.context_mode = run_context.mode
+                run.context_files_json = run_context.files_metadata_json()
+                session.add(run)
+                session.commit()
+
+    async def _guarded_stream():
+        disconnect_watcher = asyncio.create_task(_watch_disconnect(request, run_id))
+        try:
+            async for chunk in run_protocol_stream(
+                run_id=run_id,
+                protocol_key=protocol_key,
+                question=question,
+                agent_keys=parsed_agent_keys,
+                thinking_model=thinking_model,
+                orchestration_model=orchestration_model,
+                rounds=rounds,
+                no_tools=no_tools,
+                context=run_context,
             ):
                 yield chunk
         finally:
