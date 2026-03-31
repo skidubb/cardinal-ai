@@ -8,7 +8,7 @@ import { useRunStream, type CostSummary, type AgentOutputEvent, type JudgeVerdic
 import { ProtocolReport } from '../components/ProtocolReport'
 import type { ProtocolReportData } from '../components/ProtocolReport'
 import { getApiKey } from '../api'
-import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions'
+import { EXAMPLE_QUESTIONS } from '../constants/exampleQuestions'
 
 export default function RunView() {
   const { protocols, fetch: fetchProtocols } = useProtocolStore()

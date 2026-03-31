@@ -4,7 +4,7 @@ import { useProtocolStore } from '../stores/protocolStore'
 import { useTeamStore } from '../stores/teamStore'
 import { useRunStore } from '../stores/runStore'
 import { useNavigate } from 'react-router-dom'
-import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions'
+import { EXAMPLE_QUESTIONS } from '../constants/exampleQuestions'
 
 export default function Dashboard() {
   const { agents, fetch: fetchAgents } = useAgentStore()
