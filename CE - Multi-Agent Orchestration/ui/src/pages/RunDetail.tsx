@@ -37,7 +37,6 @@ export default function RunDetail() {
 
   const run = currentRun
   const report = (run as any).protocol_report as ProtocolReportData | null | undefined
-  const judgeVerdict = run as any
   let verdict: any = null
   try {
     const raw = (run as any).judge_verdict_json
