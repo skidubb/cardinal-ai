@@ -82,6 +82,24 @@ def create_db_and_tables() -> None:
     except Exception as e:
         _log(f"create_db_and_tables() failed: {e} — app will start anyway")
 
+    # Auto-migrate: add columns that may not exist on older DBs
+    _migrate_columns = [
+        ("run", "agent_keys_json", "TEXT DEFAULT '[]'"),
+        ("run", "steps_json", "TEXT DEFAULT '[]'"),
+        ("runstep", "output_text", "TEXT DEFAULT ''"),
+    ]
+    try:
+        with engine.connect() as conn:
+            for table, col, col_type in _migrate_columns:
+                try:
+                    conn.execute(sa_text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+                    _log(f"  migrated: {table}.{col}")
+                except Exception:
+                    pass  # column already exists
+            conn.commit()
+    except Exception as e:
+        _log(f"auto-migrate skipped: {e}")
+
 
 def get_session():
     with Session(engine) as session:
