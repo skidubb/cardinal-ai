@@ -11,7 +11,7 @@ Monorepo for Cardinal Element's agentic AI work. Consolidates three previously s
 | Directory | What it is | Setup |
 |-----------|-----------|-------|
 | `CE - Agent Builder/` | C-Suite CLI app — 7 executive AI agents with synthesis, debate, audit | `pip install -e ".[dev]"` (hatchling) |
-| `CE - Multi-Agent Orchestration/` | 48 coordination protocols + 56-agent registry + evaluation harness | `pip install -r requirements.txt` |
+| `CE - Multi-Agent Orchestration/` | 53 coordination protocols + 56-agent registry + FastAPI web UI | `pip install -r requirements.txt` |
 | `CE - Evals/` | LLM-as-judge evaluation framework (Claude, GPT-4, Gemini backends) | `pip install -e .` (setuptools) |
 | `n8n Workflows/` | n8n automation workflow JSON exports | N/A (imported into n8n) |
 
@@ -63,25 +63,38 @@ python scripts/evaluate.py --protocol p16_ach --question Q4.1 --agents ceo cfo c
 
 ### CE - Agent Builder — The Agent Factory
 
-**Product agents** (`src/csuite/`) — `SdkAgent` class (Claude Agent SDK) with tools, MCP servers, and memory. These are the agents that run through protocols in CE - Multi-Agent Orchestration. Expose `async chat(message) -> str`.
+**Agent definitions** (`src/csuite/`) — 70+ role-specific system prompts (`agents/sdk_agent.py:_ROLE_PROMPTS`), 26 tool schemas (`tools/schemas.py:ALL_TOOL_SCHEMAS`), per-role tool mappings for 40+ roles (`tools/registry.py:ROLE_TOOL_MAP`), and tool handlers dispatched via `tools/registry.py:execute_tool()`. Also includes Pinecone memory, DuckDB learning, and session persistence for CLI use.
 
-**Scott's personal agents** (`~/claude-dotfiles/agents/*.md`) — 7 executives + 30 sub-agents invoked via Claude Code Task tool. These are NOT the product — they're Scott's personal Claude Code agent teams using thin dicts.
+**Two agent backends for CLI**: `BaseAgent` (direct Anthropic API with tool loop) and `SdkAgent` (Claude Agent SDK subprocess). For **server/Docker deployment**, neither is used — see ServerAgent below.
 
-Key flows: Orchestrator runs agents in parallel via `asyncio.gather` → synthesis prompt. Debate runs N sequential rounds (agents parallel within each round). Audit is a sequential 7-agent pipeline.
+**Scott's personal agents** (`~/claude-dotfiles/agents/*.md`) — 7 executives + 30 sub-agents invoked via Claude Code Task tool. These are NOT the product — they're Scott's personal Claude Code agent teams.
 
-### CE - Multi-Agent Orchestration — Protocol Pattern
+### CE - Multi-Agent Orchestration — Protocol Engine + Web UI
 
-Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async class with `run(question)`), `prompts.py` (string constants), `run.py` (CLI). Two model tiers: `thinking_model` (Opus) for reasoning, `orchestration_model` (Haiku) for mechanical steps. 48 protocols across 8 categories (see project-level `CLAUDE.md` for taxonomy).
+Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async class with `run(question)`), `prompts.py` (string constants), `run.py` (CLI). Two model tiers: `thinking_model` (Opus) for reasoning, `orchestration_model` (Haiku) for mechanical steps. 53 protocols across 8+ categories (see project-level `CLAUDE.md` for taxonomy).
 
-**Protocols orchestrate SDK agents built in CE - Agent Builder.** Default mode is `production` — each agent key resolves to a fully initialized `SdkAgent` (via `AgentBridge`) with tools, MCP servers, and memory. Use `--mode research` or `AGENT_MODE=research` for lightweight dict agents. The API runner (`api/runner.py`) tries production first, falls back to DB-enriched dicts if Agent Builder is unavailable.
+**ServerAgent** (`protocols/server_agent.py`): The production agent class for server deployment. Uses direct `anthropic.AsyncAnthropic().messages.create()` with native tool-use loop (max 15 iterations). Imports role prompts and tool schemas from Agent Builder. No subprocess spawning — works in Docker/Railway. `build_production_agents()` in `protocols/agent_provider.py` creates these.
 
-Shared agent registry: `protocols/agents.py` — 56 agents across 14 categories, supports `@category` group syntax.
+**Research mode**: `--mode research` or `AGENT_MODE=research` uses lightweight dicts without tools/memory. Production is default.
 
-**Observability**: All 50 protocols have Langfuse tracing (`@trace_protocol` decorator) and Postgres persistence (`persist_run` in every `run.py`). Requires `LANGFUSE_SECRET_KEY`/`LANGFUSE_PUBLIC_KEY`/`LANGFUSE_BASE_URL` in `.env` for tracing; Postgres via `docker-compose up -d postgres`. Both degrade gracefully if unavailable.
+**Web UI**: FastAPI backend (`api/`) + React frontend (`ui/`). SSE streaming for live run progress. PDF reports via WeasyPrint. Deployed on Railway.
+
+**Agent registry**: `protocols/agents.py` — 56 agents across 14 categories, supports `@category` group syntax.
+
+**Observability**: All protocols have Langfuse tracing (`@trace_protocol` decorator) and Postgres persistence. Both degrade gracefully if unavailable.
 
 ### CE - Evals
 
 Library-only (no CLI). Core in `src/ce_evals/core/` — `judge.py` + `judge_backends.py` (Claude/GPT-4/Gemini), `rubric.py`, `runner.py`, `cost.py`. Import and use programmatically.
+
+### Shared Packages
+
+- **`ce-shared/`**: Pricing (`MODEL_PRICING`, `cost_for_model()`), env registry (`KEY_REGISTRY`, `find_and_load_dotenv()`). Used by all projects. Single source of truth for model pricing and env var names.
+- **`ce-db/`**: Async SQLAlchemy + asyncpg + Alembic migrations. Postgres schema for runs, traces, costs. Used by Orchestration and optionally Evals.
+
+### Deployment
+
+Production runs on **Railway.app** from branch `claude/add-rc-config-support-W9iw7`. Multi-stage Dockerfile: Node build (React UI) → Python runtime with system deps (cairo, pango for WeasyPrint). Railway Postgres addon for DB. `railway.toml` configures healthcheck at `/api/health`.
 
 ## Conventions
 
