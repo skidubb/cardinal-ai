@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import { useUIStore } from './stores/uiStore'
 import { useTeamStore } from './stores/teamStore'
 import { useAgentStore } from './stores/agentStore'
+import { useProtocolStore } from './stores/protocolStore'
 import LoginGate, { useAuth } from './components/LoginGate'
 import Dashboard from './pages/Dashboard'
 import AgentRegistry from './pages/AgentRegistry'
@@ -26,33 +28,38 @@ interface NavSection {
   items: NavItem[]
 }
 
-const navSections: NavSection[] = [
-  {
-    label: null,
-    items: [{ to: '/dashboard', label: 'Dashboard' }],
-  },
-  {
-    label: 'Build',
-    items: [
-      { to: '/agents', label: 'Agents', badge: '56' },
-      { to: '/teams', label: 'Teams' },
-      { to: '/tools', label: 'Tools & MCP' },
-      { to: '/knowledge', label: 'Knowledge' },
-    ],
-  },
-  {
-    label: 'Run',
-    items: [
-      { to: '/protocols', label: 'Protocols', badge: '48' },
-      { to: '/pipelines', label: 'Pipelines' },
-      { to: '/run', label: 'Run' },
-    ],
-  },
-  {
-    label: 'History',
-    items: [{ to: '/runs', label: 'Run History' }],
-  },
-]
+function useNavSections(): NavSection[] {
+  const agentCount = useAgentStore((s) => s.agents.length)
+  const protocolCount = useProtocolStore((s) => s.protocols.length)
+
+  return [
+    {
+      label: null,
+      items: [{ to: '/dashboard', label: 'Dashboard' }],
+    },
+    {
+      label: 'Build',
+      items: [
+        { to: '/agents', label: 'Agents', badge: agentCount > 0 ? String(agentCount) : undefined },
+        { to: '/teams', label: 'Teams' },
+        { to: '/tools', label: 'Tools & MCP' },
+        { to: '/knowledge', label: 'Knowledge' },
+      ],
+    },
+    {
+      label: 'Run',
+      items: [
+        { to: '/protocols', label: 'Protocols', badge: protocolCount > 0 ? String(protocolCount) : undefined },
+        { to: '/pipelines', label: 'Pipelines' },
+        { to: '/run', label: 'Run' },
+      ],
+    },
+    {
+      label: 'History',
+      items: [{ to: '/runs', label: 'Run History' }],
+    },
+  ]
+}
 
 function NavItemLink({ item }: { item: NavItem }) {
   return (
@@ -78,6 +85,11 @@ function NavItemLink({ item }: { item: NavItem }) {
 
 function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
+  const fetchAgents = useAgentStore((s) => s.fetch)
+  const fetchProtocols = useProtocolStore((s) => s.fetch)
+  const navSections = useNavSections()
+
+  useEffect(() => { fetchAgents(); fetchProtocols() }, [fetchAgents, fetchProtocols])
 
   if (collapsed) return null
 

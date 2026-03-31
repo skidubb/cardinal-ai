@@ -14,6 +14,8 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [selectedProtocol, setSelectedProtocol] = useState<string>('')
   const [question, setQuestion] = useState('')
+  const [contextFiles, setContextFiles] = useState<File[]>([])
+  const [dragOver, setDragOver] = useState(false)
 
   useEffect(() => { fetchAgents(); fetchProtocols(); fetchRuns() }, [fetchAgents, fetchProtocols, fetchRuns])
 
@@ -88,6 +90,55 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* Context files */}
+        <div className="mb-4">
+          <label className="text-xs text-text-muted mb-1 block">Context Files (optional)</label>
+          <div
+            className={`border-2 border-dashed rounded-lg p-3 text-center transition ${
+              dragOver ? 'border-primary bg-primary/5' : 'border-border'
+            }`}
+            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={e => {
+              e.preventDefault()
+              setDragOver(false)
+              setContextFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)])
+            }}
+          >
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.docx,.txt,.md,.csv,.png,.jpg,.jpeg,.mp3,.wav,.mp4,.mov"
+              onChange={e => {
+                setContextFiles(prev => [...prev, ...Array.from(e.target.files || [])])
+                e.target.value = ''
+              }}
+              className="hidden"
+              id="dashboard-context-files"
+            />
+            <label htmlFor="dashboard-context-files" className="cursor-pointer text-xs text-primary hover:underline">
+              Choose files or drag &amp; drop
+            </label>
+            <p className="text-[10px] text-text-muted mt-0.5">PDF, DOCX, TXT, CSV, images, audio</p>
+          </div>
+          {contextFiles.length > 0 && (
+            <div className="mt-1.5 space-y-1">
+              {contextFiles.map((f, i) => (
+                <div key={`${f.name}-${i}`} className="flex items-center justify-between text-xs px-2 py-1 bg-surface rounded">
+                  <span className="text-text truncate mr-2">{f.name}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-text-muted">{(f.size / 1024).toFixed(0)} KB</span>
+                    <button
+                      onClick={() => setContextFiles(contextFiles.filter((_, j) => j !== i))}
+                      className="text-red-400 hover:text-red-600"
+                    >&times;</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {proto && (
           <div className="flex items-center gap-4 text-xs text-text-muted mb-4">
             <span>Cost tier: <strong className="text-text">{proto.cost_tier}</strong></span>
@@ -98,7 +149,20 @@ export default function Dashboard() {
 
         <button
           disabled={!selectedProtocol || !question || currentTeamKeys.length === 0}
-          onClick={() => navigate('/run')}
+          onClick={() => {
+            if (contextFiles.length > 0) {
+              sessionStorage.setItem('dashboard_context_files', JSON.stringify(
+                contextFiles.map(f => f.name)
+              ))
+            }
+            navigate('/run', {
+              state: {
+                protocol: selectedProtocol,
+                question,
+                contextFiles: contextFiles.length > 0 ? true : undefined,
+              },
+            })
+          }}
           className="px-6 py-2.5 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-hover shadow-lg shadow-primary/20 transition disabled:opacity-50"
         >
           Run Protocol
