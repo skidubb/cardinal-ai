@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import importlib
 import inspect
 import re
@@ -24,7 +23,7 @@ from api.database import engine
 from api.manifest import get_protocol_manifest
 from api.models import Run
 from api.routers.runs import ProtocolRunRequest
-from api.runner import _active_run_tasks, run_protocol_stream
+from api.runner import run_protocol_stream
 
 _log = logging.getLogger(__name__)
 
@@ -38,18 +37,13 @@ def list_protocols() -> list[dict]:
 
 # ── POST /run — declared BEFORE GET /{key}/stages to avoid route conflict ─────
 
-async def _watch_disconnect(request: Request, run_id: int) -> None:
-    """Poll for client disconnect and cancel the active orchestrator task when detected."""
-    while not await request.is_disconnected():
-        await asyncio.sleep(0.5)
-    task = _active_run_tasks.get(run_id)
-    if task and not task.done():
-        task.cancel()
-
-
 @router.post("/run")
 async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> StreamingResponse:
-    """Start a protocol run and stream SSE events."""
+    """Start a protocol run and stream SSE events.
+
+    Runs complete server-side regardless of client disconnect. Close the
+    browser tab and the run keeps going — check Run History for results.
+    """
     with Session(engine) as session:
         run = Run(
             type="protocol",
@@ -62,25 +56,21 @@ async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> S
         session.refresh(run)
         run_id = run.id
 
-    async def _guarded_stream():
-        disconnect_watcher = asyncio.create_task(_watch_disconnect(request, run_id))
-        try:
-            async for chunk in run_protocol_stream(
-                run_id=run_id,
-                protocol_key=payload.protocol_key,
-                question=payload.question,
-                agent_keys=payload.agent_keys,
-                thinking_model=payload.thinking_model,
-                orchestration_model=payload.orchestration_model,
-                rounds=payload.rounds,
-                no_tools=payload.no_tools,
-            ):
-                yield chunk
-        finally:
-            disconnect_watcher.cancel()
+    async def _stream():
+        async for chunk in run_protocol_stream(
+            run_id=run_id,
+            protocol_key=payload.protocol_key,
+            question=payload.question,
+            agent_keys=payload.agent_keys,
+            thinking_model=payload.thinking_model,
+            orchestration_model=payload.orchestration_model,
+            rounds=payload.rounds,
+            no_tools=payload.no_tools,
+        ):
+            yield chunk
 
     return StreamingResponse(
-        _guarded_stream(),
+        _stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -151,26 +141,22 @@ async def start_protocol_run_with_context(
                 session.add(run)
                 session.commit()
 
-    async def _guarded_stream():
-        disconnect_watcher = asyncio.create_task(_watch_disconnect(request, run_id))
-        try:
-            async for chunk in run_protocol_stream(
-                run_id=run_id,
-                protocol_key=protocol_key,
-                question=question,
-                agent_keys=parsed_agent_keys,
-                thinking_model=thinking_model,
-                orchestration_model=orchestration_model,
-                rounds=rounds,
-                no_tools=no_tools,
-                context=run_context,
-            ):
-                yield chunk
-        finally:
-            disconnect_watcher.cancel()
+    async def _stream():
+        async for chunk in run_protocol_stream(
+            run_id=run_id,
+            protocol_key=protocol_key,
+            question=question,
+            agent_keys=parsed_agent_keys,
+            thinking_model=thinking_model,
+            orchestration_model=orchestration_model,
+            rounds=rounds,
+            no_tools=no_tools,
+            context=run_context,
+        ):
+            yield chunk
 
     return StreamingResponse(
-        _guarded_stream(),
+        _stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
