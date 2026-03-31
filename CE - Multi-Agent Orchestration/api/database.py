@@ -86,6 +86,9 @@ def create_db_and_tables() -> None:
     # Each ALTER runs in its own transaction so a "column exists" error
     # doesn't roll back the others.
     _migrate_columns = [
+        ("run", "judge_verdict_json", "TEXT DEFAULT '{}'"),
+        ("run", "context_mode", "TEXT"),
+        ("run", "context_files_json", "TEXT DEFAULT '[]'"),
         ("run", "agent_keys_json", "TEXT DEFAULT '[]'"),
         ("run", "steps_json", "TEXT DEFAULT '[]'"),
         ("runstep", "output_text", "TEXT DEFAULT ''"),
