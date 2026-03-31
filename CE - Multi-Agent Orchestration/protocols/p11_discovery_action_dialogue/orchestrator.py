@@ -140,7 +140,7 @@ class DADOrchestrator:
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
                 thinking={
-                    "type": "enabled",
+                    "type": "adaptive",
                     "budget_tokens": self.thinking_budget,
                 },
                 system=agent["system_prompt"],
@@ -262,7 +262,7 @@ class DADOrchestrator:
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
             thinking={
-                "type": "enabled",
+                "type": "adaptive",
                 "budget_tokens": self.thinking_budget,
             },
             messages=[{"role": "user", "content": prompt}],

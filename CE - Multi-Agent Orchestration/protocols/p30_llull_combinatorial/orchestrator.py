@@ -108,7 +108,7 @@ class CombinatorialOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
             system=self.agents[0]["system_prompt"],
             messages=[{
                 "role": "user",
@@ -126,7 +126,7 @@ class CombinatorialOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
             system=self.agents[0]["system_prompt"] + "\n\nYou are acting as the GENERATOR. Your only job is to produce combinations. Do NOT evaluate or filter.",
             messages=[{
                 "role": "user",
@@ -146,7 +146,7 @@ class CombinatorialOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
             system=evaluator["system_prompt"] + "\n\nYou are acting as the EVALUATOR. You judge combinations you did NOT generate. Be rigorous but open to surprise.",
             messages=[{
                 "role": "user",
@@ -164,7 +164,7 @@ class CombinatorialOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
             messages=[{
                 "role": "user",
                 "content": SYNTHESIS_PROMPT.format(

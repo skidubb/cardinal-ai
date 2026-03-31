@@ -78,7 +78,7 @@ class OneTwoFourAllOrchestrator:
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
-                "type": "enabled",
+                "type": "adaptive",
                 "budget_tokens": self.thinking_budget,
             },
             system=agent.system_prompt,
@@ -223,7 +223,7 @@ class OneTwoFourAllOrchestrator:
                 model=self.thinking_model,
                 max_tokens=16_000,
                 thinking={
-                    "type": "enabled",
+                    "type": "adaptive",
                     "budget_tokens": self.thinking_budget,
                 },
                 messages=[

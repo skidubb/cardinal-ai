@@ -4,6 +4,7 @@ import { useProtocolStore } from '../stores/protocolStore'
 import { useTeamStore } from '../stores/teamStore'
 import { useRunStore } from '../stores/runStore'
 import { useNavigate } from 'react-router-dom'
+import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions'
 
 export default function Dashboard() {
   const { agents, fetch: fetchAgents } = useAgentStore()
@@ -69,6 +70,22 @@ export default function Dashboard() {
             rows={3}
             className="w-full px-3 py-2 rounded-lg bg-white border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none"
           />
+          {!question && (
+            <div className="mt-2">
+              <p className="text-[10px] text-text-muted mb-1.5">Try an example:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {EXAMPLE_QUESTIONS.slice(0, 4).map(eq => (
+                  <button
+                    key={eq.label}
+                    onClick={() => setQuestion(eq.question)}
+                    className="px-2.5 py-1 rounded-full text-[11px] bg-primary/5 text-primary border border-primary/15 hover:bg-primary/10 transition"
+                  >
+                    {eq.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {proto && (

@@ -175,7 +175,7 @@ class SixHatsOrchestrator:
                     self.client,
                     model=self.thinking_model,
                     max_tokens=self.thinking_budget + 4096,
-                    thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+                    thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
                     messages=messages,
                     agent_name=agent["name"],
                 )
@@ -211,7 +211,7 @@ class SixHatsOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
             messages=[{
                 "role": "user",
                 "content": BLUE_HAT_SYNTHESIS_PROMPT.format(

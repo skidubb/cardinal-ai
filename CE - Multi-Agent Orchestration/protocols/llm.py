@@ -361,7 +361,7 @@ async def _agent_complete_inner(
         }
 
         if _is_anthropic_model(agent_model) and thinking_budget > 0:
-            kwargs["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+            kwargs["thinking"] = {"type": "adaptive", "budget_tokens": thinking_budget}
 
         if not effective_no_tools and tools:
             kwargs["tools"] = tools
@@ -399,7 +399,7 @@ async def _agent_complete_inner(
         "messages": messages,
     }
     if thinking_budget > 0:
-        create_kwargs["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+        create_kwargs["thinking"] = {"type": "adaptive", "budget_tokens": thinking_budget}
     else:
         create_kwargs["thinking"] = {"type": "disabled"}
     if effective_tools:
