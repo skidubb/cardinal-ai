@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json as _json
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -52,13 +53,29 @@ async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> S
         session.refresh(run)
         run_id = run.id
 
+    # Run pipeline as a background task so it survives client disconnect.
+    # SSE generator drains the queue; if client drops, task keeps going.
+    event_queue: asyncio.Queue = asyncio.Queue(maxsize=5000)
+
+    async def _run_pipeline():
+        try:
+            async for chunk in run_pipeline_stream(
+                run_id=run_id,
+                steps=steps,
+                question=payload.question,
+                agent_keys=payload.agent_keys,
+            ):
+                await event_queue.put(chunk)
+        finally:
+            await event_queue.put(None)  # sentinel
+
+    asyncio.create_task(_run_pipeline())
+
     async def _stream():
-        async for chunk in run_pipeline_stream(
-            run_id=run_id,
-            steps=steps,
-            question=payload.question,
-            agent_keys=payload.agent_keys,
-        ):
+        while True:
+            chunk = await event_queue.get()
+            if chunk is None:
+                break
             yield chunk
 
     return StreamingResponse(

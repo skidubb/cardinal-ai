@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import inspect
 import re
@@ -56,17 +57,31 @@ async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> S
         session.refresh(run)
         run_id = run.id
 
+    event_queue: asyncio.Queue = asyncio.Queue(maxsize=5000)
+
+    async def _run_protocol():
+        try:
+            async for chunk in run_protocol_stream(
+                run_id=run_id,
+                protocol_key=payload.protocol_key,
+                question=payload.question,
+                agent_keys=payload.agent_keys,
+                thinking_model=payload.thinking_model,
+                orchestration_model=payload.orchestration_model,
+                rounds=payload.rounds,
+                no_tools=payload.no_tools,
+            ):
+                await event_queue.put(chunk)
+        finally:
+            await event_queue.put(None)
+
+    asyncio.create_task(_run_protocol())
+
     async def _stream():
-        async for chunk in run_protocol_stream(
-            run_id=run_id,
-            protocol_key=payload.protocol_key,
-            question=payload.question,
-            agent_keys=payload.agent_keys,
-            thinking_model=payload.thinking_model,
-            orchestration_model=payload.orchestration_model,
-            rounds=payload.rounds,
-            no_tools=payload.no_tools,
-        ):
+        while True:
+            chunk = await event_queue.get()
+            if chunk is None:
+                break
             yield chunk
 
     return StreamingResponse(
@@ -141,18 +156,32 @@ async def start_protocol_run_with_context(
                 session.add(run)
                 session.commit()
 
+    event_queue_ctx: asyncio.Queue = asyncio.Queue(maxsize=5000)
+
+    async def _run_with_context():
+        try:
+            async for chunk in run_protocol_stream(
+                run_id=run_id,
+                protocol_key=protocol_key,
+                question=question,
+                agent_keys=parsed_agent_keys,
+                thinking_model=thinking_model,
+                orchestration_model=orchestration_model,
+                rounds=rounds,
+                no_tools=no_tools,
+                context=run_context,
+            ):
+                await event_queue_ctx.put(chunk)
+        finally:
+            await event_queue_ctx.put(None)
+
+    asyncio.create_task(_run_with_context())
+
     async def _stream():
-        async for chunk in run_protocol_stream(
-            run_id=run_id,
-            protocol_key=protocol_key,
-            question=question,
-            agent_keys=parsed_agent_keys,
-            thinking_model=thinking_model,
-            orchestration_model=orchestration_model,
-            rounds=rounds,
-            no_tools=no_tools,
-            context=run_context,
-        ):
+        while True:
+            chunk = await event_queue_ctx.get()
+            if chunk is None:
+                break
             yield chunk
 
     return StreamingResponse(
