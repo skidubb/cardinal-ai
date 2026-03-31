@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 
+from sqlalchemy import text as sa_text
 from sqlmodel import Session, SQLModel, create_engine
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ def _create_engine_safe():
         eng = create_engine(pg_url, echo=False, pool_pre_ping=True)
         # Verify the connection actually works before committing to it
         with eng.connect() as conn:
-            conn.execute(SQLModel.text("SELECT 1"))
+            conn.execute(sa_text("SELECT 1"))
         _log("Postgres connection verified")
         return eng, pg_url
     except Exception as e:
