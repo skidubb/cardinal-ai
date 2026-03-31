@@ -98,6 +98,23 @@ def list_runs(
     ]
 
 
+@router.delete("/{run_id}")
+def delete_run(run_id: int, session: Session = Depends(get_session)) -> dict:
+    """Delete a run and all its associated data (steps, outputs)."""
+    run = session.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # Delete associated records
+    for step in session.exec(select(RunStep).where(RunStep.run_id == run_id)).all():
+        session.delete(step)
+    for output in session.exec(select(AgentOutput).where(AgentOutput.run_id == run_id)).all():
+        session.delete(output)
+    session.delete(run)
+    session.commit()
+    return {"deleted": run_id}
+
+
 # ── GET /{run_id}/stream — MUST be declared before GET /{run_id} ──────────────
 
 async def _replay_completed_run(run: Run, session: Session) -> AsyncGenerator[str, None]:
