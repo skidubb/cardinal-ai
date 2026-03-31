@@ -18,6 +18,12 @@ from api.tool_registry import (
 )
 from protocols.agents import AGENT_CATEGORIES, BUILTIN_AGENTS
 
+# Import rich production prompts from Agent Builder (the real system prompts)
+try:
+    from csuite.agents.sdk_agent import _ROLE_PROMPTS
+except ImportError:
+    _ROLE_PROMPTS = {}
+
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 tools_router = APIRouter(prefix="/api", tags=["tools"])
 
@@ -62,7 +68,7 @@ def _builtin_to_dict(key: str, data: dict) -> dict:
         "model": data.get("model", ""),
         "temperature": 1.0,
         "max_tokens": 8192,
-        "system_prompt": data.get("system_prompt", ""),
+        "system_prompt": _ROLE_PROMPTS.get(key, "") or data.get("system_prompt", ""),
         "context_scope": data.get("context_scope", []),
         "is_builtin": True,
         "tools": ROLE_TOOL_MAP.get(role, []),
