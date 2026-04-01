@@ -26,7 +26,7 @@ from protocols.protocol_report import from_envelope
 router = APIRouter(tags=["reports"])
 
 _template_dir = Path(__file__).resolve().parent.parent / "templates"
-_jinja_env = Environment(loader=FileSystemLoader(str(_template_dir)), autoescape=False)
+_jinja_env = Environment(loader=FileSystemLoader(str(_template_dir)), autoescape=True)
 
 # Markdown converter with table and code support
 _md_extensions = ["tables", "fenced_code", "nl2br"]

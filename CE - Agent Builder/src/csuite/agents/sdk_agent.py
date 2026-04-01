@@ -307,7 +307,7 @@ class SdkAgent:
             model=self.config.model or get_settings().default_model,
             mcp_servers=self.mcp_servers,
             max_turns=15,
-            permission_mode="bypassPermissions",
+            permission_mode="default",
             cwd=str(get_settings().project_root),
         )
 

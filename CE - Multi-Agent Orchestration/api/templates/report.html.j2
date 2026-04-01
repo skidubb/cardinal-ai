@@ -435,7 +435,7 @@
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>Executive Summary</h2>
 <div class="exec-summary md-content">
-  {{ report.executive_summary_html }}
+  {{ report.executive_summary_html | safe }}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -469,7 +469,7 @@
 {% if report.synthesis_html %}
 <h2>Full Synthesis</h2>
 <div class="md-content">
-  {{ report.synthesis_html }}
+  {{ report.synthesis_html | safe }}
 </div>
 {% endif %}
 
@@ -493,7 +493,7 @@
     </div>
   </div>
   <div class="agent-card-body md-content">
-    {{ contribution.text_html }}
+    {{ contribution.text_html | safe }}
   </div>
 </div>
 {% endfor %}

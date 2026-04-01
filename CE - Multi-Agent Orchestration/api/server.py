@@ -56,14 +56,14 @@ app.add_middleware(
 # ── Simple API key auth (skippable in dev) ────────────────────────────────────
 
 API_KEY = os.getenv("API_KEY", "")
-SKIP_AUTH = os.getenv("SKIP_AUTH", "true").lower() in ("1", "true", "yes")
+SKIP_AUTH = os.getenv("SKIP_AUTH", "false").lower() in ("1", "true", "yes")
 
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     if SKIP_AUTH or request.method == "OPTIONS":
         return await call_next(request)
-    if request.url.path.startswith("/share/"):
+    if request.url.path == "/api/health" or request.url.path.startswith("/share/"):
         return await call_next(request)
     key = request.headers.get("X-API-Key", "")
     if not API_KEY:
@@ -88,24 +88,9 @@ app.include_router(runs.router)
 
 @app.get("/api/health")
 def health():
-    import os
     from api.database import DATABASE_URL
     db_type = "postgres" if "postgresql" in DATABASE_URL else "sqlite"
-    db_host = DATABASE_URL.split("@")[-1].split("/")[0] if "@" in DATABASE_URL else "local"
-    # Diagnostic: show what the server actually sees for DATABASE_URL
-    raw_env = os.environ.get("DATABASE_URL", "")
-    env_present = bool(raw_env)
-    env_scheme = raw_env.split("://")[0] if "://" in raw_env else None
-    env_host = raw_env.split("@")[-1].split("/")[0] if "@" in raw_env else None
-    return {
-        "status": "ok",
-        "db": db_type,
-        "db_host": db_host,
-        "env_DATABASE_URL_set": env_present,
-        "env_scheme": env_scheme,
-        "env_host": env_host,
-        "langfuse_key_set": bool(os.environ.get("LANGFUSE_SECRET_KEY")),
-    }
+    return {"status": "ok", "db": db_type}
 
 
 # ── Serve built frontend (production) ─────────────────────────────────────────
@@ -117,7 +102,9 @@ if _ui_dist.is_dir():
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         """Serve the React SPA for any non-API route."""
-        file = _ui_dist / full_path
+        file = (_ui_dist / full_path).resolve()
+        if not str(file).startswith(str(_ui_dist.resolve())):
+            return FileResponse(_ui_dist / "index.html")
         if file.is_file():
             return FileResponse(file)
         return FileResponse(_ui_dist / "index.html")
