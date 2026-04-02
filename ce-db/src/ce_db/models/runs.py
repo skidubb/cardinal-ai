@@ -32,9 +32,9 @@ class Run(Base):
     total_output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     langfuse_trace_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    started_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
+    started_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     agent_outputs: Mapped[list[AgentOutput]] = relationship(back_populates="run", cascade="all, delete-orphan")
 

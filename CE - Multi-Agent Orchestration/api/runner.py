@@ -522,7 +522,8 @@ async def run_protocol_stream(
                 }
             )
 
-        yield _sse_event("error", {"message": str(e), "traceback": tb_str})
+        _log.error("Run failed:\n%s", tb_str)
+        yield _sse_event("error", {"message": str(e)})
         yield _sse_event(
             "run_complete",
             {
@@ -877,7 +878,8 @@ async def run_pipeline_stream(
                 }
             )
 
-        yield _sse_event("error", {"message": str(e), "traceback": tb_str})
+        _log.error("Run failed:\n%s", tb_str)
+        yield _sse_event("error", {"message": str(e)})
         yield _sse_event(
             "run_complete",
             {
@@ -891,4 +893,5 @@ async def run_pipeline_stream(
     finally:
         # Always clean up context vars, regardless of how the generator exits
         set_cost_tracker(None)
+        set_event_queue(None)
         set_session_id(None)

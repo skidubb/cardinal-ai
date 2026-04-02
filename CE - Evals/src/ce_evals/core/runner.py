@@ -207,7 +207,16 @@ class EvalRunner:
                                 )
                             )
 
-            asyncio.run(_write())
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                # Already inside an event loop — schedule as a task
+                loop.create_task(_write())
+            else:
+                asyncio.run(_write())
         except Exception as e:
             logger.debug("Eval persistence skipped: %s", e)
 

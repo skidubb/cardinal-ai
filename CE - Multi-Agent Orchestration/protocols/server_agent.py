@@ -334,8 +334,8 @@ class ServerAgent:
         self.input_tokens += inp
         self.output_tokens += out
         self.cached_tokens += cached
-        # Estimate cost using Opus pricing ($15/$75 per MTok)
-        self.cost += (inp * 15.0 / 1_000_000) + (out * 75.0 / 1_000_000)
+        from ce_shared.pricing import cost_for_model
+        self.cost += cost_for_model(self.model, input_tokens=inp, output_tokens=out, cache_read_tokens=cached)
 
     @staticmethod
     def _extract_text(response: Any) -> str:

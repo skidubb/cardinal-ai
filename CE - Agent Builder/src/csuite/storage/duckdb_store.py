@@ -165,34 +165,40 @@ class DuckDBStore:
         messages: list[dict[str, Any]],
     ) -> None:
         with self._write_lock:
-            self.conn.execute(
-                """INSERT OR REPLACE INTO sessions
-                   (id, agent_role, title, parent_session_id, metadata, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?::JSON, ?, ?)""",
-                [
-                    session_id,
-                    agent_role,
-                    title,
-                    parent_session_id,
-                    json.dumps(metadata, default=str),
-                    created_at,
-                    updated_at,
-                ],
-            )
-            # Delete existing messages for this session, then re-insert
-            self.conn.execute("DELETE FROM messages WHERE session_id = ?", [session_id])
-            for msg in messages:
+            self.conn.execute("BEGIN")
+            try:
                 self.conn.execute(
-                    """INSERT INTO messages (session_id, role, content, timestamp, metadata)
-                       VALUES (?, ?, ?, ?, ?::JSON)""",
+                    """INSERT OR REPLACE INTO sessions
+                       (id, agent_role, title, parent_session_id, metadata, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?::JSON, ?, ?)""",
                     [
                         session_id,
-                        msg["role"],
-                        msg["content"],
-                        msg["timestamp"],
-                        json.dumps(msg.get("metadata", {}), default=str),
+                        agent_role,
+                        title,
+                        parent_session_id,
+                        json.dumps(metadata, default=str),
+                        created_at,
+                        updated_at,
                     ],
                 )
+                # Delete existing messages for this session, then re-insert
+                self.conn.execute("DELETE FROM messages WHERE session_id = ?", [session_id])
+                for msg in messages:
+                    self.conn.execute(
+                        """INSERT INTO messages (session_id, role, content, timestamp, metadata)
+                           VALUES (?, ?, ?, ?, ?::JSON)""",
+                        [
+                            session_id,
+                            msg["role"],
+                            msg["content"],
+                            msg["timestamp"],
+                            json.dumps(msg.get("metadata", {}), default=str),
+                        ],
+                    )
+                self.conn.execute("COMMIT")
+            except Exception:
+                self.conn.execute("ROLLBACK")
+                raise
 
     def load_session(
         self, session_id: str, agent_role: str | None = None
