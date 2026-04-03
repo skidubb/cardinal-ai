@@ -636,7 +636,7 @@ async def run_pipeline_stream(
             step_tool_events: list[dict[str, Any]] = []
             pip_task = asyncio.create_task(orchestrator.run(step_question))
             _active_run_tasks[run_id] = pip_task
-            pip_task.add_done_callback(lambda t: _active_run_tasks.pop(run_id, None) or (
+            pip_task.add_done_callback(lambda t: (
                 t.exception() if not t.cancelled() and t.exception() else None
             ))
 
@@ -891,7 +891,8 @@ async def run_pipeline_stream(
         )
 
     finally:
-        # Always clean up context vars, regardless of how the generator exits
+        # Always clean up context vars and active task tracking
+        _active_run_tasks.pop(run_id, None)
         set_cost_tracker(None)
         set_event_queue(None)
         set_session_id(None)

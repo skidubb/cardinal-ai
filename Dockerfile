@@ -72,6 +72,11 @@ ENV PYTHONPATH=/app/orchestration
 
 WORKDIR /app/orchestration
 
+RUN useradd --system --no-create-home appuser \
+    && chown -R appuser:appuser /app
+
+USER appuser
+
 EXPOSE ${PORT:-8000}
 
 CMD sh -c "uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"

@@ -242,32 +242,35 @@ class DuckDBStore:
     ) -> list[dict[str, Any]]:
         if agent_role:
             rows = self.conn.execute(
-                """SELECT id, agent_role, title, parent_session_id, metadata,
-                          created_at, updated_at
-                   FROM sessions WHERE agent_role = ?
-                   ORDER BY updated_at DESC LIMIT ?""",
+                """SELECT s.id, s.agent_role, s.title, s.parent_session_id, s.metadata,
+                          s.created_at, s.updated_at, COUNT(m.session_id) AS message_count
+                   FROM sessions s
+                   LEFT JOIN messages m ON m.session_id = s.id
+                   WHERE s.agent_role = ?
+                   GROUP BY s.id, s.agent_role, s.title, s.parent_session_id,
+                            s.metadata, s.created_at, s.updated_at
+                   ORDER BY s.updated_at DESC LIMIT ?""",
                 [agent_role, limit],
             ).fetchall()
         else:
             rows = self.conn.execute(
-                """SELECT id, agent_role, title, parent_session_id, metadata,
-                          created_at, updated_at
-                   FROM sessions ORDER BY updated_at DESC LIMIT ?""",
+                """SELECT s.id, s.agent_role, s.title, s.parent_session_id, s.metadata,
+                          s.created_at, s.updated_at, COUNT(m.session_id) AS message_count
+                   FROM sessions s
+                   LEFT JOIN messages m ON m.session_id = s.id
+                   GROUP BY s.id, s.agent_role, s.title, s.parent_session_id,
+                            s.metadata, s.created_at, s.updated_at
+                   ORDER BY s.updated_at DESC LIMIT ?""",
                 [limit],
             ).fetchall()
 
         cols = ["id", "agent_role", "title", "parent_session_id", "metadata",
-                "created_at", "updated_at"]
+                "created_at", "updated_at", "message_count"]
         results = []
         for row in rows:
             d = dict(zip(cols, row))
             if isinstance(d["metadata"], str):
                 d["metadata"] = json.loads(d["metadata"])
-            # Count messages
-            count = self.conn.execute(
-                "SELECT COUNT(*) FROM messages WHERE session_id = ?", [d["id"]]
-            ).fetchone()
-            d["message_count"] = count[0] if count else 0
             results.append(d)
         return results
 
