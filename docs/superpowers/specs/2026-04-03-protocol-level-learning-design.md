@@ -53,6 +53,15 @@ record_learning() --------> (NEW — store run outcome for future learning)
 Done
 ```
 
+## Eval Score Source
+
+Two scoring systems exist in the codebase:
+
+1. **`QualityJudge`** (`protocols/judge.py`) — produces four 1-5 scores (completeness, consistency, actionability, overall). Runs in API mode (`api/runner.py`).
+2. **`evaluate_multiagent()`** (`protocols/langfuse_tracing.py`) — produces four 0-1 scores pushed to Langfuse. Runs from `@trace_protocol` decorator.
+
+**Decision:** Use `QualityJudge.overall` (1-5 scale) as the primary eval score. The `eval_score` field is `float | None` — runs without scores (CLI runs where QualityJudge doesn't execute, judge failures) are stored but excluded from score-based aggregations. To ensure CLI runs also get scored, `record_learning()` will invoke a lightweight judge call (Haiku, ~$0.01) when no score is provided — gated behind a `LEARNING_AUTO_SCORE=true` env var.
+
 ## Data Model
 
 ### New table: `protocol_insights`
@@ -84,6 +93,7 @@ class ProtocolInsight(Base):
     expires_at: Mapped[datetime | None]          # recompute after N new runs
 
     __table_args__ = (
+        UniqueConstraint("protocol_key", "question_category", "insight_type", name="uq_insights_lookup"),
         Index("ix_insights_lookup", "protocol_key", "question_category", "insight_type"),
     )
 ```
@@ -101,7 +111,7 @@ class RunLearning(Base):
 
     protocol_key: Mapped[str]
     question_categories: Mapped[list[str]] = mapped_column(JSONB)
-    eval_score: Mapped[float]
+    eval_score: Mapped[float | None]                    # None if judge unavailable
     config_json: Mapped[dict] = mapped_column(JSONB)   # {"rounds": 3, "agents": [...], "thinking_model": "opus"}
     cost_usd: Mapped[float]
     synthesis_excerpt: Mapped[str | None]               # first 2000 chars of synthesis
@@ -111,6 +121,7 @@ class RunLearning(Base):
     __table_args__ = (
         Index("ix_run_learnings_protocol", "protocol_key"),
         Index("ix_run_learnings_score", "eval_score"),
+        Index("ix_run_learnings_categories", "question_categories", postgresql_using="gin"),
     )
 ```
 
@@ -153,6 +164,21 @@ async def classify_question(client: AsyncAnthropic, question: str) -> list[str]:
         max_tokens=50,
     )
     return _parse_categories(response)
+
+
+def _parse_categories(raw: str) -> list[str]:
+    """Parse classifier response. Handles JSON, markdown fences, invalid categories."""
+    import json, re
+    # Strip markdown code fences if present
+    raw = re.sub(r"```(?:json)?\s*", "", raw).strip().rstrip("`")
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            valid = [c for c in parsed if c in QUESTION_CATEGORIES]
+            return valid if valid else ["unclassified"]
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return ["unclassified"]
 ```
 
 ## Post-Run: `record_learning()`
@@ -188,8 +214,11 @@ async def record_learning(
             session.add(learning)
 
             # 2. Update best synthesis if this is a new high score
+            if eval_score is None:
+                await session.commit()
+                return  # Can't rank without a score
             for cat in question_categories:
-                existing = await _get_contextual_insight(session, protocol_key, cat)
+                existing = await _get_contextual_insight_single(session, protocol_key, cat)
                 if existing is None or eval_score > (existing.best_score or 0):
                     await _upsert_contextual_insight(
                         session, protocol_key, cat,
@@ -244,8 +273,7 @@ GROUP BY config_json->>'rounds'
 Location: `CE - Multi-Agent Orchestration/protocols/learning/retriever.py`
 
 ```python
-@dataclass
-class RunInsights:
+class RunInsights(BaseModel):  # Pydantic v2, matching codebase convention
     protocol_scores: dict[str, float]       # {"p06_triz": 4.2, "p04_debate": 3.1}
     recommended_protocol: str | None
     optimal_rounds: int | None
@@ -267,11 +295,13 @@ async def retrieve_insights(
     """Retrieve relevant learning before a protocol run. Returns empty insights on failure."""
     try:
         async with get_session() as session:
+            # _get_protocol_scores returns {protocol_key: {"avg_score": float, "n": int}}
             protocol_scores = await _get_protocol_scores(session, question_categories)
             config = await _get_config_insight(session, protocol_key, question_categories)
-            contextual = await _get_contextual_insight(session, protocol_key, question_categories)
+            # _get_best_contextual picks highest-scored insight across categories
+            contextual = await _get_best_contextual(session, protocol_key, question_categories)
 
-            sample_size = sum(protocol_scores.values()) if protocol_scores else 0
+            sample_size = sum(v["n"] for v in protocol_scores.values()) if protocol_scores else 0
 
             return RunInsights(
                 protocol_scores={k: v["avg_score"] for k, v in protocol_scores.items()},
@@ -294,37 +324,89 @@ async def retrieve_insights(
 
 ## Injection Points
 
-### Orchestrator-level (CLI/API)
+### Shared hooks helper
 
-In `protocols/run.py` (CLI) and `api/runner.py` (API), before `orchestrator.run()`:
+To avoid touching 53 `run.py` files, create `protocols/learning/hooks.py`:
 
 ```python
-# Classify + retrieve
-categories = await classify_question(client, question)
-insights = await retrieve_insights(protocol_key, question, categories)
+# protocols/learning/hooks.py
 
-# Log protocol recommendation
-if insights.recommended_protocol and insights.recommended_protocol != protocol_key:
-    logger.info(
-        f"[Learning] {insights.recommended_protocol} scored "
-        f"{insights.protocol_scores.get(insights.recommended_protocol, '?'):.1f} avg "
-        f"vs {protocol_key} at {insights.protocol_scores.get(protocol_key, '?')} "
-        f"for {categories} (n={insights.sample_size})"
+async def pre_run_hook(
+    client: AsyncAnthropic,
+    protocol_key: str,
+    question: str,
+    agents: list,          # ServerAgent instances or dicts
+    user_config: dict,     # {"rounds": None, "agents": None, ...}
+) -> tuple[dict, list[str]]:
+    """Pre-run: classify, retrieve insights, inject into agents. Returns (updated_config, categories)."""
+    categories = await classify_question(client, question)
+    insights = await retrieve_insights(protocol_key, question, categories)
+
+    # Log protocol recommendation (informational only)
+    if insights.recommended_protocol and insights.recommended_protocol != protocol_key:
+        logger.info(
+            f"[Learning] {insights.recommended_protocol} scored "
+            f"{insights.protocol_scores.get(insights.recommended_protocol, '?'):.1f} avg "
+            f"vs {protocol_key} at {insights.protocol_scores.get(protocol_key, '?')} "
+            f"for {categories} (n={insights.sample_size})"
+        )
+
+    # Auto-apply config if confident and user didn't override
+    updated_config = dict(user_config)
+    if insights.confidence > 0.6:
+        if insights.optimal_rounds and not user_config.get("rounds"):
+            updated_config["rounds"] = insights.optimal_rounds
+            logger.info(f"[Learning] Auto-set rounds={insights.optimal_rounds}")
+
+    # Inject institutional memory directly into ServerAgent instances
+    if insights.institutional_memory:
+        for agent in agents:
+            if hasattr(agent, "institutional_memory"):
+                agent.institutional_memory = insights.institutional_memory
+
+    return updated_config, categories
+
+
+async def post_run_hook(
+    run_id: uuid.UUID,
+    protocol_key: str,
+    question: str,
+    question_categories: list[str],
+    eval_score: float | None,
+    config: dict,
+    synthesis_text: str,
+    cost_summary: dict,
+) -> None:
+    """Post-run: record learning. Non-blocking wrapper."""
+    await record_learning(
+        run_id=run_id,
+        protocol_key=protocol_key,
+        question=question,
+        question_categories=question_categories,
+        eval_score=eval_score,
+        config=config,
+        synthesis_text=synthesis_text,
+        cost_summary=cost_summary,
     )
-
-# Auto-apply config if confident and user didn't override
-if insights.confidence > 0.6:
-    if insights.optimal_rounds and not args.rounds:
-        args.rounds = insights.optimal_rounds
-        logger.info(f"[Learning] Auto-set rounds={insights.optimal_rounds}")
-
-# Pass institutional memory to orchestrator for agent injection
-orchestrator.institutional_memory = insights.institutional_memory
 ```
 
-### Agent-level (ServerAgent system prompt)
+Each `run.py` or `api/runner.py` adds ~3 lines:
 
-In `server_agent.py`, `_build_system_prompt()`:
+```python
+from protocols.learning.hooks import pre_run_hook, post_run_hook
+
+# Before orchestrator.run():
+updated_config, categories = await pre_run_hook(client, protocol_key, question, agents, user_config)
+
+# After persist_run():
+await post_run_hook(run_id, protocol_key, question, categories, eval_score, config, synthesis, cost_summary)
+```
+
+### Agent-level: ServerAgent injection
+
+Institutional memory is set directly on `ServerAgent` instances by the pre-run hook (not via orchestrators). This means **zero orchestrator changes**.
+
+In `server_agent.py`, add `institutional_memory: str | None = None` attribute and extend `_build_system_prompt()`:
 
 ```python
 # After existing memory/lessons/preferences sections:
@@ -337,7 +419,9 @@ if self.institutional_memory:
     )
 ```
 
-The `institutional_memory` attribute is set by the orchestrator before calling `agent.chat()`. Orchestrators pass it through from the pre-run insights.
+### Primary integration: `api/runner.py`
+
+The API runner is the production path (Railway deployment) and already has `QualityJudge` integration. This is the highest-priority integration point. CLI `run.py` files are secondary.
 
 ## Graceful Degradation
 
@@ -345,7 +429,7 @@ Every component degrades silently — matching the existing pattern in Langfuse 
 
 | Component | On Failure | Behavior |
 |-----------|-----------|----------|
-| `classify_question()` | Returns `["strategy"]` (safe default) | Broad matching, slightly less precise |
+| `classify_question()` | Returns `["unclassified"]` (safe default) | Avoids polluting category-specific insights |
 | `retrieve_insights()` | Returns empty `RunInsights` | No recommendations, no priming — runs as today |
 | `record_learning()` | Logs warning, returns None | Run data lost for learning but run itself unaffected |
 | DB unavailable | All learning functions no-op | Full system works exactly as current behavior |
@@ -354,17 +438,18 @@ Every component degrades silently — matching the existing pattern in Langfuse 
 
 ### New files:
 - `CE - Multi-Agent Orchestration/protocols/learning/__init__.py`
-- `CE - Multi-Agent Orchestration/protocols/learning/classifier.py` — question classification
+- `CE - Multi-Agent Orchestration/protocols/learning/classifier.py` — question classification + `_parse_categories()`
 - `CE - Multi-Agent Orchestration/protocols/learning/recorder.py` — post-run learning
-- `CE - Multi-Agent Orchestration/protocols/learning/retriever.py` — pre-run insights
+- `CE - Multi-Agent Orchestration/protocols/learning/retriever.py` — pre-run insights (`RunInsights` Pydantic model)
+- `CE - Multi-Agent Orchestration/protocols/learning/hooks.py` — `pre_run_hook()` + `post_run_hook()` shared helpers
 - `ce-db/src/ce_db/models/insights.py` — ProtocolInsight + RunLearning models
 - `ce-db/alembic/versions/xxx_add_learning_tables.py` — migration
 
 ### Modified files:
 - `ce-db/src/ce_db/models/__init__.py` — export new models
-- `CE - Multi-Agent Orchestration/protocols/server_agent.py` — add `institutional_memory` attribute + system prompt injection (~5 lines)
-- `CE - Multi-Agent Orchestration/protocols/persistence.py` — call `record_learning()` after `persist_run()` (~10 lines)
-- CLI `run.py` files (per protocol) — add classify + retrieve + inject before orchestrator.run() (~15 lines each, or extract to shared helper)
+- `CE - Multi-Agent Orchestration/protocols/server_agent.py` — add `institutional_memory: str | None = None` attribute + system prompt injection (~5 lines)
+- `CE - Multi-Agent Orchestration/api/runner.py` — add pre_run_hook/post_run_hook calls (~6 lines, primary integration point)
+- CLI `run.py` files (per protocol, secondary) — add pre_run_hook/post_run_hook calls (~3 lines each via hooks helper)
 
 ### Not modified:
 - No orchestrator changes (p04, p06, etc.)
