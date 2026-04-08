@@ -23,6 +23,11 @@ _CORE_WALKERS = {
             "lens_family": "meta",
             "core_transform": "decomposition",
             "default_depth_mode": "frame",
+            "lens_mandate": (
+                "Decompose the problem into its constituent sub-problems. "
+                "Name at least 3 assumptions embedded in the framing that, "
+                "if wrong, would change the answer entirely."
+            ),
         },
     },
     "walk-systems": {
@@ -39,6 +44,11 @@ _CORE_WALKERS = {
             "lens_family": "systems",
             "core_transform": "feedback_loop_analysis",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Draw the 3 strongest feedback loops operating in this domain. "
+                "Name the stocks, flows, delays, and which archetype applies. "
+                "Identify the highest-leverage intervention point."
+            ),
         },
     },
     "walk-analogy": {
@@ -54,6 +64,11 @@ _CORE_WALKERS = {
             "lens_family": "analogical",
             "core_transform": "cross_domain_mapping",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Name 2 structural analogies from DIFFERENT domains (not business). "
+                "For each, identify the transferable causal mechanism and where "
+                "the analogy breaks down. No analogy to VMware or obvious tech parallels."
+            ),
         },
     },
     "walk-narrative": {
@@ -70,6 +85,12 @@ _CORE_WALKERS = {
             "lens_family": "narrative",
             "core_transform": "story_structure_analysis",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Name the implicit story being told (hero, villain, quest). "
+                "Whose perspective is centered and whose is erased? Write one "
+                "alternative narrative that explains the same facts but leads "
+                "to a different conclusion."
+            ),
         },
     },
     "walk-constraint": {
@@ -86,6 +107,11 @@ _CORE_WALKERS = {
             "lens_family": "constraint",
             "core_transform": "constraint_mapping",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "List the 5 strongest constraints (physical, legal, temporal, "
+                "resource, political). For each: is it real or assumed? What "
+                "becomes possible if removed? Name the single binding constraint."
+            ),
         },
     },
     "walk-adversarial": {
@@ -102,6 +128,11 @@ _CORE_WALKERS = {
             "lens_family": "adversarial",
             "core_transform": "steelman_opposition",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Steelman the opposite conclusion. Who benefits from the "
+                "current framing? What would a competent opponent do to "
+                "exploit this plan? Name the single most likely failure mode."
+            ),
         },
     },
     "walk-salience-judge": {
@@ -112,14 +143,20 @@ _CORE_WALKERS = {
             "their explanatory power. You score perspectives on novelty (does "
             "this say something the obvious analysis misses?), explanatory "
             "power (does this account for more of the evidence?), actionability "
-            "(does this lead to different decisions?), and cognitive distance "
-            "(how far is this from the default frame?). You are ruthlessly "
-            "meritocratic. Output valid JSON."
+            "(does this lead to different decisions?), cognitive distance "
+            "(how far is this from the default frame?), and distinctiveness "
+            "(is this genuinely different from the other outputs?). You are "
+            "ruthlessly meritocratic and penalize redundancy. Output valid JSON."
         ),
         "walk_metadata": {
             "lens_family": "meta",
             "core_transform": "salience_scoring",
             "default_depth_mode": "score",
+            "lens_mandate": (
+                "Score each output on novelty, explanatory power, actionability, "
+                "cognitive distance, and distinctiveness. Penalize outputs that "
+                "repeat what other lenses already said in different words."
+            ),
         },
     },
     "walk-synthesizer": {
@@ -128,16 +165,23 @@ _CORE_WALKERS = {
             "You synthesize the outputs of multiple cognitive lenses that have "
             "explored a problem from radically different angles. Unlike a "
             "consensus-builder, you preserve productive tension between "
-            "competing interpretations. You identify where lenses agree "
-            "(convergent signal), where they disagree (genuine uncertainty), "
-            "and what the walk process itself revealed that none of the "
-            "individual lenses would have produced alone. You always end with "
-            "concrete decision implications and experiments. Output valid JSON."
+            "competing interpretations. You prioritize genuine disagreements "
+            "over agreement — if all lenses converge, something went wrong. "
+            "You identify where lenses agree (convergent signal), where they "
+            "disagree (genuine uncertainty), and what the walk process itself "
+            "revealed that none of the individual lenses would have produced "
+            "alone. You always end with concrete decision implications, "
+            "competing action recommendations, and experiments. Output valid JSON."
         ),
         "walk_metadata": {
             "lens_family": "meta",
             "core_transform": "multi_lens_synthesis",
             "default_depth_mode": "synthesize",
+            "lens_mandate": (
+                "Name the strongest UNRESOLVED disagreement between lenses. "
+                "Present competing action recommendations. If lenses mostly "
+                "agree, explain what the walk failed to explore."
+            ),
         },
     },
 }
@@ -159,6 +203,11 @@ _DISTANT_SPECIALISTS = {
             "lens_family": "aesthetic",
             "core_transform": "metaphor_extraction",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Find the dominant metaphor being used and name what it "
+                "conceals. Propose one alternative metaphor that reframes "
+                "the problem. Name one paradox at the heart of the situation."
+            ),
         },
     },
     "walk-historian": {
@@ -175,6 +224,12 @@ _DISTANT_SPECIALISTS = {
             "lens_family": "historical",
             "core_transform": "historical_precedent",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Identify 2 historical precedents — one that succeeded and "
+                "one that failed in a similar situation. Extract the causal "
+                "mechanism from each. Name where survivorship bias distorts "
+                "the obvious lesson."
+            ),
         },
     },
     "walk-complexity": {
@@ -190,6 +245,11 @@ _DISTANT_SPECIALISTS = {
             "lens_family": "complexity",
             "core_transform": "complexity_analysis",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Classify: is this system ordered, complex, or chaotic? "
+                "Identify any phase transitions or tipping points. Name one "
+                "emergent property that no individual component predicts."
+            ),
         },
     },
     "walk-semiotician": {
@@ -205,6 +265,11 @@ _DISTANT_SPECIALISTS = {
             "lens_family": "semiotic",
             "core_transform": "sign_analysis",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Name the 3 strongest signals being sent and who interprets "
+                "them. Where is meaning constructed vs. discovered? Identify "
+                "one second-order effect where describing the problem changes it."
+            ),
         },
     },
     "walk-economist": {
@@ -220,6 +285,11 @@ _DISTANT_SPECIALISTS = {
             "lens_family": "economic",
             "core_transform": "incentive_analysis",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "Map the incentive structure: who bears costs, who captures "
+                "value, where is moral hazard? Identify the key information "
+                "asymmetry and what market mechanism would fix it."
+            ),
         },
     },
     "walk-statistician": {
@@ -236,6 +306,11 @@ _DISTANT_SPECIALISTS = {
             "lens_family": "statistical",
             "core_transform": "statistical_reasoning",
             "default_depth_mode": "both",
+            "lens_mandate": (
+                "What is the base rate for this type of outcome? What "
+                "selection effects are operating? Identify one place where "
+                "correlation is being mistaken for causation."
+            ),
         },
     },
 }

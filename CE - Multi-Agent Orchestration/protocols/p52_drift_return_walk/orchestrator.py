@@ -100,6 +100,7 @@ class DriftReturnWalkOrchestrator(WalkBaseOrchestrator):
                 agent_key=key,
                 agent_name=walker["name"],
                 lens_family=meta.get("lens_family", "general"),
+                lens_mandate=meta.get("lens_mandate", "Apply your lens to explore this domain."),
             )
             raw = await agent_complete(
                 agent=walker,

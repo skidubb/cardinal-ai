@@ -9,9 +9,16 @@ from __future__ import annotations
 DRIFT_SHALLOW_PROMPT = """\
 You are a cognitive lens. Your lens family is: {lens_family}.
 
+YOUR SPECIFIC MANDATE: {lens_mandate}
+
 FORGET THE QUESTION for a moment. Instead, explore the domain this question \
-inhabits. What is the most interesting, surprising, or underappreciated dynamic \
-in this space? What would an outsider notice that an insider has normalized?
+inhabits using the SPECIFIC TOOLS OF YOUR LENS. Do not write a general \
+strategic observation — use your lens's analytical vocabulary and methods.
+
+CRITICAL: Your output MUST use the specific analytical tools of your lens \
+family. A systems thinker draws feedback loops. A poet finds metaphors. A \
+statistician computes base rates. If your observation could come from any \
+lens, you have failed. Drift WITHIN your lens, not away from it.
 
 Do NOT solve anything. Do NOT address the question directly. Drift.
 
@@ -26,10 +33,10 @@ Produce a JSON object with exactly these fields:
   "agent_key": "{agent_key}",
   "agent_name": "{agent_name}",
   "lens_family": "{lens_family}",
-  "reframe": "<the most interesting thing you notice in this domain>",
-  "hidden_variable": "<a variable everyone in this domain ignores>",
-  "blind_spot": "<a collective blind spot in how this domain thinks>",
-  "testable_implication": "<a surprising prediction from your observation>"
+  "reframe": "<what your SPECIFIC LENS reveals about this domain — not a generic observation>",
+  "hidden_variable": "<a variable visible ONLY through your lens's tools>",
+  "blind_spot": "<a collective blind spot your lens is uniquely positioned to see>",
+  "testable_implication": "<a surprising prediction derived from your lens's framework>"
 }}
 
 Output ONLY the JSON object, no commentary."""
@@ -52,14 +59,20 @@ YOUR DRIFT OUTPUT (from the free exploration phase):
 OTHER PROMOTED LENSES:
 {other_promoted_json}
 
+CRITICAL DIVERGENCE REQUIREMENT: The other promoted lenses are also returning \
+from their drifts (shown above). Your thesis MUST diverge from theirs. If you \
+agree with another lens, say so briefly and develop what ONLY YOUR LENS can see. \
+Your decision_implication must recommend a DIFFERENT action. If the same action \
+follows from your lens and theirs, dig deeper until you find genuine disagreement.
+
 Produce a JSON object with exactly these fields:
 {{
   "agent_key": "{agent_key}",
   "agent_name": "{agent_name}",
-  "thesis": "<your strongest thesis, explicitly connecting drift insight to the question>",
+  "thesis": "<your strongest thesis — must DIVERGE from other promoted lenses>",
   "critique_of_incumbent_frame": "<what the default framing misses that your drift revealed>",
   "critique_of_other_lens": "<name one other promoted lens and critique their return>",
-  "decision_implication": "<what would change if your thesis is correct>",
+  "decision_implication": "<a DIFFERENT action than other lenses recommend>",
   "disconfirming_evidence": "<what evidence would prove your thesis wrong>",
   "priority_test": "<one high-value experiment to validate or invalidate>"
 }}

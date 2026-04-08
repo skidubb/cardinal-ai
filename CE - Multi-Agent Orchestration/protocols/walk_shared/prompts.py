@@ -33,8 +33,15 @@ Output ONLY the JSON object, no commentary."""
 SHALLOW_WALK_PROMPT = """\
 You are a cognitive lens. Your lens family is: {lens_family}.
 
+YOUR SPECIFIC MANDATE: {lens_mandate}
+
 Your task: reframe the problem below through your specific lens. \
 Do NOT solve the problem. Reframe it. Surface what the default framing misses.
+
+CRITICAL: Your output MUST NOT overlap with what a generic strategic \
+consultant would say. If your reframe could come from any lens, it is not \
+from yours. Use the specific analytical tools of your lens family — not \
+general business reasoning.
 
 QUESTION:
 {question}
@@ -47,9 +54,9 @@ Produce a JSON object with exactly these fields:
   "agent_key": "{agent_key}",
   "agent_name": "{agent_name}",
   "lens_family": "{lens_family}",
-  "reframe": "<one reframing of the problem through your lens>",
-  "hidden_variable": "<one variable the incumbent frame ignores>",
-  "blind_spot": "<one blind spot in the current framing>",
+  "reframe": "<one reframing using YOUR SPECIFIC LENS TOOLS, not generic strategy>",
+  "hidden_variable": "<one variable the incumbent frame ignores — name it using your lens vocabulary>",
+  "blind_spot": "<one blind spot visible ONLY from your lens>",
   "testable_implication": "<one falsifiable prediction from your reframing>"
 }}
 
@@ -58,15 +65,24 @@ Output ONLY the JSON object, no commentary."""
 # ── Stage 2: Salience Scoring ────────────────────────────────────────────────
 
 SALIENCE_JUDGE_PROMPT = """\
-You are a meta-cognitive salience judge. Score each lens output below on four \
+You are a meta-cognitive salience judge. Score each lens output below on five \
 dimensions (1-10 scale):
 
 - **novelty**: Does this say something the obvious analysis would miss?
 - **explanatory_power**: Does this account for more evidence than the default frame?
 - **actionability**: Does this lead to concretely different decisions?
 - **cognitive_distance**: How far is this perspective from the default frame?
+- **distinctiveness**: How DIFFERENT is this output from the OTHER lens outputs? \
+Score 1 if this lens said essentially the same thing as multiple others. \
+Score 10 if this perspective is genuinely unique among the full set. \
+PENALIZE outputs that repeat what other lenses already said in different words.
 
-Composite = 0.30 * novelty + 0.25 * explanatory_power + 0.25 * actionability + 0.20 * cognitive_distance
+Composite = 0.25 * novelty + 0.20 * explanatory_power + 0.15 * actionability \
++ 0.15 * cognitive_distance + 0.25 * distinctiveness
+
+IMPORTANT: Before scoring, scan ALL outputs for redundancy. If 5+ lenses \
+made the same core observation, those outputs should score LOW on \
+distinctiveness regardless of how novel that observation is in absolute terms.
 
 PROBLEM FRAME:
 {frame_json}
@@ -83,11 +99,12 @@ Produce a JSON object with exactly these fields:
       "explanatory_power": <1-10>,
       "actionability": <1-10>,
       "cognitive_distance": <1-10>,
+      "distinctiveness": <1-10>,
       "composite": <weighted score>,
-      "rationale": "<1-2 sentence justification>"
+      "rationale": "<1-2 sentence justification including distinctiveness assessment>"
     }}
   ],
-  "top_tensions": ["<tensions between the most interesting outputs>"],
+  "top_tensions": ["<genuine disagreements between lens outputs>"],
   "candidate_hypotheses": ["<hypotheses worth testing in deep walk>"]
 }}
 
@@ -111,14 +128,22 @@ YOUR SHALLOW OUTPUT:
 OTHER PROMOTED LENSES (for cross-reference):
 {other_promoted_json}
 
+CRITICAL DIVERGENCE REQUIREMENT: The other promoted lenses are developing \
+their own theses (shown above). Your thesis MUST diverge from theirs. If \
+you agree with another lens, say so briefly and then develop the part of \
+your analysis that THEY CANNOT SEE from their lens. Your decision_implication \
+must recommend a DIFFERENT action than what other lenses would recommend. \
+If the same action follows from your lens and theirs, your lens isn't adding \
+value — dig deeper until you find where you genuinely disagree.
+
 Produce a JSON object with exactly these fields:
 {{
   "agent_key": "{agent_key}",
   "agent_name": "{agent_name}",
-  "thesis": "<your strongest thesis from this lens>",
+  "thesis": "<your strongest thesis — must DIVERGE from other promoted lenses>",
   "critique_of_incumbent_frame": "<what the default framing gets wrong>",
   "critique_of_other_lens": "<name one other promoted lens and critique it>",
-  "decision_implication": "<what would change if your thesis is correct>",
+  "decision_implication": "<a DIFFERENT action than other lenses recommend>",
   "disconfirming_evidence": "<what evidence would prove your thesis wrong>",
   "priority_test": "<one high-value experiment to validate or invalidate>"
 }}
@@ -155,6 +180,11 @@ You are the Walk Synthesizer. You have seen a problem explored through \
 multiple cognitive lenses — from systems thinking to poetry to statistics. \
 Now synthesize.
 
+YOUR PRIMARY JOB IS NOT TO SUMMARIZE AGREEMENT. It is to surface the \
+strongest unresolved disagreements between lenses and present the competing \
+action recommendations that follow from each. If all lenses converged on \
+the same conclusion, explain what the walk FAILED to explore.
+
 QUESTION:
 {question}
 
@@ -175,18 +205,29 @@ CROSS-EXAMINATIONS:
 
 Produce a JSON object with exactly these fields:
 {{
-  "best_current_interpretation": "<the most defensible interpretation given all lenses>",
-  "competing_interpretations": ["<other plausible interpretations that remain live>"],
-  "walk_added_value": "<what this walk surfaced that a narrower expert stack would miss>",
+  "strongest_unresolved_tension": "<the most important disagreement between \
+lenses that matters for the decision — not a resolved tension, an OPEN one>",
+  "competing_interpretations": ["<2-4 genuinely different interpretations that \
+remain live — not minor variations of the same view>"],
+  "minority_report": "<which lens(es) said something NO other lens agreed with? \
+What changes if they are right?>",
+  "action_divergence": ["<2-3 DIFFERENT concrete actions recommended by \
+different lenses — if all lenses recommend the same action, the walk failed>"],
+  "redundancy_assessment": "<how many genuinely distinct perspectives did this \
+walk produce? If fewer than 4 out of 14, explain what went wrong>",
+  "walk_added_value": "<what did the multi-lens process reveal that a single \
+well-prompted expert would have missed?>",
   "decision_changes": ["<concrete decisions that change based on the walk>"],
-  "experiments": ["<high-value experiments to run>"],
-  "success_signals": ["<what success looks like if the best interpretation is correct>"],
-  "kill_criteria": ["<conditions under which the best interpretation should be abandoned>"],
-  "what_would_change_view": "<what evidence would fundamentally change the conclusion>"
+  "experiments": ["<high-value experiments to run — each should test a \
+different lens's thesis>"],
+  "success_signals": ["<what success looks like>"],
+  "kill_criteria": ["<conditions that would disprove the leading interpretation>"],
+  "what_would_change_view": "<what evidence would resolve the strongest tension>"
 }}
 
 Output ONLY the JSON object.
 
 Then, after the JSON, write a prose synthesis (2-4 paragraphs) that a \
-decision-maker could read without seeing the JSON. Start the prose section \
-with "---PROSE---" on its own line."""
+decision-maker could read. Lead with the UNRESOLVED TENSION, not the \
+consensus. Present competing recommendations, then your bet. Start the \
+prose section with "---PROSE---" on its own line."""

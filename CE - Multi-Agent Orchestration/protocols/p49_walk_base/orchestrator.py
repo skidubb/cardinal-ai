@@ -203,6 +203,7 @@ class WalkBaseOrchestrator:
                 agent_key=key,
                 agent_name=walker["name"],
                 lens_family=meta.get("lens_family", "general"),
+                lens_mandate=meta.get("lens_mandate", "Apply your lens to explore this domain."),
             )
             raw = await agent_complete(
                 agent=walker,
@@ -384,8 +385,10 @@ class WalkBaseOrchestrator:
         )
 
         try:
+            from protocols.config import SYNTHESIS_THINKING_BUDGET
+            synth_budget = max(self.thinking_budget, SYNTHESIS_THINKING_BUDGET)
             synth_engine = SynthesisEngine(
-                self.client, self.thinking_model, self.thinking_budget, use_agent=True,
+                self.client, self.thinking_model, synth_budget, use_agent=True,
             )
             raw = await synth_engine.synthesize(protocol_prompt=prompt, question=question)
 

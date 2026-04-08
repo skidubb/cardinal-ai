@@ -78,8 +78,12 @@ def print_result(result):
     print("SYNTHESIS")
     print("=" * 70)
     if result.synthesis:
-        print(f"\nBest interpretation: {result.synthesis.best_current_interpretation}")
+        print(f"\nStrongest unresolved tension: {result.synthesis.strongest_unresolved_tension}")
+        print(f"\nMinority report: {result.synthesis.minority_report}")
+        print(f"\nRedundancy assessment: {result.synthesis.redundancy_assessment}")
         print(f"\nWalk added value: {result.synthesis.walk_added_value}")
+        for a in result.synthesis.action_divergence:
+            print(f"  Competing action: {a}")
         for e in result.synthesis.experiments:
             print(f"  Experiment: {e}")
         for k in result.synthesis.kill_criteria:

@@ -47,6 +47,7 @@ class SalienceScore(BaseModel):
     explanatory_power: float = Field(ge=1, le=10)
     actionability: float = Field(ge=1, le=10)
     cognitive_distance: float = Field(ge=1, le=10)
+    distinctiveness: float = Field(default=5.0, ge=1, le=10)
     composite: float
     rationale: str
 
@@ -94,8 +95,11 @@ class CrossExamEntry(BaseModel):
 class WalkSynthesis(BaseModel):
     """Structured synthesis integrating all walk stages."""
 
-    best_current_interpretation: str
+    strongest_unresolved_tension: str
     competing_interpretations: list[str]
+    minority_report: str
+    action_divergence: list[str]
+    redundancy_assessment: str
     walk_added_value: str
     decision_changes: list[str]
     experiments: list[str]

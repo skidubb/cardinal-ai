@@ -35,6 +35,10 @@ COGNITIVE_TIERS = {
     "L4": THINKING_MODEL,       # Opus — creative/strategic synthesis
 }
 
+# ── Thinking budgets ───────────────────────────────────────────────────────
+DEFAULT_THINKING_BUDGET = int(os.getenv("THINKING_BUDGET", "10000"))
+SYNTHESIS_THINKING_BUDGET = int(os.getenv("SYNTHESIS_THINKING_BUDGET", "16000"))
+
 # Maps stage types to cognitive levels for protocol self-documentation.
 # Orchestrators can use this to auto-select model tier per stage.
 STAGE_COGNITIVE_MAP = {
