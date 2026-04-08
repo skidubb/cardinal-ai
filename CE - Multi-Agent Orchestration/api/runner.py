@@ -35,6 +35,7 @@ from protocols.langfuse_tracing import get_trace_id, is_enabled as langfuse_is_e
 from protocols.llm import set_cost_tracker, set_event_queue, set_no_tools
 from protocols.persistence import PersistOutcome, persist_run
 from protocols.run_envelope import StepEnvelope, TelemetryWarning, build_run_envelope
+from protocols.learning.hooks import pre_run_hook, post_run_hook
 
 
 # ── Protocol → orchestrator class mapping ────────────────────────────────────
@@ -236,6 +237,24 @@ async def run_protocol_stream(
         OrchestratorClass = _load_orchestrator_class(protocol_key)
         agents = build_production_agents(agent_keys)
 
+        # Protocol learning: classify question + retrieve insights + inject memory
+        _learning_categories = ["unclassified"]
+        try:
+            import anthropic as _anth
+            _learning_client = _anth.AsyncAnthropic()
+            _user_config = {"rounds": rounds}
+            _user_config, _learning_categories = await pre_run_hook(
+                client=_learning_client,
+                protocol_key=protocol_key,
+                question=question,
+                agents=agents,
+                user_config=_user_config,
+            )
+            if _user_config.get("rounds") and rounds is None:
+                rounds = _user_config["rounds"]
+        except Exception:
+            pass  # Learning hooks are non-blocking
+
         yield _sse_event("agent_roster", {
             "agents": [{"key": k, "name": a["name"]} for k, a in zip(agent_keys, agents)]
         })
@@ -351,6 +370,7 @@ async def run_protocol_stream(
             yield _sse_event("synthesis", {"text": envelope.result_summary})
 
         # Quality Judge — score synthesis against agent outputs
+        _judge_overall: float | None = None
         judge_verdict_dict: dict[str, Any] | None = None
         if envelope.result_summary and envelope.agent_outputs:
             try:
@@ -367,6 +387,7 @@ async def run_protocol_stream(
                     synthesis=envelope.result_summary,
                 )
                 judge_verdict_dict = verdict.as_dict()
+                _judge_overall = float(verdict.overall)
                 yield _sse_event("judge_verdict", judge_verdict_dict)
                 # Attach scores to Langfuse trace for dashboard filtering/trends
                 trace_id = envelope.trace_id
@@ -462,6 +483,21 @@ async def run_protocol_stream(
                     run.error_message = json.dumps([w.as_dict() for w in envelope.warnings])[:4000]
                     session.add(run)
                     session.commit()
+
+        # Protocol learning: record run outcome
+        try:
+            await post_run_hook(
+                run_id=persist_outcome.run_id if persist_outcome and persist_outcome.run_id else str(run_id),
+                protocol_key=protocol_key,
+                question=question,
+                question_categories=_learning_categories,
+                eval_score=_judge_overall,
+                config={"rounds": rounds, "agents": agent_keys, "thinking_model": thinking_model},
+                synthesis_text=envelope.result_summary or "",
+                cost_summary=cost_summary,
+            )
+        except Exception:
+            pass  # Learning hooks are non-blocking
 
         run_complete_payload: dict[str, Any] = {
             "run_id": run_id,

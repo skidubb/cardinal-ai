@@ -189,6 +189,7 @@ class ServerAgent:
         self.cached_tokens = 0
         self.tool_calls: list[dict] = []
         self._client: anthropic.AsyncAnthropic | None = None
+        self.institutional_memory: str | None = None
 
     @property
     def client(self) -> anthropic.AsyncAnthropic:
@@ -232,6 +233,15 @@ class ServerAgent:
         prefs = _get_preferences(self.role)
         if prefs:
             sections.append(prefs)
+
+        if self.institutional_memory:
+            sections.append(
+                "## Institutional Memory -- Past Protocol Insights\n\n"
+                "The following is a high-quality synthesis from a previous run "
+                "on a similar question. Use it as context, not as a template. "
+                "Build on its strengths and address its gaps.\n\n"
+                f"{self.institutional_memory}"
+            )
 
         return "\n\n".join(sections)
 
