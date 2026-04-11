@@ -37,3 +37,6 @@ pgdata/
 
 # Node artifacts
 node_modules/
+
+# Large media files
+Multi-Agent Research/Inside_the_2027_Intelligence_Explosion.m4a
