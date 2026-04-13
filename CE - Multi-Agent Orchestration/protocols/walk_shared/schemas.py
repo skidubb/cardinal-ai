@@ -90,6 +90,26 @@ class CrossExamEntry(BaseModel):
     concession: str
 
 
+# ── Stage 4.5: Collision Synthesis ──────────────────────────────────────────
+
+class CollisionFusion(BaseModel):
+    """One generative collision between two lenses producing an emergent idea.
+
+    Unlike CrossExamEntry (adversarial), this captures A + B → C fusion —
+    a third idea neither lens stated that dissolves a Frame tension.
+    """
+
+    lens_a_key: str
+    lens_b_key: str
+    pairing_type: str  # "core-core" | "core-periphery" | "periphery-periphery"
+    collision_insight: str
+    emergent_idea: str
+    frame_tension_resolved: str = ""
+    surprise_score: float = Field(ge=1, le=10)
+    resolution_power: float = Field(ge=1, le=10)
+    composite: float = 0.0
+
+
 # ── Stage 5: Synthesis ──────────────────────────────────────────────────────
 
 class WalkSynthesis(BaseModel):
@@ -120,5 +140,6 @@ class WalkResult(BaseModel):
     salience: SalienceArtifact
     deep_outputs: list[DeepWalkOutput]
     cross_exam: list[CrossExamEntry]
+    collisions: list[CollisionFusion] = []
     synthesis: WalkSynthesis | None = None
     synthesis_text: str = ""

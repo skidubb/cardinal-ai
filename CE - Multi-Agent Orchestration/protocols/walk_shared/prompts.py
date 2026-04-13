@@ -173,6 +173,53 @@ Produce a JSON object with exactly these fields:
 
 Output ONLY the JSON object, no commentary."""
 
+# ── Stage 4.5: Collision Synthesis ──────────────────────────────────────────
+
+COLLISION_SYNTHESIS_PROMPT = """\
+You are the Collision Synthesizer. Two cognitive lenses walked the same \
+problem and produced different theses. Your job is NOT to find conflict. \
+Your job is to find the GENERATIVE FUSION.
+
+On an actual walk, an aha has this structure: A + B → C, where C is not a \
+blend of A and B but a NEW thing that dissolves a tension neither A nor B \
+named.
+
+LENS A ({lens_a_key}) OUTPUT:
+{lens_a_json}
+
+LENS B ({lens_b_key}) OUTPUT:
+{lens_b_json}
+
+PROBLEM FRAME (note the unresolved_tensions list):
+{frame_json}
+
+Your task:
+1. Ask: "What does Lens A's core insight ENABLE OR UNLOCK when applied to \
+Lens B's problem?"
+2. Ask: "What third idea emerges that NEITHER lens stated?"
+3. Ask: "Does this third idea resolve any unresolved_tension from the Frame \
+that neither lens could resolve alone?"
+
+Do NOT summarize either lens. Do NOT find a compromise. Do NOT restate \
+agreement. If no genuine collision exists — if A and B simply don't fuse — \
+say so with an empty emergent_idea and low scores. A null result is better \
+than a forced fusion.
+
+Produce a JSON object with exactly these fields:
+{{
+  "lens_a_key": "{lens_a_key}",
+  "lens_b_key": "{lens_b_key}",
+  "pairing_type": "{pairing_type}",
+  "collision_insight": "<what A unlocks when applied to B's problem, in one sentence>",
+  "emergent_idea": "<the third idea — A + B → C — that neither lens stated, in one sentence. Empty string if no genuine collision.>",
+  "frame_tension_resolved": "<exact text of the unresolved_tension from the Frame that this dissolves, or empty string>",
+  "surprise_score": <number 1-10 — how cognitively distant were the inputs>,
+  "resolution_power": <number 1-10 — does it dissolve a named Frame tension or create a new action not in any lens>
+}}
+
+Output ONLY the JSON object, no commentary."""
+
+
 # ── Stage 5: Synthesis ──────────────────────────────────────────────────────
 
 SYNTHESIS_PROMPT = """\
@@ -203,6 +250,9 @@ DEEP WALK OUTPUTS:
 CROSS-EXAMINATIONS:
 {cross_exam_json}
 
+COLLISION FUSIONS (high-signal A + B → C emergent ideas from the walk):
+{collisions_json}
+
 Produce a JSON object with exactly these fields:
 {{
   "strongest_unresolved_tension": "<the most important disagreement between \
@@ -227,7 +277,20 @@ different lens's thesis>"],
 
 Output ONLY the JSON object.
 
-Then, after the JSON, write a prose synthesis (2-4 paragraphs) that a \
-decision-maker could read. Lead with the UNRESOLVED TENSION, not the \
-consensus. Present competing recommendations, then your bet. Start the \
-prose section with "---PROSE---" on its own line."""
+Then, after the JSON, write a prose synthesis that a decision-maker could \
+read. Start the prose section with "---PROSE---" on its own line.
+
+Structure the prose in TWO parts:
+
+PART 1 — COLLISIONS (highlights reel). If COLLISION FUSIONS were provided \
+above, write 2-4 short declarative sentences, one per high-scoring fusion. \
+Format each as: "Lens A's [insight], combined with Lens B's [framing], \
+means [emergent idea]. This resolves [Frame tension X] by [mechanism]." \
+Name the collision inputs. Name the output. Name the tension it resolves. \
+Short, declarative, no hedging. This is a highlights reel, NOT an \
+inventory — density matters. If no collisions were provided or none scored \
+high, skip Part 1 entirely.
+
+PART 2 — UNRESOLVED TENSION (2-3 paragraphs). Lead with the strongest \
+unresolved tension, not the consensus. Present competing recommendations, \
+then your bet."""

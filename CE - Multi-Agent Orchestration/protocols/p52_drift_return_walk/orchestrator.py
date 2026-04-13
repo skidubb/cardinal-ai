@@ -67,8 +67,11 @@ class DriftReturnWalkOrchestrator(WalkBaseOrchestrator):
         deep_outputs = await self._stage_return(question, frame, salience, shallow_outputs)
 
         cross_exam = await self._stage_cross_examine(question, frame, deep_outputs)
+        collisions = await self._stage_collision_synthesis(
+            frame, salience, deep_outputs, shallow_outputs,
+        )
         synthesis, synthesis_text = await self._stage_synthesis(
-            question, frame, shallow_outputs, salience, deep_outputs, cross_exam,
+            question, frame, shallow_outputs, salience, deep_outputs, cross_exam, collisions,
         )
 
         return WalkResult(
@@ -79,6 +82,7 @@ class DriftReturnWalkOrchestrator(WalkBaseOrchestrator):
             salience=salience,
             deep_outputs=deep_outputs,
             cross_exam=cross_exam,
+            collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
         )

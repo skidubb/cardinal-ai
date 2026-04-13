@@ -32,6 +32,7 @@ from protocols.synthesis import SynthesisEngine
 from protocols.tracing import make_client
 from protocols.walk_shared.agents import WALK_AGENTS
 from protocols.walk_shared.prompts import (
+    COLLISION_SYNTHESIS_PROMPT,
     CROSS_EXAM_PROMPT,
     DEEP_WALK_PROMPT,
     FRAME_PROMPT,
@@ -39,6 +40,7 @@ from protocols.walk_shared.prompts import (
     SYNTHESIS_PROMPT,
 )
 from protocols.walk_shared.schemas import (
+    CollisionFusion,
     CrossExamEntry,
     DeepWalkOutput,
     FrameArtifact,
@@ -48,6 +50,7 @@ from protocols.walk_shared.schemas import (
     WalkSynthesis,
 )
 from protocols.walk_shared.selection import (
+    build_collision_pairings,
     build_cross_exam_pairings,
     score_salience,
     select_promoted,
@@ -145,9 +148,14 @@ class WalkBaseOrchestrator:
         # Stage 4: Cross-Examination (parallel pairings)
         cross_exam = await self._stage_cross_examine(question, frame, deep_outputs)
 
+        # Stage 4.5: Collision Synthesis (generative fusion across core + periphery)
+        collisions = await self._stage_collision_synthesis(
+            frame, salience, deep_outputs, shallow_outputs,
+        )
+
         # Stage 5: Synthesis
         synthesis, synthesis_text = await self._stage_synthesis(
-            question, frame, shallow_outputs, salience, deep_outputs, cross_exam,
+            question, frame, shallow_outputs, salience, deep_outputs, cross_exam, collisions,
         )
 
         return WalkResult(
@@ -158,6 +166,7 @@ class WalkBaseOrchestrator:
             salience=salience,
             deep_outputs=deep_outputs,
             cross_exam=cross_exam,
+            collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
         )
@@ -356,6 +365,78 @@ class WalkBaseOrchestrator:
             end_span(span, error="cross_exam failed")
             raise
 
+    async def _stage_collision_synthesis(
+        self,
+        frame: FrameArtifact,
+        salience: SalienceArtifact,
+        deep_outputs: list[DeepWalkOutput],
+        shallow_outputs: list[ShallowWalkOutput],
+    ) -> list[CollisionFusion]:
+        """Stage 4.5: Generative fusion across core and periphery lenses (L4).
+
+        Pairs promoted lenses with each other AND with high-scoring periphery
+        lenses (composite 6-7 that weren't promoted). For each pair, asks what
+        third idea emerges that neither lens stated and whether it dissolves a
+        Frame tension. Filters to high-signal fusions (composite >= 7).
+        """
+        pairings = build_collision_pairings(
+            promoted=salience.promoted_agents,
+            ranked=salience.ranked_outputs,
+        )
+        print(f"Stage 4.5: Collision synthesis with {len(pairings)} pairings...")
+        span = create_span("stage:collision_synthesis", {"pairing_count": len(pairings)})
+
+        deep_map = {d.agent_key: d for d in deep_outputs}
+        shallow_map = {s.agent_key: s for s in shallow_outputs}
+        frame_json = json.dumps(frame.model_dump(), indent=2)
+
+        async def fuse_one(a_key: str, b_key: str, ptype: str) -> CollisionFusion | None:
+            a_src = deep_map.get(a_key) or shallow_map.get(a_key)
+            b_src = deep_map.get(b_key) or shallow_map.get(b_key)
+            if a_src is None or b_src is None:
+                return None
+            prompt = COLLISION_SYNTHESIS_PROMPT.format(
+                lens_a_key=a_key,
+                lens_b_key=b_key,
+                pairing_type=ptype,
+                lens_a_json=json.dumps(a_src.model_dump(), indent=2),
+                lens_b_json=json.dumps(b_src.model_dump(), indent=2),
+                frame_json=frame_json,
+            )
+            assert self._synthesizer is not None
+            raw = await agent_complete(
+                agent=self._synthesizer,
+                fallback_model=self.thinking_model,
+                messages=[{"role": "user", "content": prompt}],
+                thinking_budget=self.thinking_budget,
+                anthropic_client=self.client,
+            )
+            data = parse_json_object(raw)
+            surprise = float(data.get("surprise_score", 5))
+            resolution = float(data.get("resolution_power", 5))
+            data["surprise_score"] = surprise
+            data["resolution_power"] = resolution
+            data["composite"] = 0.5 * surprise + 0.5 * resolution
+            return CollisionFusion.model_validate(data)
+
+        try:
+            results = await asyncio.gather(
+                *(fuse_one(a, b, p) for a, b, p in pairings),
+                return_exceptions=True,
+            )
+            fusions = [f for f in filter_exceptions(results, label="collision") if f]
+            # Keep only genuine, high-signal fusions
+            high_signal = sorted(
+                [f for f in fusions if f.emergent_idea and f.composite >= 7.0],
+                key=lambda f: f.composite,
+                reverse=True,
+            )
+            end_span(span, output=f"{len(high_signal)}/{len(fusions)} high-signal fusions")
+            return high_signal
+        except Exception:
+            end_span(span, error="collision_synthesis failed")
+            raise
+
     async def _stage_synthesis(
         self,
         question: str,
@@ -364,6 +445,7 @@ class WalkBaseOrchestrator:
         salience: SalienceArtifact,
         deep_outputs: list[DeepWalkOutput],
         cross_exam: list[CrossExamEntry],
+        collisions: list[CollisionFusion] | None = None,
     ) -> tuple[WalkSynthesis | None, str]:
         """Stage 5: Synthesize all walk outputs (L4)."""
         print("Stage 5: Synthesizing...")
@@ -381,6 +463,9 @@ class WalkBaseOrchestrator:
             ),
             cross_exam_json=json.dumps(
                 [c.model_dump() for c in cross_exam], indent=2
+            ),
+            collisions_json=json.dumps(
+                [c.model_dump() for c in (collisions or [])], indent=2
             ),
         )
 

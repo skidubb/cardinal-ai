@@ -112,3 +112,49 @@ def build_cross_exam_pairings(promoted_keys: list[str]) -> list[tuple[str, str]]
         pairings.append((challenger, target))
 
     return pairings
+
+
+# ── Collision synthesis pairings ────────────────────────────────────────────
+
+def build_collision_pairings(
+    promoted: list[str],
+    ranked: list[SalienceScore],
+    periphery_range: tuple[float, float] = (6.0, 7.0),
+    max_pairings: int = 8,
+) -> list[tuple[str, str, str]]:
+    """Generate (lens_a, lens_b, pairing_type) triples for collision synthesis.
+
+    Strategy:
+    1. All pairwise combinations of promoted lenses → 'core-core'
+    2. Each promoted lens × top 2 periphery lenses (composite in range) →
+       'core-periphery'. Periphery is where the most surprising collisions
+       come from — lenses the Salience Judge scored interesting but did not
+       promote.
+    3. Cap at max_pairings, prioritizing core-core first then core-periphery
+       by periphery composite descending.
+    """
+    if len(promoted) < 2 and not ranked:
+        return []
+
+    promoted_set = set(promoted)
+    lo, hi = periphery_range
+    periphery = [
+        s for s in ranked
+        if s.agent_key not in promoted_set and lo <= s.composite <= hi
+    ]
+    periphery.sort(key=lambda s: s.composite, reverse=True)
+    top_periphery = periphery[:2]
+
+    pairings: list[tuple[str, str, str]] = []
+
+    # Core-core: all unique pairs
+    for i in range(len(promoted)):
+        for j in range(i + 1, len(promoted)):
+            pairings.append((promoted[i], promoted[j], "core-core"))
+
+    # Core-periphery: each promoted × top periphery
+    for p_key in promoted:
+        for per in top_periphery:
+            pairings.append((p_key, per.agent_key, "core-periphery"))
+
+    return pairings[:max_pairings]

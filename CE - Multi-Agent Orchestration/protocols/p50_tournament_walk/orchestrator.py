@@ -64,9 +64,12 @@ class TournamentWalkOrchestrator(WalkBaseOrchestrator):
         salience = await self._stage_salience(frame, shallow_outputs)
         deep_outputs = await self._stage_deep_walk(question, frame, salience, shallow_outputs)
 
-        # Skip cross-examination → go straight to synthesis
+        # Skip cross-examination, but run collision synthesis
+        collisions = await self._stage_collision_synthesis(
+            frame, salience, deep_outputs, shallow_outputs,
+        )
         synthesis, synthesis_text = await self._stage_synthesis(
-            question, frame, shallow_outputs, salience, deep_outputs, [],
+            question, frame, shallow_outputs, salience, deep_outputs, [], collisions,
         )
 
         return WalkResult(
@@ -77,6 +80,7 @@ class TournamentWalkOrchestrator(WalkBaseOrchestrator):
             salience=salience,
             deep_outputs=deep_outputs,
             cross_exam=[],  # No cross-exam in tournament
+            collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
         )
