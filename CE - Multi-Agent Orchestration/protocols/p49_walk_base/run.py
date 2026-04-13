@@ -91,6 +91,23 @@ def print_result(result):
     if result.synthesis_text:
         print(f"\n{result.synthesis_text}")
 
+    # Provocation (walk-back-to-desk bridge)
+    if result.provocation:
+        print("\n" + "=" * 70)
+        print("PROVOCATION — walk-back-to-desk bridge")
+        print("=" * 70)
+        p = result.provocation
+        print("\nSharpest statements:")
+        for i, (stmt, src) in enumerate(zip(p.sharpest_statements, p.statement_sources), 1):
+            print(f"  {i}. [{src}] {stmt}")
+        if p.contradictions:
+            print("\nContradictions:")
+            for c in p.contradictions:
+                print(f"  • {c}")
+        print(f"\nUnderdeveloped thread: {p.underdeveloped_thread}")
+        print(f"  Why dropped: {p.why_underdeveloped}")
+        print(f"\nFollow-up prompt: {p.follow_up_prompt}")
+
 
 def main():
     parser = argparse.ArgumentParser(description="P49: Walk Base Protocol")

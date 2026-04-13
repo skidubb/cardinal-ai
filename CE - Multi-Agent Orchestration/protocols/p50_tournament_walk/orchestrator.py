@@ -71,6 +71,9 @@ class TournamentWalkOrchestrator(WalkBaseOrchestrator):
         synthesis, synthesis_text = await self._stage_synthesis(
             question, frame, shallow_outputs, salience, deep_outputs, [], collisions,
         )
+        provocation = await self._stage_provocation(
+            frame, shallow_outputs, deep_outputs, collisions,
+        )
 
         return WalkResult(
             question=question,
@@ -83,4 +86,5 @@ class TournamentWalkOrchestrator(WalkBaseOrchestrator):
             collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
+            provocation=provocation,
         )

@@ -36,6 +36,7 @@ from protocols.walk_shared.prompts import (
     CROSS_EXAM_PROMPT,
     DEEP_WALK_PROMPT,
     FRAME_PROMPT,
+    PROVOCATION_PROMPT,
     SHALLOW_WALK_PROMPT,
     SYNTHESIS_PROMPT,
 )
@@ -46,6 +47,7 @@ from protocols.walk_shared.schemas import (
     FrameArtifact,
     SalienceArtifact,
     ShallowWalkOutput,
+    WalkProvocation,
     WalkResult,
     WalkSynthesis,
 )
@@ -158,6 +160,11 @@ class WalkBaseOrchestrator:
             question, frame, shallow_outputs, salience, deep_outputs, cross_exam, collisions,
         )
 
+        # Stage 6: Provocation (walk-back-to-desk bridge)
+        provocation = await self._stage_provocation(
+            frame, shallow_outputs, deep_outputs, collisions,
+        )
+
         return WalkResult(
             question=question,
             protocol_variant=self.variant_name,
@@ -169,6 +176,7 @@ class WalkBaseOrchestrator:
             collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
+            provocation=provocation,
         )
 
     # ── Stage implementations ─────────────────────────────────────────────
@@ -499,3 +507,51 @@ class WalkBaseOrchestrator:
         except Exception:
             end_span(span, error="synthesis failed")
             raise
+
+    async def _stage_provocation(
+        self,
+        frame: FrameArtifact,
+        shallow_outputs: list[ShallowWalkOutput],
+        deep_outputs: list[DeepWalkOutput],
+        collisions: list[CollisionFusion],
+    ) -> WalkProvocation | None:
+        """Stage 6: Provocation — walk-back-to-desk bridge (L4).
+
+        Produces 3 sharpest verbatim statements (often from periphery lenses),
+        their contradictions, the most underdeveloped thread, and a follow-up
+        prompt to sit with at the desk. NOT a summary. NOT a decision aid.
+        Returns None on parse failure — never fails the run.
+        """
+        print("Stage 6: Generating provocation...")
+        span = create_span("stage:provocation", {})
+
+        prompt = PROVOCATION_PROMPT.format(
+            frame_json=json.dumps(frame.model_dump(), indent=2),
+            shallow_outputs_json=json.dumps(
+                [s.model_dump() for s in shallow_outputs], indent=2
+            ),
+            deep_outputs_json=json.dumps(
+                [d.model_dump() for d in deep_outputs], indent=2
+            ),
+            collisions_json=json.dumps(
+                [c.model_dump() for c in collisions], indent=2
+            ),
+        )
+
+        try:
+            assert self._synthesizer is not None
+            raw = await agent_complete(
+                agent=self._synthesizer,
+                fallback_model=self.thinking_model,
+                messages=[{"role": "user", "content": prompt}],
+                thinking_budget=self.thinking_budget,
+                anthropic_client=self.client,
+            )
+            data = parse_json_object(raw)
+            provocation = WalkProvocation.model_validate(data)
+            end_span(span, output=f"provocation: {len(provocation.sharpest_statements)} statements")
+            return provocation
+        except Exception as e:
+            _log.warning("Provocation stage failed: %s", e)
+            end_span(span, error="provocation failed (non-fatal)")
+            return None

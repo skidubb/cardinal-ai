@@ -294,3 +294,64 @@ high, skip Part 1 entirely.
 PART 2 — UNRESOLVED TENSION (2-3 paragraphs). Lead with the strongest \
 unresolved tension, not the consensus. Present competing recommendations, \
 then your bet."""
+
+
+# ── Stage 6: Provocation (walk-back-to-desk bridge) ─────────────────────────
+
+PROVOCATION_PROMPT = """\
+You are the Walk Provocateur. A decision-maker synthesis has already been \
+written. That is NOT your job. Your job is to produce the walk-back-to-desk \
+bridge: a short, high-density artifact that keeps the walk's energy alive \
+long enough for the walker to write at the desk.
+
+This is NOT a summary. This is NOT a recommendation. This is a provocation.
+
+Rules:
+- Do NOT summarize. Do NOT recommend actions. Do NOT smooth contradictions.
+- Pull sharpest statements VERBATIM or near-verbatim from the shallow/deep \
+outputs. Do not paraphrase into consultant language. The rawer, the better.
+- The best statements are often from NON-PROMOTED lenses. Look at the whole \
+walk, not just the promoted four. Periphery beats center for sharpness.
+- "Sharpest" means: highest information density per character, surprising, \
+stands up on its own as a sentence, would make someone stop scrolling.
+- The underdeveloped thread is the single insight with the highest latent \
+energy that the walk ABANDONED. It is NOT the most important insight. It is \
+the one whose implications nobody followed. Often it appeared once in a \
+shallow output, was not promoted, and disappeared.
+- The follow_up_prompt must be a real provocation. NOT "what are the \
+implications of X" — something like "if X is true, what breaks?" or \
+"whose interest does X actually serve?" Imperative, concrete, uncomfortable.
+
+PROBLEM FRAME:
+{frame_json}
+
+ALL SHALLOW OUTPUTS (every lens, including non-promoted):
+{shallow_outputs_json}
+
+DEEP OUTPUTS (promoted lenses):
+{deep_outputs_json}
+
+COLLISION FUSIONS:
+{collisions_json}
+
+Produce a JSON object with exactly these fields:
+{{
+  "sharpest_statements": [
+    "<sharpest statement 1 — verbatim or near-verbatim from a walker>",
+    "<sharpest statement 2 — verbatim or near-verbatim from a walker>",
+    "<sharpest statement 3 — verbatim or near-verbatim from a walker>"
+  ],
+  "statement_sources": [
+    "<agent_key of statement 1>",
+    "<agent_key of statement 2>",
+    "<agent_key of statement 3>"
+  ],
+  "contradictions": [
+    "<one contradiction between the sharpest statements, named crisply in one sentence>"
+  ],
+  "underdeveloped_thread": "<the single insight whose implications the walk did not follow far enough, in one sentence>",
+  "why_underdeveloped": "<one sentence — what caused this thread to be dropped>",
+  "follow_up_prompt": "<the specific question to sit with back at the desk. Imperative, concrete, provocative. One sentence.>"
+}}
+
+Output ONLY the JSON object, no commentary."""

@@ -73,6 +73,9 @@ class DriftReturnWalkOrchestrator(WalkBaseOrchestrator):
         synthesis, synthesis_text = await self._stage_synthesis(
             question, frame, shallow_outputs, salience, deep_outputs, cross_exam, collisions,
         )
+        provocation = await self._stage_provocation(
+            frame, shallow_outputs, deep_outputs, collisions,
+        )
 
         return WalkResult(
             question=question,
@@ -85,6 +88,7 @@ class DriftReturnWalkOrchestrator(WalkBaseOrchestrator):
             collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
+            provocation=provocation,
         )
 
     async def _stage_drift(
