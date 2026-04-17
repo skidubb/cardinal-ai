@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.database import create_db_and_tables
-from api.routers import agents, integrations, knowledge, pipelines, protocols, reports, runs, teams
+from api.routers import agents, integrations, knowledge, pipelines, protocols, reports, router as adaptive_router, runs, teams
 from api.routers.agents import tools_router
 
 find_and_load_dotenv()
@@ -85,6 +85,7 @@ app.include_router(teams.router)
 app.include_router(pipelines.router)
 app.include_router(reports.router)
 app.include_router(runs.router)
+app.include_router(adaptive_router.router)
 
 
 @app.get("/api/health")
