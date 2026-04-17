@@ -32,7 +32,7 @@ def _create_completed_run(session, judge_verdict_json: str = "{}") -> Run:
         out = AgentOutput(
             run_id=run.id,
             agent_key=key,
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             output_text=f"Agent {name} analysis: This is a comprehensive response from {key}.",
             cost_usd=0.005,
         )
@@ -42,7 +42,7 @@ def _create_completed_run(session, judge_verdict_json: str = "{}") -> Run:
     synthesis = AgentOutput(
         run_id=run.id,
         agent_key="_synthesis",
-        model="claude-opus-4-6",
+        model="claude-opus-4-7",
         output_text=(
             "The agents concur on key points.\n\n"
             "- Strong alignment on risk-adjusted opportunity\n"

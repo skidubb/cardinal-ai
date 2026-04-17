@@ -20,7 +20,7 @@ Verified by running the import in both activated venvs:
 
 **PASS**
 
-- `ce-shared/src/ce_shared/pricing.py` defines `claude-opus-4-6` as `(5.00, 25.00)`
+- `ce-shared/src/ce_shared/pricing.py` defines `claude-opus-4-7` as `(5.00, 25.00)`
 - `claude-sonnet-4-6` as `(3.00, 15.00)`
 - `claude-haiku-4-5-20251001` as `(1.00, 5.00)`
 - Agent Builder's `cost_tracker.py` imports `get_pricing` from ce-shared and delegates all lookups
@@ -66,7 +66,7 @@ Phase 01 is mapped to 11 requirements: SHPK-01, SHPK-02, SHPK-03, PRIC-01 throug
 | PRIC-02 | Pricing dict keyed by exact model ID with substring fallback matching | PASS | `MODEL_PRICING` dict with exact keys + `_SUBSTRING_FALLBACKS` list with ordered substring matching |
 | PRIC-03 | Each pricing entry includes "last verified" date stamp | **PARTIAL** | `PRICING_VERIFIED_DATE = "2026-03-09"` exists as a module-level constant, but it is a single global date, not per-entry. REQUIREMENTS.md says "each pricing entry" -- the implementation uses one date for the entire module. Reasonable simplification for a single-provider pricing table. |
 | PRIC-04 | Cache read/write and batch discount multipliers consolidated in shared module | PASS | `CACHE_READ_MULTIPLIER = 0.10`, `CACHE_WRITE_MULTIPLIER = 1.25`, `BATCH_DISCOUNT = 0.50` all in `pricing.py` |
-| PRIC-05 | Centralized model alias map resolves shorthand ("opus") to canonical model ID | **PARTIAL** | Substring fallback resolves "opus" to correct **pricing** `(5.00, 25.00)` but does NOT resolve shorthand to canonical model ID string (e.g., "opus" -> "claude-opus-4-6"). No explicit alias map exists. `ModelTier` enum provides canonical IDs but no reverse lookup function. |
+| PRIC-05 | Centralized model alias map resolves shorthand ("opus") to canonical model ID | **PARTIAL** | Substring fallback resolves "opus" to correct **pricing** `(5.00, 25.00)` but does NOT resolve shorthand to canonical model ID string (e.g., "opus" -> "claude-opus-4-7"). No explicit alias map exists. `ModelTier` enum provides canonical IDs but no reverse lookup function. |
 | PRIC-06 | Pricing verification script compares local prices against billing data | **FAIL** | No verification script exists anywhere in ce-shared. No `scripts/` directory. Plan 01-02 and 01-03 both claim this requirement but neither created a script. |
 | PRIC-07 | Agent Builder cost tracker imports from ce-shared | PASS | `cost_tracker.py` line 29-36: imports `BATCH_DISCOUNT`, `CACHE_READ_MULTIPLIER`, `CACHE_WRITE_MULTIPLIER`, `MODEL_PRICING`, `ModelTier`, `get_pricing` from ce-shared |
 | PRIC-08 | Orchestration cost tracker imports from ce-shared | PASS | `cost_tracker.py` line 21: imports `cost_for_model`, `get_pricing` from ce-shared |
@@ -89,7 +89,7 @@ Phase 01 is mapped to 11 requirements: SHPK-01, SHPK-02, SHPK-03, PRIC-01 throug
 
 2. **PRIC-06 (FAIL):** No pricing verification script exists. Neither Plan 02 nor Plan 03 actually created one despite both claiming this requirement. Requires a new script in `ce-shared/scripts/` that compares `MODEL_PRICING` against Anthropic Admin API billing data.
 
-3. **PRIC-05 (PARTIAL):** Substring fallback resolves to pricing tuples, not to canonical model ID strings. If the intent is to resolve "opus" -> "claude-opus-4-6" (as stated in REQUIREMENTS.md), a `resolve_model_id()` function is needed alongside `get_pricing()`.
+3. **PRIC-05 (PARTIAL):** Substring fallback resolves to pricing tuples, not to canonical model ID strings. If the intent is to resolve "opus" -> "claude-opus-4-7" (as stated in REQUIREMENTS.md), a `resolve_model_id()` function is needed alongside `get_pricing()`.
 
 ### Minor Notes
 

@@ -9,7 +9,7 @@ const CATEGORIES = [
   'gtm-leadership', 'gtm-sales', 'gtm-marketing', 'gtm-partners', 'gtm-success', 'gtm-ops', 'external',
 ]
 
-const MODELS = ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']
+const MODELS = ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']
 
 const TOOL_DOMAINS: Record<string, string> = {
   sec_edgar: 'SEC EDGAR',

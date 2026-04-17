@@ -76,7 +76,7 @@ Defined in `protocols/config.py`. Four tiers map to three models.
 | L1 | Pattern Match | `claude-haiku-4-5-20251001` | dedup, classify, extract, format, parse | Regex-equivalent reasoning; paying for Opus here is waste |
 | L2 | Rule-Based | `claude-haiku-4-5-20251001` | score, rank, filter, vote, matrix | Explicit criteria application; no novel reasoning required |
 | L3 | Analytical | `claude-sonnet-4-6` | assess, compare, analyze, evaluate | Structured comparison requires more than pattern matching |
-| L4 | Creative/Strategic | `claude-opus-4-6` | synthesize, ideate, debate, reframe, generate, reason | Novel insight generation; where quality differences are largest |
+| L4 | Creative/Strategic | `claude-opus-4-7` | synthesize, ideate, debate, reframe, generate, reason | Novel insight generation; where quality differences are largest |
 
 The tier system is cited in the config as "inspired by CogRouter (arXiv:2602.12662)" — the academic framing for routing by cognitive load rather than by stage position.
 

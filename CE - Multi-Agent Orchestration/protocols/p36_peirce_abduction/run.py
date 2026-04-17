@@ -85,7 +85,7 @@ def main():
         client = make_client(protocol_id="p36_peirce_abduction", trace=getattr(args, 'trace', False), trace_path=Path(args.trace_path) if getattr(args, 'trace_path', None) else None)
         config = {
             "client": client,
-            "thinking_model": getattr(args, 'thinking_model', 'claude-opus-4-6'),
+            "thinking_model": getattr(args, 'thinking_model', 'claude-opus-4-7'),
             "orchestration_model": getattr(args, 'orchestration_model', 'claude-haiku-4-5-20251001'),
             "thinking_budget": getattr(args, 'thinking_budget', 10000),
         }

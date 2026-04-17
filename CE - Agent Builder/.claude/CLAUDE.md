@@ -165,7 +165,7 @@ Located at `~/claude-dotfiles/agents/`. Naming convention: `{executive}.md` for 
 
 ### Model Policy
 
-All executive agents use `claude-opus-4-6`. This is configured in both:
+All executive agents use `claude-opus-4-7`. This is configured in both:
 - `config.py` -> `AGENT_CONFIGS` dict (Python app)
 - `~/claude-dotfiles/agents/*.md` -> frontmatter `model:` field (Claude Code agents)
 

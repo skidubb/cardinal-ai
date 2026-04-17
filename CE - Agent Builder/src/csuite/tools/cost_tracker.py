@@ -211,7 +211,7 @@ class CostTracker:
         # Log a query
         tracker.log_usage(
             agent="CFO",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=15234,
             output_tokens=3128,
             task_type=TaskType.EXECUTIVE_SYNTHESIS,
@@ -1064,7 +1064,7 @@ if __name__ == "__main__":
     # Log a sample usage
     record = tracker.log_usage(
         agent="CFO",
-        model="claude-opus-4-6",
+        model="claude-opus-4-7",
         input_tokens=15000,
         output_tokens=3000,
         task_type=TaskType.EXECUTIVE_SYNTHESIS,

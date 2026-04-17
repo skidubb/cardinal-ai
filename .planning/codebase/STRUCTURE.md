@@ -436,7 +436,7 @@ n8n Workflows/
 - `protocol_def.py` -- protocol metadata (where present)
 
 ### Model Constants
-- `THINKING_MODEL` = `claude-opus-4-6`
+- `THINKING_MODEL` = `claude-opus-4-7`
 - `ORCHESTRATION_MODEL` = `claude-haiku-4-5-20251001`
 - `BALANCED_MODEL` = `claude-sonnet-4-6`
 

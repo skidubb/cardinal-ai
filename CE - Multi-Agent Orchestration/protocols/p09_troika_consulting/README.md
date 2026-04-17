@@ -54,11 +54,11 @@ The result includes full detail for every round:
 
 | Phase | Model | Calls per Round | Purpose |
 |---|---|---|---|
-| Client presents | `claude-opus-4-6` | 1 | Deep problem framing with extended thinking |
+| Client presents | `claude-opus-4-7` | 1 | Deep problem framing with extended thinking |
 | Consultant 1 initial | `claude-haiku-4-5-20251001` | 1 | First analysis pass |
 | Consultant 2 responds | `claude-haiku-4-5-20251001` | 1 | Build on and challenge Consultant 1 |
 | Consolidate advice | `claude-haiku-4-5-20251001` | 1 | Clean advisory output |
-| Client reflects | `claude-opus-4-6` | 1 | Reflection with extended thinking |
-| Final synthesis | `claude-opus-4-6` | 1 (total) | Cross-round synthesis (multi-round only) |
+| Client reflects | `claude-opus-4-7` | 1 | Reflection with extended thinking |
+| Final synthesis | `claude-opus-4-7` | 1 (total) | Cross-round synthesis (multi-round only) |
 
 **Total per run (N agents):** N rounds x (2 Opus + 3 Haiku) + 1 Opus synthesis = 2N+1 Opus, 3N Haiku calls.

@@ -157,9 +157,9 @@ There is **no existing env validation** beyond:
 | `MEMORY_ENABLED` | Agent Builder | `true` | Toggle memory system |
 | `AGENT_BACKEND` | Agent Builder | `legacy` | `legacy` or `sdk` |
 | `AGENT_MODE` | Orchestration | `production` | `production` or `research` |
-| `DEFAULT_MODEL` | Agent Builder | `claude-opus-4-6` | |
+| `DEFAULT_MODEL` | Agent Builder | `claude-opus-4-7` | |
 | `HAIKU_MODEL` | Agent Builder config.py | `claude-haiku-4-5-20251001` | |
-| `THINKING_MODEL` | Orchestration config.py | `claude-opus-4-6` | |
+| `THINKING_MODEL` | Orchestration config.py | `claude-opus-4-7` | |
 | `ORCHESTRATION_MODEL` | Orchestration config.py | `claude-haiku-4-5-20251001` | |
 | `BALANCED_MODEL` | Orchestration config.py | `claude-sonnet-4-6` | |
 | `SESSION_DIR` | Agent Builder | `./sessions` | |

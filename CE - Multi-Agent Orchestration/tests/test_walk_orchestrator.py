@@ -95,7 +95,7 @@ class TestWalkBaseOrchestrator:
         agents = [{"name": "Test", "system_prompt": "test"}]
         orch = WalkBaseOrchestrator(
             agents=agents,
-            thinking_model="claude-opus-4-6",
+            thinking_model="claude-opus-4-7",
             orchestration_model="claude-haiku-4-5-20251001",
         )
         assert orch is not None
@@ -121,7 +121,7 @@ class TestWalkBaseOrchestrator:
 
         orch = WalkBaseOrchestrator(
             agents=walk_agent_list,
-            thinking_model="claude-opus-4-6",
+            thinking_model="claude-opus-4-7",
             orchestration_model="claude-haiku-4-5-20251001",
             thinking_budget=10000,
             promote_count=2,

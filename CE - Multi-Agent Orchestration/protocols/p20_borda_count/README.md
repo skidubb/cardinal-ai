@@ -55,10 +55,10 @@ The result includes full lineage for audit and analysis:
 
 | Phase | Model | Calls | Purpose |
 |---|---|---|---|
-| Rank | `claude-opus-4-6` | N | Independent ranking with extended thinking |
+| Rank | `claude-opus-4-7` | N | Independent ranking with extended thinking |
 | Score | (computation) | 0 | Sum Borda points |
 | Analyze | `claude-haiku-4-5-20251001` | 0-1 | Tiebreak analysis (only if ties exist) |
-| Report | `claude-opus-4-6` | 1 | Final synthesis and reasoning clusters |
+| Report | `claude-opus-4-7` | 1 | Final synthesis and reasoning clusters |
 
 ## Scoring Example
 

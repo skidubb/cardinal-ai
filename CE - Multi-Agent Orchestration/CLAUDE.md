@@ -55,7 +55,7 @@ Each protocol lives in `protocols/p{NN}_{name}/` with these files:
 **LLM dispatch** (`protocols/llm.py:agent_complete()`): Three paths — (1) `agent.chat()` exists → ServerAgent direct API, (2) `agent["model"]` set → LiteLLM, (3) plain dict → Anthropic SDK fallback with tool loop. Path 1 is production; Path 3 is the fallback.
 
 **Model strategy**: Two model tiers passed to orchestrators:
-- `thinking_model` (default: `claude-opus-4-6`) — for agent reasoning, synthesis, creative stages
+- `thinking_model` (default: `claude-opus-4-7`) — for agent reasoning, synthesis, creative stages
 - `orchestration_model` (default: `claude-haiku-4-5-20251001`) — for mechanical stages (dedup, ranking, extraction, classification)
 - Agents support model override via `--agent-model` flag (routes through LiteLLM for non-Anthropic models like `gemini/gemini-3.1-pro-preview`)
 

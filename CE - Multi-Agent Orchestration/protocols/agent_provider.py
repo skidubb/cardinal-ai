@@ -39,7 +39,7 @@ def get_agent_mode() -> str:
     return _agent_mode
 
 
-def build_production_agents(keys: list[str], model: str = "claude-opus-4-6") -> list[ServerAgent]:
+def build_production_agents(keys: list[str], model: str = "claude-opus-4-7") -> list[ServerAgent]:
     """Build production agents using ServerAgent (direct Anthropic API + tools).
 
     Each agent gets:

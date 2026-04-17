@@ -153,7 +153,7 @@ Required:
 Optional:
   --agents, -a            Agent names or @walk (default: @walk — all 14 lenses)
   --agent-config          Path to custom agent definitions JSON
-  --thinking-model        Deep reasoning model (default: claude-opus-4-6)
+  --thinking-model        Deep reasoning model (default: claude-opus-4-7)
   --orchestration-model   Mechanical/scoring model (default: claude-haiku-4-5-20251001)
   --thinking-budget       Extended thinking tokens (default: 10000)
   --promote-count         Lenses promoted to deep walk (default: 4, tournament: 3)
@@ -168,7 +168,7 @@ Optional:
 
 | Tier | Model | Used In |
 |------|-------|---------|
-| L4 (Thinking) | `claude-opus-4-6` | Frame (Stage 0), Deep Walk (Stage 3), Synthesis (Stage 5) |
+| L4 (Thinking) | `claude-opus-4-7` | Frame (Stage 0), Deep Walk (Stage 3), Synthesis (Stage 5) |
 | L3 (Balanced) | `claude-sonnet-4-6` | Shallow Walk (Stage 1), Cross-Exam (Stage 4) |
 | L2 (Orchestration) | `claude-haiku-4-5-20251001` | Salience scoring (Stage 2) |
 

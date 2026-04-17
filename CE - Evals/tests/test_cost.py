@@ -4,7 +4,7 @@ from ce_evals.core.cost import estimate_cost, PRICING
 
 
 def test_known_model_cost():
-    cost = estimate_cost(1_000_000, 1_000_000, "claude-opus-4-6")
+    cost = estimate_cost(1_000_000, 1_000_000, "claude-opus-4-7")
     assert cost == 5.0 + 25.0  # $30 (ce-shared canonical pricing)
 
 
@@ -21,5 +21,5 @@ def test_unknown_model_returns_default():
 
 
 def test_zero_tokens():
-    cost = estimate_cost(0, 0, "claude-opus-4-6")
+    cost = estimate_cost(0, 0, "claude-opus-4-7")
     assert cost == 0.0

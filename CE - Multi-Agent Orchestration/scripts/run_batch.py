@@ -341,7 +341,7 @@ async def generate_report(run_data: dict, output_dir: Path) -> Path:
 
     client = anthropic.AsyncAnthropic()
     resp = await client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-opus-4-7",
         max_tokens=16384,
         thinking={"type": "enabled", "budget_tokens": 10000},
         messages=[{"role": "user", "content": prompt}],

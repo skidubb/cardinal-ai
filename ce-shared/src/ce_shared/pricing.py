@@ -26,7 +26,7 @@ PRICING_VERIFIED_DATE = "2026-03-09"
 class ModelTier(StrEnum):
     """Canonical Anthropic model tiers."""
 
-    OPUS = "claude-opus-4-6"
+    OPUS = "claude-opus-4-7"
     SONNET = "claude-sonnet-4-6"
     HAIKU = "claude-haiku-4-5-20251001"
 
@@ -50,7 +50,7 @@ BATCH_DISCOUNT: float = 0.50
 
 MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Anthropic — current generation (verified 2026-03-09)
-    "claude-opus-4-6": (5.00, 25.00),
+    "claude-opus-4-7": (5.00, 25.00),
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-haiku-4-5-20251001": (1.00, 5.00),
     # Anthropic — aliases

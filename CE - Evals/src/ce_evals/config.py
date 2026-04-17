@@ -13,10 +13,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     openai_api_key: str = ""
     google_api_key: str = ""
-    default_model: str = "claude-opus-4-6"
-    judge_model: str = "claude-opus-4-6"
+    default_model: str = "claude-opus-4-7"
+    judge_model: str = "claude-opus-4-7"
     judge_models: list[str] = [
-        "claude-opus-4-6",
+        "claude-opus-4-7",
         "gpt-5.2",
         "gemini-3.1-pro-preview",
     ]

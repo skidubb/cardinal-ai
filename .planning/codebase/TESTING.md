@@ -199,7 +199,7 @@ Key pattern: Patches the module-level singleton so all code under test uses the 
 def make_api_response(
     text: str = "Mock response",
     stop_reason: str = "end_turn",
-    model: str = "claude-opus-4-6",
+    model: str = "claude-opus-4-7",
     input_tokens: int = 100,
     output_tokens: int = 50,
     content: list | None = None,
@@ -237,7 +237,7 @@ Note: `spec=[]` is used to prevent `MagicMock` from auto-creating a `.text` attr
 def mock_settings(tmp_path: Path):
     settings = MagicMock()
     settings.anthropic_api_key = "test-key-123"
-    settings.default_model = "claude-opus-4-6"
+    settings.default_model = "claude-opus-4-7"
     settings.memory_enabled = True
     settings.tools_enabled = True
     # ...

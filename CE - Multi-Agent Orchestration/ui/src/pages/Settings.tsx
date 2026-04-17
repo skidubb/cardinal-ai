@@ -95,7 +95,7 @@ export default function Settings() {
         <div className="grid grid-cols-1 gap-3">
           <div className="bg-white border border-border rounded-lg p-3">
             <p className="text-xs font-bold tracking-wider uppercase text-text-muted mb-1">Thinking Model</p>
-            <p className="text-sm font-mono text-text">claude-opus-4-6</p>
+            <p className="text-sm font-mono text-text">claude-opus-4-7</p>
             <p className="text-xs text-text-muted mt-1">Used for agent reasoning, synthesis, and creative stages</p>
           </div>
           <div className="bg-white border border-border rounded-lg p-3">

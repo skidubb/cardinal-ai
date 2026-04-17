@@ -156,7 +156,7 @@ def main() -> None:
     parser.add_argument("--judge-model", default=None)
     parser.add_argument(
         "--judge-models", nargs="+", default=None,
-        help="Multiple judge models for inter-rater agreement (e.g. claude-opus-4-6 gpt-5.2 gemini-3.1-pro-preview)",
+        help="Multiple judge models for inter-rater agreement (e.g. claude-opus-4-7 gpt-5.2 gemini-3.1-pro-preview)",
     )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--output", "-o", default=None, help="Output report path")

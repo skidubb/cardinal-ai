@@ -45,6 +45,6 @@ The result includes all intermediate outputs for full empathy tracing:
 
 | Phase | Model | Calls | Purpose |
 |---|---|---|---|
-| Share (narratives) | `claude-opus-4-6` | N | Experiential narrative with extended thinking |
+| Share (narratives) | `claude-opus-4-7` | N | Experiential narrative with extended thinking |
 | Reflect | `claude-haiku-4-5-20251001` | N | Structured reflective listening |
-| Bridge synthesis | `claude-opus-4-6` | 1 | Common ground, differences, translation guide |
+| Bridge synthesis | `claude-opus-4-7` | 1 | Common ground, differences, translation guide |

@@ -179,7 +179,7 @@ class ServerAgent:
     - Dict-style access for protocol compatibility
     """
 
-    def __init__(self, role: str, model: str = "claude-opus-4-6"):
+    def __init__(self, role: str, model: str = "claude-opus-4-7"):
         self.role = role
         self.model = model
         self.name = _get_agent_name(role)

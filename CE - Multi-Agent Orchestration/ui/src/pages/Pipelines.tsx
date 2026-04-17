@@ -20,7 +20,7 @@ function emptyStep(): StepDraft {
     protocol_key: '',
     question_template: '',
     rounds: null,
-    thinking_model: 'claude-opus-4-6',
+    thinking_model: 'claude-opus-4-7',
     orchestration_model: 'claude-haiku-4-5-20251001',
     output_passthrough: true,
     no_tools: false,

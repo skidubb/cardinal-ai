@@ -74,7 +74,7 @@ A client question goes in, a structured multi-agent analysis comes out — viewa
 
 - **Tech stack**: Python 3.11+ backend, React 19 + TypeScript frontend, FastAPI, PostgreSQL 16 — all established
 - **Agent mode**: Production mode (full SdkAgent with tools/memory) required for client work — research mode insufficient
-- **Model policy**: claude-opus-4-6 for executives, claude-haiku-4-5-20251001 for mechanical steps — non-negotiable for quality
+- **Model policy**: claude-opus-4-7 for executives, claude-haiku-4-5-20251001 for mechanical steps — non-negotiable for quality
 - **Deployment**: Must be cloud-accessible (not just localhost) for client URL sharing
 - **Auth**: Simple auth sufficient — no enterprise SSO or RBAC needed yet
 - **Observability**: Langfuse Cloud tracing must continue working through the integration

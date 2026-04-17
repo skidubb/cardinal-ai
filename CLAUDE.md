@@ -104,7 +104,7 @@ Production runs on **Railway.app** from branch `claude/add-rc-config-support-W9i
 - **mypy** with `check_untyped_defs` (not strict)
 - **Pydantic v2** for models and settings
 - **Tests**: `@pytest.mark.integration` for real API calls; CI runs `-m "not integration"`
-- **Model policy**: `claude-opus-4-6` for executives, `claude-haiku-4-5-20251001` for orchestration/mechanical steps
+- **Model policy**: `claude-opus-4-7` for executives, `claude-haiku-4-5-20251001` for orchestration/mechanical steps
 - **Protocol naming**: `p{NN}_{descriptor}` (e.g., `p06_triz`, `p16_ach`)
 - **Agent keys**: kebab-case (e.g., `ceo-board-prep`, `gtm-vp-sales`)
 

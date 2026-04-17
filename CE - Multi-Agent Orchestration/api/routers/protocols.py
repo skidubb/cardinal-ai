@@ -99,7 +99,7 @@ async def start_protocol_run_with_context(
     protocol_key: str = Form(...),
     question: str = Form(...),
     agent_keys: str = Form(...),  # JSON-encoded list
-    thinking_model: str = Form("claude-opus-4-6"),
+    thinking_model: str = Form("claude-opus-4-7"),
     orchestration_model: str = Form("claude-haiku-4-5-20251001"),
     rounds: int | None = Form(None),
     no_tools: bool = Form(False),
