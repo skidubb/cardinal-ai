@@ -17,6 +17,7 @@ orchestrator.db
 traces/
 output/
 evaluations/
+runs/
 
 # Node
 node_modules/

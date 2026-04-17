@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 C-Suite Agent Builder is a Python CLI application for building and running AI-powered executive advisory agents (CEO, CFO, CTO, CMO, COO, CPO, CRO) for professional services businesses. Built with the Anthropic API and Click CLI framework, it supports individual agent queries, session persistence, and report generation.
 
-**This repo is exclusively for agent building.** Orchestration code (synthesis, debate, audit, events, evaluation) lives in `CE - Exec Team`.
+**This repo is exclusively for agent building.** Orchestration code (protocols, synthesis, debate, evaluation) lives in `CE - Multi-Agent Orchestration/`.
 
 **Owner:** Scott Ewalt / Cardinal Element -- an AI-native growth architecture consultancy.
 
@@ -109,19 +109,13 @@ src/csuite/
     └── pinecone_kb.py       # Pinecone knowledge base queries (direct SDK, non-MCP)
 ```
 
-### Moved to CE - Exec Team
+### Orchestration (in CE - Multi-Agent Orchestration)
 
-The following modules now live in `/Users/scottewalt/Documents/CE - Exec Team/src/csuite/`:
-- `orchestrator.py` -- Multi-agent synthesis
-- `debate.py` -- Multi-round debate orchestrator
-- `audit.py` -- Growth Strategy Audit pipeline
-- `events/` -- Strategy meeting, sprint, board meeting
-- `evaluation/` -- Benchmark, judge, report
-- `coordination/` -- Constraint negotiation models
-- `tracing/` -- Causal graph DAG
-- `formatters/` -- Audit formatter, dual output
-- `prompts/debate_prompt.py` -- Debate-specific prompts
-- `session.py` (debate models) -- DebateSession, DebateArgument, DebateRound, DebateSessionManager
+The following capabilities are implemented as protocols in `CE - Multi-Agent Orchestration/protocols/`:
+- Multi-agent synthesis, debate, constraint negotiation (P3-P5)
+- Growth Strategy Audit pipeline (via protocol runs)
+- 53 coordination protocols across 8+ categories
+- Evaluation harness (`scripts/evaluate.py`)
 
 ### Demo App
 

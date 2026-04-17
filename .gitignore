@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 venv/
+venv_*/
 .venv/
 *.egg-info/
 
@@ -37,6 +38,13 @@ pgdata/
 
 # Node artifacts
 node_modules/
+
+# macOS Finder duplicate files
+* 2.py
+* 2.md
+
+# Lock files (LibreOffice etc.)
+.~lock.*
 
 # Large media files
 Multi-Agent Research/Inside_the_2027_Intelligence_Explosion.m4a
