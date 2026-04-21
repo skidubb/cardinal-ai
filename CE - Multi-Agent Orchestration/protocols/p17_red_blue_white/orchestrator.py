@@ -101,7 +101,15 @@ class RedBlueWhiteOrchestrator:
     # ------------------------------------------------------------------
 
     @trace_protocol("p17_red_blue_white")
-    async def run(self, question: str, plan: str) -> RedBlueWhiteResult:
+    async def run(
+        self,
+        question: str,
+        plan: str | None = None,
+    ) -> RedBlueWhiteResult:
+        # API runner invokes `run(question)` — when no explicit plan is passed,
+        # treat the question itself as the plan/proposal to stress-test.
+        if plan is None or not plan.strip():
+            plan = question
         timings: dict[str, float] = {}
 
         # Phase 1 — Red Team Attack

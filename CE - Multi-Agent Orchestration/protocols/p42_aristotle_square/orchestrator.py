@@ -41,8 +41,20 @@ class SquareOrchestrator:
         self.client = anthropic.AsyncAnthropic()
 
     @trace_protocol("p42_aristotle_square")
-    async def run(self, position_a: str, position_b: str) -> SquareResult:
-        """Classify the relationship between two positions."""
+    async def run(
+        self,
+        position_a: str,
+        position_b: str | None = None,
+    ) -> SquareResult:
+        """Classify the relationship between two positions.
+
+        API runner path: called with a single `question` argument (mapped to
+        `position_a`). When `position_b` is omitted, use Haiku to extract the
+        two opposing positions from the question.
+        """
+        if position_b is None or not position_b.strip():
+            position_a, position_b = await self._extract_positions(position_a)
+
         result = SquareResult(position_a=position_a, position_b=position_b)
 
         print("Classifying logical relationship...")
@@ -73,6 +85,27 @@ class SquareOrchestrator:
 
         return result
 
-
-
-
+    async def _extract_positions(self, question: str) -> tuple[str, str]:
+        """Extract two opposing positions from a question via Haiku."""
+        prompt = (
+            "You will receive a strategic question that compares two positions, "
+            "options, or hypotheses. Extract the two positions being compared. "
+            "Respond with JSON only: "
+            '{"position_a": "...", "position_b": "..."}.\n\n'
+            f"QUESTION:\n{question}"
+        )
+        resp = await llm_complete(
+            self.client,
+            model=self.orchestration_model,
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+            agent_name="extract_positions",
+        )
+        data = parse_json_object(extract_text(resp))
+        a = str(data.get("position_a", "")).strip()
+        b = str(data.get("position_b", "")).strip()
+        if not a:
+            a = question.strip()[:120] or "Position A"
+        if not b:
+            b = "Alternative"
+        return a, b

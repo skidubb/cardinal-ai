@@ -98,7 +98,16 @@ class BordaCountOrchestrator:
     # ------------------------------------------------------------------
 
     @trace_protocol("p20_borda_count")
-    async def run(self, question: str, options: list[str]) -> BordaResult:
+    async def run(
+        self,
+        question: str,
+        options: list[str] | None = None,
+    ) -> BordaResult:
+        # When the API runner doesn't supply options, extract from the question.
+        if options is None or len(options) == 0:
+            from protocols.p19_vickrey_auction.orchestrator import _extract_options
+            options = await _extract_options(self.client, self.orchestration_model, question)
+
         timings: dict[str, float] = {}
         k = len(options)
 
