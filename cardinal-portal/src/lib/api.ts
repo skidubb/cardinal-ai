@@ -187,3 +187,158 @@ export async function startConnectorBackfill(
     body: JSON.stringify({ connector, ...opts }),
   });
 }
+
+// ---- Adaptive Router (smart routing) ----
+
+export type RouterPlan = {
+  protocol_key: string;
+  protocol_id: string;
+  name: string;
+  cost_tier: "low" | "medium" | "high";
+  agent_keys: string[];
+  supports_rounds: boolean;
+};
+
+export type RouterDecision = {
+  question: string;
+  problem_type: string;
+  confidence: number;
+  tier: "high" | "medium" | "low";
+  auto_executable: boolean;
+  reasoning: string;
+  adjustments: string[];
+  plan: RouterPlan | null;
+  raw_router?: unknown;
+};
+
+// ---- Pipelines ----
+
+export type PipelineStep = {
+  id?: number;
+  order: number;
+  protocol_key: string;
+  question_template?: string | null;
+  agent_key_override_json?: string | null;
+  rounds?: number | null;
+  thinking_model?: string | null;
+  orchestration_model?: string | null;
+  output_passthrough?: boolean;
+  no_tools?: boolean;
+};
+
+export type Pipeline = {
+  id: number | string;
+  name: string;
+  description?: string | null;
+  team_id?: number | null;
+  created_at?: string;
+  steps: PipelineStep[];
+};
+
+export async function fetchPipelines(): Promise<Pipeline[]> {
+  return authedFetch<Pipeline[]>("/api/pipelines");
+}
+
+export async function fetchPipeline(id: string | number): Promise<Pipeline> {
+  return authedFetch<Pipeline>(`/api/pipelines/${id}`);
+}
+
+// ---- Teams ----
+
+export type Team = {
+  id: number;
+  name: string;
+  description: string;
+  agent_keys: string[];
+  created_at: string;
+  last_used_at: string | null;
+};
+
+export async function fetchTeams(): Promise<Team[]> {
+  return authedFetch<Team[]>("/api/teams");
+}
+
+// ---- Agent detail (full shape including system prompt + tools) ----
+
+export type AgentDetail = {
+  key: string;
+  name: string;
+  category: string;
+  model: string;
+  temperature: number;
+  max_tokens: number;
+  system_prompt: string;
+  tools: string[];
+  mcp_servers: string[];
+  kb_namespaces: string[];
+  kb_write_enabled: boolean;
+  deliverable_template: string;
+  frameworks: string[];
+  delegation: string[];
+  constraints: string[];
+  personality: string;
+  communication_style: string;
+  is_builtin: boolean;
+};
+
+export async function fetchAgentDetail(key: string): Promise<AgentDetail> {
+  return authedFetch<AgentDetail>(`/api/agents/${encodeURIComponent(key)}`);
+}
+
+// ---- Tool + MCP catalog ----
+
+export type ToolDirection = "input" | "output" | "internal";
+
+export type ToolDef = {
+  name: string;
+  description: string;
+  domain: string;
+  direction?: ToolDirection;
+  brand?: string;
+};
+
+export type MCPServerDef = {
+  name: string;
+  description: string;
+  transport: string;
+  brand?: string;
+};
+
+export type ToolCatalog = {
+  tools: Record<string, ToolDef>;
+  mcp_servers: Record<string, MCPServerDef>;
+};
+
+export async function fetchToolCatalog(): Promise<ToolCatalog> {
+  return authedFetch<ToolCatalog>("/api/tools");
+}
+
+// ---- Knowledge namespaces ----
+
+export type KnowledgeNamespace = {
+  name: string;
+  vector_count: number | null;
+  assigned_roles: string[];
+};
+
+export async function fetchNamespaces(): Promise<KnowledgeNamespace[]> {
+  return authedFetch<KnowledgeNamespace[]>("/api/knowledge/namespaces");
+}
+
+// ---- Integrations (tenant-scoped enable/disable + custom additions) ----
+
+export type Integration = {
+  id: number;
+  name: string;
+  type: "tool_domain" | "mcp_server" | "custom_api" | string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  api_key_configured: boolean;
+  description: string;
+  is_builtin: boolean;
+};
+
+export async function fetchIntegrations(): Promise<Integration[]> {
+  return authedFetch<Integration[]>("/api/integrations");
+}
+

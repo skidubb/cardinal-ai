@@ -29,9 +29,10 @@ dist/
 build/
 
 # Ghost directories (macOS/iCloud restores these locally)
-agents/
-orchestrations/
-evals/
+# Anchored to repo root only — portal subpaths like cardinal-portal/.../agents/ are tracked.
+/agents/
+/orchestrations/
+/evals/
 
 # Docker
 pgdata/
