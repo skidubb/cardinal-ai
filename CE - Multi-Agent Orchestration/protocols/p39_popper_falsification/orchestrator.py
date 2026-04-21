@@ -15,11 +15,46 @@ from protocols.langfuse_tracing import trace_protocol, create_span, end_span
 from protocols.llm import extract_text, llm_complete, parse_json_array, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
+import re
+
 from .prompts import (
     EVIDENCE_SEARCH_PROMPT,
     GENERATE_CONDITIONS_PROMPT,
     VERDICT_PROMPT,
 )
+
+
+def _extract_conditions_from_prose(text: str) -> list[str]:
+    """Fallback extractor: pull numbered/bulleted items from raw agent prose.
+
+    Each agent is prompted to produce a numbered list of falsification
+    conditions. If Haiku's dedup step returns unparseable JSON, we recover by
+    parsing the raw agent outputs directly.
+    """
+    candidates: list[str] = []
+    # Numbered lists: "1. ...", "1) ..."
+    for match in re.finditer(r"^\s*\d+[\.\)]\s+(.+?)(?=\n\s*\d+[\.\)]|\n\n|\Z)", text, re.DOTALL | re.MULTILINE):
+        line = match.group(1).strip().splitlines()[0].strip()
+        if 30 <= len(line) <= 400:
+            candidates.append(line)
+    # Bulleted lists fallback
+    if not candidates:
+        for match in re.finditer(r"^\s*[-*•]\s+(.+?)$", text, re.MULTILINE):
+            line = match.group(1).strip()
+            if 30 <= len(line) <= 400:
+                candidates.append(line)
+    # Dedup while preserving order, take first 5
+    seen: set[str] = set()
+    out: list[str] = []
+    for c in candidates:
+        key = c.lower()[:80]
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+        if len(out) >= 5:
+            break
+    return out
 
 
 @dataclass
@@ -88,7 +123,7 @@ class FalsificationOrchestrator:
 
         return result
 
-    async def _generate_conditions(self, recommendation: str, context: str) -> list[str]:
+    async def _generate_conditions(self, recommendation: str, context: str) -> list[str]:  # noqa: E501
         """Phase 1: Agents generate falsification conditions in parallel."""
         prompt = GENERATE_CONDITIONS_PROMPT.format(
             recommendation=recommendation, context=context
@@ -124,14 +159,38 @@ class FalsificationOrchestrator:
             messages=[{
                 "role": "user",
                 "content": (
-                    "Below are falsification conditions from multiple analysts. "
-                    "Merge duplicates and return a JSON array of 3-5 unique condition "
-                    "strings, each a single sentence.\n\n" + combined
+                    "Below are falsification conditions from multiple analysts.\n"
+                    "Merge duplicates and return 3-5 unique condition strings, each a "
+                    "single sentence.\n\n"
+                    "OUTPUT FORMAT — return ONLY a JSON array of strings, no prose, "
+                    "no markdown, no wrapping object. Example:\n"
+                    '["The commission structure is forced to <10% by regulatory action in Q2 2026",\n'
+                    ' "Epic v. Apple injunction extends to all 3rd-party payment flows",\n'
+                    ' "DMA Article 6 compliance requires zero-fee sideloading in EU"]\n\n'
+                    + combined
                 ),
             }],
             agent_name="dedup",
         )
-        return parse_json_array(extract_text(response))
+        raw = extract_text(response)
+        try:
+            parsed = parse_json_array(raw)
+        except ValueError:
+            # Fallback: if Haiku returned prose, extract numbered/bulleted items
+            # from the combined agent output directly.
+            parsed = _extract_conditions_from_prose(combined)
+        # Normalize to flat list of strings (handles both ["str", ...] and [{"condition": "str"}, ...])
+        normalized: list[str] = []
+        for item in parsed:
+            if isinstance(item, str) and item.strip():
+                normalized.append(item.strip())
+            elif isinstance(item, dict):
+                val = item.get("condition") or item.get("text") or item.get("statement")
+                if isinstance(val, str) and val.strip():
+                    normalized.append(val.strip())
+        if not normalized:
+            normalized = _extract_conditions_from_prose(combined)
+        return normalized[:5] or ["(no falsification conditions extracted)"]
 
     async def _search_evidence(
         self, recommendation: str, context: str, conditions: list[dict]

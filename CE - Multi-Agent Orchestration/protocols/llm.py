@@ -539,30 +539,62 @@ def filter_exceptions(results: list, label: str = "gather") -> list:
     return good
 
 
-def parse_json_array(text: str) -> list[dict]:
+def parse_json_array(text: str) -> list:
     """Extract a JSON array from LLM output that may contain markdown fences.
 
-    Handles truncated JSON by attempting repair (closing brackets/braces).
+    Robust to:
+    - Markdown code fences (```json ... ```)
+    - Prose wrapped around the array
+    - Models that wrap the array in an object like {"items": [...]} or
+      {"conditions": [...]} instead of returning a bare array
+    - Truncated JSON (closes open strings/brackets/braces as repair)
     """
     import re
 
     text = text.strip()
-    # Try to find JSON array between markdown fences
+    # Try to find JSON between markdown fences (any fence content, not just array)
     if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
+        match = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
         if match:
             text = match.group(1).strip()
-    # Fallback: find the first [ ... ] in the text
-    if not text.startswith("["):
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end != -1:
-            text = text[start : end + 1]
+
+    # Prefer the first bare array if present
+    bare_start = text.find("[")
+    bare_end = text.rfind("]")
+    obj_start = text.find("{")
+
+    extracted = text
+    if bare_start != -1 and bare_end != -1 and (obj_start == -1 or bare_start < obj_start):
+        extracted = text[bare_start : bare_end + 1]
+    elif obj_start != -1:
+        obj_end = text.rfind("}")
+        if obj_end != -1:
+            extracted = text[obj_start : obj_end + 1]
+
+    def _unwrap_if_object(parsed):
+        """If the LLM returned {"<something>": [...]}, return the [...]."""
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            # Common keys LLMs pick for the wrapping object
+            for key in (
+                "items", "data", "results", "array", "list",
+                "conditions", "options", "initiatives", "values",
+                "entries", "elements",
+            ):
+                if key in parsed and isinstance(parsed[key], list):
+                    return parsed[key]
+            # Otherwise: if there is exactly one value that is a list, use it.
+            list_values = [v for v in parsed.values() if isinstance(v, list)]
+            if len(list_values) == 1:
+                return list_values[0]
+        raise ValueError(f"Expected JSON array, got: {type(parsed).__name__}")
+
     try:
-        return json.loads(text)
+        return _unwrap_if_object(json.loads(extracted))
     except json.JSONDecodeError:
         # Attempt truncation repair: close open strings/objects/arrays
-        repaired = text.rstrip()
+        repaired = extracted.rstrip()
         if repaired.endswith(","):
             repaired = repaired[:-1]
         open_braces = repaired.count("{") - repaired.count("}")
@@ -576,8 +608,8 @@ def parse_json_array(text: str) -> list[dict]:
             repaired += "}" * max(0, open_braces)
             repaired += "]" * max(0, open_brackets)
         try:
-            return json.loads(repaired)
-        except json.JSONDecodeError:
+            return _unwrap_if_object(json.loads(repaired))
+        except (json.JSONDecodeError, ValueError):
             raise ValueError(f"Cannot parse JSON array (len={len(text)}): {text[:200]}...")
 
 
