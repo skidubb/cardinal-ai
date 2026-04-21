@@ -1,54 +1,76 @@
 import { Show, SignInButton, SignUpButton, UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Pill } from "@/components/ui/pill";
+import { Logo } from "@/components/brand/logo";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-12">
-      <div className="max-w-2xl w-full space-y-8">
-        <header className="space-y-2">
-          <h1 className="text-4xl font-semibold tracking-tight">
-            Cardinal<span className="bg-gradient-to-r from-pink-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent"> Element</span>
+    <main className="flex min-h-screen flex-col">
+      <nav className="flex items-center justify-between px-6 py-6 md:px-12">
+        <Logo priority />
+        <div className="flex items-center gap-3">
+          <Show when="signed-out">
+            <SignInButton>
+              <Button variant="ghost" size="sm">
+                Sign in
+              </Button>
+            </SignInButton>
+            <SignUpButton>
+              <Button size="sm">Get Started</Button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <OrganizationSwitcher hidePersonal />
+            <UserButton />
+          </Show>
+        </div>
+      </nav>
+
+      <section className="flex flex-1 items-center px-6 py-24 md:px-12">
+        <div className="mx-auto max-w-4xl space-y-8 text-center">
+          <Pill tone="light">AI-Native Growth Architecture</Pill>
+
+          <h1 className="text-balance text-5xl font-bold leading-tight tracking-tight md:text-7xl">
+            A Growth Engine Built for the{" "}
+            <span className="ce-gradient-text">AI Era.</span>
           </h1>
-          <p className="text-slate-400 text-lg">
-            AI-Native Growth Architecture. Your business has a brain.
+
+          <p className="mx-auto max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
+            When complexity and manual processes are choking growth, revenue leaders need a clean,
+            AI-native engine that actually moves pipeline, conversion, and retention.
           </p>
-        </header>
 
-        <Show when="signed-out">
-          <div className="space-y-4">
-            <p className="text-slate-300">
-              An institutional knowledge graph for your business &mdash; built and maintained by AI agents.
-            </p>
-            <div className="flex gap-3">
-              <SignInButton>
-                <button className="rounded-md bg-fuchsia-600 px-4 py-2 text-sm font-medium hover:bg-fuchsia-500 transition">
-                  Sign in
-                </button>
-              </SignInButton>
+          <Show when="signed-out">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
               <SignUpButton>
-                <button className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium hover:bg-slate-900 transition">
-                  Create account
-                </button>
+                <Button size="lg">
+                  Get a Readiness Audit
+                  <ArrowRight size={16} />
+                </Button>
               </SignUpButton>
+              <SignInButton>
+                <Button variant="outline" size="lg">
+                  Sign In
+                </Button>
+              </SignInButton>
             </div>
-          </div>
-        </Show>
+          </Show>
 
-        <Show when="signed-in">
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <UserButton />
-              <OrganizationSwitcher hidePersonal />
+          <Show when="signed-in">
+            <div className="flex justify-center pt-4">
+              <Link
+                href="/dashboard"
+                className="inline-flex h-13 items-center justify-center gap-2 rounded-md bg-primary px-7 text-sm font-bold text-primary-foreground shadow-[var(--shadow-indigo)] transition-colors hover:bg-[rgb(var(--ce-indigo-500))]"
+              >
+                Go to Dashboard
+                <ArrowRight size={16} />
+              </Link>
             </div>
-            <Link
-              href="/dashboard"
-              className="inline-block rounded-md bg-fuchsia-600 px-4 py-2 text-sm font-medium hover:bg-fuchsia-500 transition"
-            >
-              Go to dashboard &rarr;
-            </Link>
-          </div>
-        </Show>
-      </div>
+          </Show>
+        </div>
+      </section>
     </main>
   );
 }

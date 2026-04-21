@@ -5,292 +5,461 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cardinal Element — {{ report.metadata.protocol_key | default('Protocol Analysis') }}</title>
 <style>
+  /* ── Fonts (Geist via Google Fonts, falls back to system sans if blocked) ── */
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+
   /* ── Reset & Base ─────────────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --brand-red: #C22A3E;
-    --brand-teal: #2AAC8A;
-    --dark: #1a1a2e;
-    --text: #374151;
-    --text-muted: #6b7280;
-    --bg-light: #f9fafb;
-    --border: #e5e7eb;
+    /* Brand primitives — Cardinal Element design system */
+    --indigo-600: #4F46E5;
+    --indigo-500: #6366F1;
+    --indigo-400: #818CF8;
+    --indigo-300: #A5B4FC;
+    --indigo-100: #E0E7FF;
+    --indigo-50:  #EEF2FF;
+    --cyan-600:  #0891B2;
+    --cyan-400:  #22D3EE;
+    --cyan-50:   #ECFEFF;
+
+    /* Neutrals */
+    --slate-900: #0F172A;
+    --slate-800: #1E293B;
+    --slate-700: #334155;
+    --slate-600: #475569;
+    --slate-500: #64748B;
+    --slate-400: #94A3B8;
+    --slate-300: #CBD5E1;
+    --slate-200: #E2E8F0;
+    --slate-100: #F1F5F9;
+    --slate-50:  #F8FAFC;
+
+    /* Status */
+    --green-600: #16A34A;
+    --green-500: #22C55E;
+    --yellow-500: #EAB308;
+    --red-500: #EF4444;
+
+    /* Semantic — light mode defaults */
+    --fg: var(--slate-900);
+    --fg-muted: var(--slate-500);
+    --fg-subtle: var(--slate-400);
+    --bg: #FFFFFF;
+    --bg-card: var(--slate-50);
+    --bg-muted: var(--slate-100);
+    --border: var(--slate-200);
+    --accent: var(--indigo-600);
+    --accent-soft: var(--indigo-50);
+
+    /* Type stack — Geist with comprehensive system fallback */
+    --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas,
+                 'Liberation Mono', 'Courier New', monospace;
   }
 
+  /* ── Page setup ──────────────────────────────────────────────── */
   @page {
     size: A4;
-    margin: 30mm 25mm 25mm 25mm;
-    @top-left { content: ""; border-top: 2px solid var(--brand-red); }
-    @top-right { content: ""; border-top: 2px solid var(--brand-red); }
+    margin: 28mm 22mm 24mm 22mm;
+    @top-left {
+      content: "Cardinal Element";
+      font-family: 'Geist Mono', ui-monospace, monospace;
+      font-size: 8.5px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--slate-400);
+      padding-bottom: 4mm;
+    }
+    @top-right {
+      content: "{{ (report.metadata.protocol_key | default('Protocol Analysis')).replace('_', ' ') | upper }}";
+      font-family: 'Geist Mono', ui-monospace, monospace;
+      font-size: 8.5px;
+      letter-spacing: 0.08em;
+      color: var(--slate-400);
+      padding-bottom: 4mm;
+    }
     @bottom-center {
-      content: "Cardinal Element  |  Multi-Agent Protocol Analysis  |  Page " counter(page);
-      font-size: 9px;
-      color: var(--text-muted);
-      font-family: system-ui, sans-serif;
+      content: "Cardinal Element  ·  Multi-Agent Protocol Analysis  ·  Page " counter(page);
+      font-family: 'Geist Mono', ui-monospace, monospace;
+      font-size: 8px;
+      color: var(--slate-400);
+      letter-spacing: 0.04em;
+      padding-top: 3mm;
     }
   }
 
-  @page :first { margin-top: 40mm; @bottom-center { content: none; } }
+  /* Cover page: no running chrome */
+  @page :first {
+    margin: 0;
+    @top-left { content: none; }
+    @top-right { content: none; }
+    @bottom-center { content: none; }
+  }
 
   body {
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    font-size: 12px;
-    line-height: 1.65;
-    color: var(--dark);
-    background: #fff;
+    font-family: var(--font-sans);
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--fg);
+    background: var(--bg);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
   }
 
   /* ── Typography ───────────────────────────────────────────────── */
-  h1, h2, h3 { font-family: Georgia, 'Times New Roman', serif; color: var(--brand-red); }
-  h1 { font-size: 28px; margin-bottom: 8px; }
-  h2 { font-size: 22px; margin: 28px 0 12px; border-bottom: 2px solid var(--brand-red); padding-bottom: 6px; }
-  h3 { font-size: 16px; margin: 20px 0 8px; color: var(--dark); }
-  h4 { font-size: 14px; margin: 16px 0 6px; color: var(--dark); font-family: system-ui, sans-serif; }
-  p { margin: 8px 0; }
-  strong { color: var(--dark); }
+  h1, h2, h3, h4 {
+    font-family: var(--font-sans);
+    color: var(--fg);
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+  h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 32px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid var(--accent);
+    color: var(--accent);
+    page-break-after: avoid;
+  }
+  h3 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; color: var(--fg); }
+  h4 { font-size: 12.5px; font-weight: 600; margin: 14px 0 6px; color: var(--fg); letter-spacing: -0.01em; }
+  p { margin: 8px 0; color: var(--slate-700); }
+  strong { color: var(--fg); font-weight: 600; }
+  em { color: var(--slate-700); }
   hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* Monospace labels — eyebrows, categorical tags */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .label {
+    font-family: var(--font-sans);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
 
   /* ── Cover Page ───────────────────────────────────────────────── */
   .cover {
     page-break-after: always;
+    padding: 52mm 28mm 30mm 28mm;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    min-height: 80vh;
     text-align: center;
   }
 
-  .cover-brand {
-    font-family: system-ui, sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    color: var(--brand-red);
+  .cover-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    color: var(--accent);
     text-transform: uppercase;
-    margin-bottom: 40px;
+    margin-bottom: 36px;
   }
 
   .cover-title {
-    font-family: Georgia, serif;
-    font-size: 32px;
-    color: var(--brand-red);
-    line-height: 1.3;
-    margin-bottom: 8px;
+    font-family: var(--font-sans);
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    color: var(--fg);
+    margin-bottom: 10px;
   }
 
+  .cover-title .accent { color: var(--accent); }
+
   .cover-subtitle {
+    font-family: var(--font-sans);
     font-size: 16px;
-    color: var(--text-muted);
-    margin-bottom: 24px;
+    font-weight: 500;
+    color: var(--fg-muted);
+    letter-spacing: -0.005em;
+    margin-bottom: 28px;
   }
 
   .cover-divider {
-    width: 120px;
+    width: 80px;
     height: 2px;
-    background: var(--brand-red);
-    margin: 0 auto 24px;
+    background: var(--accent);
+    margin: 0 auto 28px;
   }
 
   .cover-date {
-    font-size: 14px;
-    color: var(--text);
-    margin-bottom: 8px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    color: var(--slate-700);
+    margin-bottom: 20px;
   }
 
   .cover-question {
     font-size: 13px;
-    color: var(--text-muted);
     font-style: italic;
-    max-width: 500px;
-    margin: 0 auto 32px;
+    color: var(--fg-muted);
+    max-width: 480px;
+    margin: 0 auto 36px;
     line-height: 1.6;
+    text-wrap: pretty;
   }
 
   .cover-stats {
-    font-size: 13px;
-    color: var(--brand-teal);
-    font-weight: 600;
-    margin-bottom: 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--cyan-600);
+    margin-bottom: 14px;
   }
 
   .cover-agents {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: 60px;
+    font-size: 10.5px;
+    color: var(--fg-muted);
+    max-width: 520px;
+    margin: 0 auto 60px;
+    line-height: 1.55;
+  }
+
+  .cover-agents .agents-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg-subtle);
+    margin-right: 8px;
   }
 
   .cover-confidential {
-    font-size: 10px;
-    color: #9ca3af;
-    letter-spacing: 1px;
+    margin-top: auto;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
+    color: var(--fg-subtle);
+    padding-top: 24px;
   }
 
-  /* ── Dashboard Cards ──────────────────────────────────────────── */
+  /* ── Executive Dashboard — stat tiles ─────────────────────────── */
   .dashboard {
-    display: flex;
-    gap: 16px;
-    margin: 16px 0 24px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 16px 0 28px;
   }
 
   .dash-card {
-    flex: 1;
-    min-width: 120px;
-    text-align: center;
-    padding: 16px 12px;
+    text-align: left;
+    padding: 14px 16px;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--bg-light);
+    border-radius: 10px;
+    background: var(--bg);
+    page-break-inside: avoid;
   }
 
-  .dash-card .dash-value {
-    font-size: 28px;
+  .dash-card.accent {
+    background: var(--accent-soft);
+    border-color: var(--indigo-100);
+  }
+
+  .dash-value {
+    font-family: var(--font-sans);
+    font-size: 30px;
     font-weight: 700;
-    color: var(--brand-red);
     line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--fg);
+    margin-bottom: 6px;
   }
+  .dash-value.accent { color: var(--accent); }
+  .dash-value.cyan   { color: var(--cyan-600); }
 
-  .dash-card .dash-value.teal { color: var(--brand-teal); }
-  .dash-card .dash-value.dark { color: var(--dark); }
-
-  .dash-card .dash-label {
-    font-size: 10px;
-    color: var(--text-muted);
+  .dash-label {
+    font-family: var(--font-sans);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-top: 6px;
+    color: var(--fg-muted);
   }
-
-  /* ── Section Labels ───────────────────────────────────────────── */
-  .section { margin-bottom: 24px; }
-
-  .section-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 4px;
-  }
-
-  /* ── Executive Summary ─────────────────────────────────────────── */
-  .exec-summary {
-    border-left: 4px solid var(--brand-red);
-    background: #fef2f2;
-    border-radius: 0 6px 6px 0;
-    padding: 16px 20px;
-    font-size: 13px;
-    line-height: 1.7;
-  }
-
-  .exec-summary h1, .exec-summary h2, .exec-summary h3 {
-    font-size: 15px;
-    margin: 12px 0 6px;
-  }
-
-  /* ── Confidence ───────────────────────────────────────────────── */
-  .confidence-row { display: flex; align-items: center; gap: 12px; }
-  .confidence-dots { display: flex; gap: 6px; }
-  .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
-  .dot-green  { background: #22c55e; }
-  .dot-yellow { background: #eab308; }
-  .dot-red    { background: #ef4444; }
-  .dot-gray   { background: #9ca3af; }
-  .dot-empty  { background: #e5e7eb; border: 1px solid #d1d5db; }
-  .confidence-label { font-size: 13px; font-weight: 600; color: var(--text); }
-  .confidence-score { font-size: 11px; color: var(--text-muted); }
 
   /* ── Key Findings ─────────────────────────────────────────────── */
-  .findings-list { list-style: none; padding: 0; }
+  .findings-list { list-style: none; padding: 0; margin: 12px 0; }
   .findings-list li {
-    padding: 6px 0 6px 18px;
+    padding: 9px 0 9px 20px;
     position: relative;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--slate-100);
     font-size: 12px;
-    color: var(--text);
+    color: var(--slate-700);
+    line-height: 1.55;
+    text-wrap: pretty;
   }
+  .findings-list li:last-child { border-bottom: none; }
   .findings-list li::before {
-    content: '\25B8';
+    content: '';
     position: absolute;
     left: 0;
-    color: var(--brand-red);
-    font-size: 10px;
-    top: 8px;
+    top: 15px;
+    width: 8px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+  }
+  .findings-list li strong { color: var(--fg); }
+
+  /* ── Executive Summary block ──────────────────────────────────── */
+  .exec-summary {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 22px;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--slate-700);
   }
 
-  /* ── Markdown Content (tables, lists, headings from MD) ────────── */
-  .md-content { font-size: 12px; line-height: 1.7; color: var(--text); }
-  .md-content h1 { font-size: 20px; page-break-after: avoid; }
-  .md-content h2 { font-size: 17px; page-break-after: avoid; }
-  .md-content h3 { font-size: 14px; page-break-after: avoid; }
-  .md-content h4 { font-size: 13px; }
+  .exec-summary p { margin: 8px 0; color: var(--slate-700); }
+  .exec-summary p:first-child { margin-top: 0; }
+  .exec-summary p:last-child { margin-bottom: 0; }
+  .exec-summary strong { color: var(--fg); }
 
+  .exec-summary h1, .exec-summary h2, .exec-summary h3, .exec-summary h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+    margin: 12px 0 6px;
+    border: none;
+    padding: 0;
+  }
+
+  /* ── Confidence row ───────────────────────────────────────────── */
+  .confidence-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 12px 0;
+  }
+  .confidence-dots { display: flex; gap: 5px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .dot-accent { background: var(--accent); }
+  .dot-green  { background: var(--green-500); }
+  .dot-yellow { background: var(--yellow-500); }
+  .dot-red    { background: var(--red-500); }
+  .dot-empty  { background: var(--bg); border: 1.5px solid var(--slate-300); }
+  .confidence-label { font-size: 12.5px; font-weight: 600; color: var(--fg); }
+  .confidence-score { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-muted); }
+
+  /* ── Markdown content ─────────────────────────────────────────── */
+  .md-content { font-size: 11.5px; line-height: 1.65; color: var(--slate-700); }
+  .md-content h1 { font-size: 18px; margin: 18px 0 8px; page-break-after: avoid; border: none; padding: 0; color: var(--fg); }
+  .md-content h2 { font-size: 15px; margin: 16px 0 8px; page-break-after: avoid; border: none; padding: 0; color: var(--fg); }
+  .md-content h3 { font-size: 13px; margin: 14px 0 6px; page-break-after: avoid; color: var(--fg); }
+  .md-content h4 { font-size: 12px; margin: 12px 0 4px; color: var(--fg); }
+  .md-content p  { margin: 8px 0; text-wrap: pretty; }
+
+  .md-content ul, .md-content ol { padding-left: 22px; margin: 8px 0; }
+  .md-content li { margin: 4px 0; text-wrap: pretty; }
+  .md-content li::marker { color: var(--accent); }
+
+  .md-content a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--indigo-300); }
+  .md-content a:hover { border-bottom-color: var(--accent); }
+
+  /* Tables ─ brand header, subtle striping */
   .md-content table {
     width: 100%;
     border-collapse: collapse;
-    margin: 12px 0;
-    font-size: 11px;
+    margin: 14px 0;
+    font-size: 10.5px;
     page-break-inside: avoid;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
   }
+  .md-content thead { background: var(--accent); }
   .md-content th {
-    background: var(--brand-red);
-    color: #fff;
-    padding: 8px 10px;
+    color: #FFFFFF;
+    padding: 9px 12px;
     text-align: left;
+    font-family: var(--font-sans);
     font-weight: 600;
-    font-size: 10px;
+    font-size: 9.5px;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.06em;
   }
   .md-content td {
-    padding: 7px 10px;
-    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    border-top: 1px solid var(--slate-100);
     vertical-align: top;
+    color: var(--slate-700);
   }
-  .md-content tr:nth-child(even) { background: var(--bg-light); }
+  .md-content tr:nth-child(even) td { background: var(--slate-50); }
 
-  .md-content ul, .md-content ol { padding-left: 20px; margin: 8px 0; }
-  .md-content li { margin: 4px 0; }
+  /* Blockquote = callout pattern (`> KEY INSIGHT: ...` in markdown becomes brand callout) */
   .md-content blockquote {
-    border-left: 3px solid var(--brand-red);
-    padding: 8px 14px;
-    margin: 12px 0;
-    background: var(--bg-light);
-    color: var(--text);
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 12px 18px;
+    margin: 14px 0;
+    color: var(--slate-700);
+    border-radius: 0 8px 8px 0;
+    font-size: 11.5px;
+    line-height: 1.6;
   }
+  .md-content blockquote p { margin: 4px 0; }
+  .md-content blockquote p:first-child { margin-top: 0; }
+  .md-content blockquote p:last-child  { margin-bottom: 0; }
+  .md-content blockquote strong:first-child { color: var(--accent); letter-spacing: 0.04em; }
 
+  /* Code ─ inline + fenced */
   .md-content code {
-    background: #f3f4f6;
-    padding: 1px 5px;
+    font-family: var(--font-mono);
+    background: var(--bg-muted);
+    color: var(--fg);
+    padding: 1.5px 5px;
     border-radius: 3px;
-    font-size: 11px;
+    font-size: 10.5px;
   }
-
   .md-content pre {
-    background: #1f2937;
-    color: #f9fafb;
-    padding: 12px 16px;
-    border-radius: 6px;
-    font-size: 11px;
+    background: var(--slate-900);
+    color: #E2E8F0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
     overflow-x: auto;
-    margin: 12px 0;
+    margin: 14px 0;
+    line-height: 1.55;
   }
+  .md-content pre code { background: transparent; color: inherit; padding: 0; }
 
   /* ── Agent Cards ──────────────────────────────────────────────── */
   .agent-card {
     border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 16px;
+    border-radius: 10px;
+    margin-bottom: 14px;
     page-break-inside: avoid;
     overflow: hidden;
+    background: var(--bg);
   }
 
   .agent-card-header {
-    background: var(--bg-light);
+    background: var(--bg-card);
     padding: 10px 16px;
     display: flex;
     justify-content: space-between;
@@ -298,76 +467,130 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .agent-name { font-weight: 700; font-size: 13px; color: var(--dark); }
-
-  .agent-badges { display: flex; gap: 8px; font-size: 10px; }
-  .badge-model { background: #ede9fe; color: #5b21b6; padding: 2px 8px; border-radius: 100px; font-weight: 600; }
-  .badge-cost { background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 100px; font-weight: 600; }
-
-  .agent-card-body { padding: 14px 16px; }
-
-  /* ── Cost Footer ──────────────────────────────────────────────── */
-  .cost-bar {
-    background: var(--bg-light);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 20px;
-    display: flex;
-    gap: 32px;
-    align-items: center;
+  .agent-name {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.02em;
   }
 
-  .cost-item { text-align: center; }
-  .cost-value { font-size: 20px; font-weight: 700; color: var(--dark); }
-  .cost-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .agent-badges { display: flex; gap: 6px; align-items: center; }
 
-  /* ── Participant Tags ─────────────────────────────────────────── */
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .badge-model { background: var(--indigo-50); color: var(--accent); border: 1px solid var(--indigo-100); }
+  .badge-cost  { background: var(--cyan-50);   color: var(--cyan-600); border: 1px solid #CFFAFE; }
+
+  .agent-card-body { padding: 14px 18px; }
+
+  /* ── Cost footer ──────────────────────────────────────────────── */
+  .cost-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 24px;
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    margin-top: 16px;
+  }
+
+  .cost-item { text-align: left; }
+  .cost-value {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    line-height: 1;
+  }
+  .cost-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 6px;
+  }
+
+  /* ── Participant tags ─────────────────────────────────────────── */
   .participant-tag {
     display: inline-block;
-    background: #fef2f2;
-    color: var(--brand-red);
+    background: var(--accent-soft);
+    color: var(--accent);
     padding: 2px 10px;
     border-radius: 100px;
-    font-size: 10px;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
     margin: 2px 3px 2px 0;
-    border: 1px solid #fecaca;
+    border: 1px solid var(--indigo-100);
   }
 
-  /* ── Metadata Footer ──────────────────────────────────────────── */
+  /* ── Metadata footer ──────────────────────────────────────────── */
   .meta-footer {
-    margin-top: 32px;
+    margin-top: 36px;
     padding-top: 12px;
     border-top: 1px solid var(--border);
-    font-size: 9px;
-    color: #9ca3af;
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    color: var(--fg-subtle);
     display: flex;
     justify-content: space-between;
+    letter-spacing: 0.02em;
   }
 
-  /* ── Print ────────────────────────────────────────────────────── */
+  /* ── Section spacer ───────────────────────────────────────────── */
+  .section { margin-bottom: 24px; }
+
+  /* ── Print-specific ───────────────────────────────────────────── */
   @media print {
     body { padding: 0; }
-    .agent-card { page-break-inside: avoid; }
-    h2 { page-break-after: avoid; }
+    .agent-card, .dash-card, .cost-bar, .exec-summary { page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
   }
 </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- COVER PAGE                                                      -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  COVER PAGE                                                        -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 <div class="cover">
-  <div class="cover-brand">Cardinal Element</div>
+  <div class="cover-eyebrow">Cardinal Element</div>
 
-  <div class="cover-title">
-    {% if report.metadata.protocol_key and 'pipeline' in (report.metadata.protocol_key | default('')) %}
-      Strategic Pipeline Analysis
+  {# Title: split "p06_triz_inversion" → "P06" eyebrow + "TRIZ Inversion" title.
+     Preserve known acronyms that `| title` would butcher. #}
+  {%- set _pk = report.metadata.protocol_key | default('protocol_analysis') -%}
+  {%- set _parts = _pk.split('_', 1) -%}
+  {%- set _code = _parts[0] | upper if _parts[0][0] == 'p' and _parts[0][1:].isdigit() else '' -%}
+  {%- set _name_slug = _parts[1] if _code else _pk -%}
+  {%- set _name = _name_slug
+        | replace('_', ' ')
+        | title
+        | replace('Triz', 'TRIZ')
+        | replace('Ach', 'ACH')
+        | replace('Pmi', 'PMI')
+        | replace('Ooda', 'OODA')
+        | replace('Crt', 'CRT')
+        | replace('Hsr', 'HSR')
+        | replace('Dad', 'DAD')
+        | replace('Ic', 'IC')
+  -%}
+  {% if _code %}<div style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.2em; color: var(--fg-muted); margin-bottom: 8px;">{{ _code }}</div>{% endif %}
+  <h1 class="cover-title">
+    {% if 'pipeline' in _pk %}
+      Strategic Pipeline <span class="accent">Analysis</span>
     {% else %}
-      {{ report.metadata.protocol_key | default('Protocol Analysis') | replace('_', ' ') | title }}
+      {{ _name }}
     {% endif %}
-  </div>
+  </h1>
   <div class="cover-subtitle">Multi-Agent Protocol Analysis</div>
 
   <div class="cover-divider"></div>
@@ -376,52 +599,53 @@
 
   {% if report.metadata.question %}
   <div class="cover-question">
-    {{ report.metadata.question | truncate(200, true, '...') }}
+    &ldquo;{{ report.metadata.question | truncate(200, true, '&hellip;') }}&rdquo;
   </div>
   {% endif %}
 
   {% if report.participants %}
   <div class="cover-stats">
     {{ report.participants | length }} Agents
-    {% if report.agent_contributions %} &bull; {{ report.agent_contributions | length }} Contributions{% endif %}
-    {% if report.metadata.run_id %} &bull; Run #{{ report.metadata.run_id }}{% endif %}
+    {% if report.agent_contributions %} &nbsp;·&nbsp; {{ report.agent_contributions | length }} Contributions{% endif %}
+    {% if report.metadata.run_id %} &nbsp;·&nbsp; Run #{{ report.metadata.run_id }}{% endif %}
   </div>
 
   <div class="cover-agents">
-    Agents: {{ report.participants | join(', ') }}
+    <span class="agents-label">Agents</span>
+    {{ report.participants | join(' · ') }}
   </div>
   {% endif %}
 
-  <div class="cover-confidential">Confidential &mdash; Cardinal Element</div>
+  <div class="cover-confidential">Confidential &mdash; Prepared by Cardinal Element</div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- EXECUTIVE DASHBOARD                                             -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  EXECUTIVE DASHBOARD                                               -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 <h2>Executive Dashboard</h2>
 
 <div class="dashboard">
-  <div class="dash-card">
-    <div class="dash-value dark">{{ report.participants | length | default(0) }}</div>
-    <div class="dash-label">Agents Deployed</div>
+  <div class="dash-card accent">
+    <div class="dash-value accent">{{ report.participants | length | default(0) }}</div>
+    <div class="dash-label">Agents</div>
   </div>
   <div class="dash-card">
-    <div class="dash-value teal">{{ report.agent_contributions | length | default(0) }}</div>
+    <div class="dash-value cyan">{{ report.agent_contributions | length | default(0) }}</div>
     <div class="dash-label">Contributions</div>
   </div>
   <div class="dash-card">
-    <div class="dash-value">{{ report.confidence_score | default(0) }}/5</div>
+    <div class="dash-value">{{ report.confidence_score | default(0) }}<span style="font-size: 16px; color: var(--fg-muted); font-weight: 500;">/5</span></div>
     <div class="dash-label">Confidence</div>
   </div>
   <div class="dash-card">
-    <div class="dash-value dark">${{ "%.2f" | format(report.cost_summary.total_usd | default(0)) }}</div>
+    <div class="dash-value">${{ "%.2f" | format(report.cost_summary.total_usd | default(0)) }}</div>
     <div class="dash-label">Total Cost</div>
   </div>
 </div>
 
-<!-- Key Findings -->
 {% if report.key_findings %}
 <div class="section">
+  <span class="label">Key Findings</span>
   <ul class="findings-list">
     {% for finding in report.key_findings %}
     <li>{{ finding }}</li>
@@ -430,20 +654,20 @@
 </div>
 {% endif %}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- EXECUTIVE SUMMARY                                               -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  EXECUTIVE SUMMARY                                                 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 <h2>Executive Summary</h2>
 <div class="exec-summary md-content">
   {{ report.executive_summary_html | safe }}
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- CONFIDENCE ASSESSMENT                                           -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  CONFIDENCE ASSESSMENT                                             -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 {% if report.confidence_score > 0 %}
 <div class="section" style="margin-top: 20px;">
-  <div class="section-label">Confidence Assessment</div>
+  <span class="label">Confidence Assessment</span>
   <div class="confidence-row">
     <div class="confidence-dots">
       {% set score = report.confidence_score %}
@@ -463,9 +687,9 @@
 </div>
 {% endif %}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- FULL SYNTHESIS                                                  -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  FULL SYNTHESIS                                                    -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 {% if report.synthesis_html %}
 <h2>Full Synthesis</h2>
 <div class="md-content">
@@ -473,9 +697,9 @@
 </div>
 {% endif %}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- AGENT CONTRIBUTIONS                                             -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  AGENT CONTRIBUTIONS                                               -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 {% if report.agent_contributions %}
 <h2>Agent Contributions</h2>
 
@@ -485,10 +709,10 @@
     <div class="agent-name">{{ contribution.agent_name or contribution.agent_key }}</div>
     <div class="agent-badges">
       {% if contribution.model %}
-      <span class="badge-model">{{ contribution.model | truncate(25, true, '...') }}</span>
+      <span class="badge badge-model">{{ contribution.model | truncate(28, true, '…') }}</span>
       {% endif %}
       {% if contribution.cost_usd > 0 %}
-      <span class="badge-cost">${{ "%.4f" | format(contribution.cost_usd) }}</span>
+      <span class="badge badge-cost">${{ "%.4f" | format(contribution.cost_usd) }}</span>
       {% endif %}
     </div>
   </div>
@@ -499,9 +723,9 @@
 {% endfor %}
 {% endif %}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- COST SUMMARY                                                    -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  COST SUMMARY                                                      -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 <h2>Cost Summary</h2>
 <div class="cost-bar">
   <div class="cost-item">
@@ -520,16 +744,16 @@
   {% endif %}
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- FOOTER                                                          -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  METADATA FOOTER                                                   -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 <div class="meta-footer">
   <div>
-    {% if report.metadata.trace_id %}Trace: {{ report.metadata.trace_id }}{% endif %}
+    {% if report.metadata.trace_id %}Trace · {{ report.metadata.trace_id }}{% endif %}
   </div>
   <div>
-    {% if report.metadata.started_at %}Started: {{ report.metadata.started_at | truncate(19, true, '') }}{% endif %}
-    {% if report.metadata.completed_at %} &mdash; Completed: {{ report.metadata.completed_at | truncate(19, true, '') }}{% endif %}
+    {% if report.metadata.started_at %}Started · {{ report.metadata.started_at | truncate(19, true, '') }}{% endif %}
+    {% if report.metadata.completed_at %} &nbsp;—&nbsp; Completed · {{ report.metadata.completed_at | truncate(19, true, '') }}{% endif %}
   </div>
 </div>
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { brandAppearance } from "@/components/brand/clerk-appearance";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Cardinal Element",
-  description: "AI-Native Growth Architecture — your business has a brain.",
+  description: "A Growth Engine Built for the AI Era.",
+  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({
@@ -24,12 +26,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider appearance={brandAppearance}>
       <html
         lang="en"
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       >
-        <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
+        <body className="min-h-full flex flex-col bg-background text-foreground">
           {children}
         </body>
       </html>
