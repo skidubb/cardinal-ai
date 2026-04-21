@@ -12,3 +12,34 @@ description: Invert "what would guarantee failure?" into solutions.
 when_to_use: Stress-testing plans, finding hidden risks.
 when_not_to_use: Simple factual questions, pure prioritization.
 tools_enabled: true
+stages:
+  - key: invert
+    name: Invert the Question
+    stage_type: mechanical
+    agents_filter: null
+    depends_on: []
+    description: Flip "how do we succeed at X?" into "how would we guarantee failure at X?".
+  - key: failure_modes
+    name: Generate Failure Modes
+    stage_type: agent
+    agents_filter: all
+    depends_on: [invert]
+    description: Each agent brainstorms ways the inverted (failure) outcome could be achieved.
+  - key: dedupe
+    name: Deduplicate & Cluster
+    stage_type: mechanical
+    agents_filter: null
+    depends_on: [failure_modes]
+    description: Merge overlapping failure modes, group by theme.
+  - key: solutions
+    name: Invert Back to Solutions
+    stage_type: agent
+    agents_filter: all
+    depends_on: [dedupe]
+    description: Each failure mode becomes a concrete "must avoid" or "must do" safeguard.
+  - key: synthesis
+    name: Synthesis
+    stage_type: synthesis
+    agents_filter: null
+    depends_on: [solutions]
+    description: Integrate safeguards into a prioritized stress-test report.

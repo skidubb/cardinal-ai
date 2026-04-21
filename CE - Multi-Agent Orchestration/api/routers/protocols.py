@@ -201,15 +201,71 @@ async def start_protocol_run_with_context(
     )
 
 
+def _stages_from_yaml(key: str) -> list[dict] | None:
+    """Load an explicit stage manifest from a protocol's capability.yaml.
+
+    Returns None if no `stages:` array is defined; otherwise returns the stages
+    normalized to the shape the frontend expects.
+    """
+    import yaml
+    from pathlib import Path
+
+    cap_file = (
+        Path(__file__).resolve().parent.parent.parent
+        / "protocols" / key / "capability.yaml"
+    )
+    if not cap_file.exists():
+        return None
+    with open(cap_file) as f:
+        cap = yaml.safe_load(f) or {}
+    raw_stages = cap.get("stages")
+    if not isinstance(raw_stages, list) or not raw_stages:
+        return None
+
+    stages: list[dict] = []
+    for s in raw_stages:
+        if not isinstance(s, dict):
+            continue
+        name = s.get("name") or s.get("key") or ""
+        if not name:
+            continue
+        stages.append({
+            "key": s.get("key") or _slugify(name),
+            "name": name,
+            "stage_type": s.get("stage_type") or _classify_stage(name),
+            "depends_on": s.get("depends_on") or [],
+            "agents_filter": s.get("agents_filter"),
+            "description": s.get("description") or "",
+        })
+    return stages or None
+
+
+def _slugify(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
 @router.get("/{key}/stages")
 def get_protocol_stages(key: str):
-    """Extract stage information from a protocol's orchestrator."""
+    """Return stage metadata for a protocol.
+
+    Prefers an explicit `stages:` array in the protocol's capability.yaml.
+    Falls back to source-code extraction for un-annotated protocols.
+    """
     manifest = get_protocol_manifest()
     proto = next((p for p in manifest if p["key"] == key), None)
     if not proto:
         raise HTTPException(status_code=404, detail=f"Protocol '{key}' not found")
 
     protocol_id = proto["protocol_id"]
+
+    yaml_stages = _stages_from_yaml(key)
+    if yaml_stages:
+        return {
+            "protocol_id": protocol_id,
+            "protocol_name": proto["name"],
+            "stages": yaml_stages,
+            "source": "yaml",
+        }
 
     # Try to import the orchestrator module
     mod = None

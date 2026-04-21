@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Paperclip, X } from "lucide-react";
 import type {
   Agent,
@@ -11,6 +11,9 @@ import type {
 } from "@/lib/api";
 import MemoryBrief from "./MemoryBrief";
 import { ModeSelector, type RunMode } from "@/components/run/ModeSelector";
+import { ProtocolDiagram } from "@/components/run/ProtocolDiagram";
+import { useProtocolStages } from "@/components/run/useProtocolStages";
+import { inferLiveStage } from "@/components/run/liveStageInference";
 import { RouterDecisionCard } from "@/components/run/RouterDecisionCard";
 
 type SseEvent = { event: string; data: Record<string, unknown> };
@@ -29,17 +32,25 @@ export default function RunForm({
   agents,
   pipelines,
   teams,
+  initialQuestion = "",
+  initialProtocol = "",
 }: {
   protocols: Protocol[];
   agents: Agent[];
   pipelines: Pipeline[];
   teams: Team[];
+  initialQuestion?: string;
+  initialProtocol?: string;
 }) {
-  const [mode, setMode] = useState<RunMode>("smart");
-  const [question, setQuestion] = useState("");
+  const hasInitialProtocol =
+    initialProtocol && protocols.some((p) => p.key === initialProtocol);
+  const [mode, setMode] = useState<RunMode>(hasInitialProtocol ? "protocol" : "smart");
+  const [question, setQuestion] = useState(initialQuestion);
 
   const [protocolKey, setProtocolKey] = useState<string>(
-    protocols.find((p) => p.key === "p04_multi_round_debate")?.key ?? protocols[0]?.key ?? "",
+    hasInitialProtocol
+      ? initialProtocol
+      : protocols.find((p) => p.key === "p04_multi_round_debate")?.key ?? protocols[0]?.key ?? "",
   );
   const [agentKeys, setAgentKeys] = useState<string[]>(["ceo", "cfo", "cto"]);
   const [rounds, setRounds] = useState<number>(2);
@@ -62,6 +73,16 @@ export default function RunForm({
   const [runId, setRunId] = useState<number | null>(null);
   const [completedRunId, setCompletedRunId] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const { data: stagesData } = useProtocolStages(
+    mode === "protocol" ? protocolKey : null,
+  );
+  const liveStage = useMemo(() => {
+    if (!stagesData || events.length === 0 || mode !== "protocol") {
+      return { activeStageKey: null, completedStageKeys: [] };
+    }
+    return inferLiveStage(stagesData.stages, events);
+  }, [stagesData, events, mode]);
 
   const selectedProtocol = protocols.find((p) => p.key === protocolKey);
 
@@ -439,6 +460,16 @@ export default function RunForm({
                   onChange={(e) => setRounds(Number(e.target.value))}
                   className="ml-2 w-16 rounded border border-input bg-background px-2 py-1 text-sm tabular-nums text-foreground"
                   disabled={running}
+                />
+              </div>
+            ) : null}
+            {protocolKey ? (
+              <div className="mt-4">
+                <ProtocolDiagram
+                  protocolKey={protocolKey}
+                  initialData={stagesData}
+                  activeStageKey={liveStage.activeStageKey}
+                  completedStageKeys={liveStage.completedStageKeys}
                 />
               </div>
             ) : null}

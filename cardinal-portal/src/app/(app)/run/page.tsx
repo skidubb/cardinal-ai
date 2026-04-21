@@ -7,8 +7,15 @@ import {
 } from "@/lib/api";
 import RunForm from "./RunForm";
 
-export default async function RunPage() {
+export default async function RunPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ question?: string; protocol?: string }>;
+}) {
   const { orgSlug } = await auth();
+  const sp = await searchParams;
+  const initialQuestion = typeof sp.question === "string" ? sp.question : "";
+  const initialProtocol = typeof sp.protocol === "string" ? sp.protocol : "";
 
   const [protocolsR, agentsR, pipelinesR, teamsR] = await Promise.allSettled([
     fetchProtocols(),
@@ -53,7 +60,14 @@ export default async function RunPage() {
           Protocol or agent registry returned empty. Verify the orchestration backend is running.
         </div>
       ) : (
-        <RunForm protocols={protocols} agents={agents} pipelines={pipelines} teams={teams} />
+        <RunForm
+          protocols={protocols}
+          agents={agents}
+          pipelines={pipelines}
+          teams={teams}
+          initialQuestion={initialQuestion}
+          initialProtocol={initialProtocol}
+        />
       )}
     </div>
   );

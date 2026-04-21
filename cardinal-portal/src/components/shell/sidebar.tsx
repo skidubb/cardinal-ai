@@ -9,6 +9,7 @@ import {
   Plug,
   Database,
   BookOpen,
+  FileSearch,
   type LucideIcon,
 } from "lucide-react";
 import { NavGroup, type NavItem } from "./nav-group";
@@ -19,6 +20,7 @@ const GROUPS: Group[] = [
   {
     label: "Work",
     items: [
+      { href: "/discover", label: "Discover", icon: FileSearch as LucideIcon },
       { href: "/run", label: "Ask", icon: Sparkles as LucideIcon },
       { href: "/runs", label: "Runs", icon: FolderClock as LucideIcon },
     ],

@@ -46,6 +46,7 @@ def get_protocol_manifest() -> list[dict]:
             "when_to_use": cap.get("when_to_use", ""),
             "when_not_to_use": cap.get("when_not_to_use", ""),
             "tools_enabled": cap.get("tools_enabled", True),
+            "has_stage_manifest": bool(cap.get("stages")),
         })
 
     return protocols

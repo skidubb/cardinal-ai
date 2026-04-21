@@ -12,3 +12,28 @@ description: Plus/Minus/Interesting enumeration for balanced evaluation.
 when_to_use: Quick balanced assessment of an idea or proposal.
 when_not_to_use: Deep adversarial testing, complex system analysis.
 tools_enabled: true
+stages:
+  - key: plus
+    name: Plus (Upsides)
+    stage_type: agent
+    agents_filter: all
+    depends_on: []
+    description: Enumerate everything that is positive, beneficial, or working about the proposal.
+  - key: minus
+    name: Minus (Downsides)
+    stage_type: agent
+    agents_filter: all
+    depends_on: [plus]
+    description: Enumerate risks, costs, failure modes, and objections.
+  - key: interesting
+    name: Interesting (Implications)
+    stage_type: agent
+    agents_filter: all
+    depends_on: [minus]
+    description: Surface non-obvious implications, second-order effects, questions worth tracking.
+  - key: synthesis
+    name: Synthesis
+    stage_type: synthesis
+    agents_filter: null
+    depends_on: [interesting]
+    description: Dedupe, rank by weight, produce a balanced verdict.

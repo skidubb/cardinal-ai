@@ -11,3 +11,22 @@ description: Classify question problem type and recommend optimal protocol.
 when_to_use: First step before any protocol run — selects the right protocol.
 when_not_to_use: When the user already knows which protocol to use.
 tools_enabled: false
+stages:
+  - key: features
+    name: Feature Extraction
+    stage_type: mechanical
+    agents_filter: null
+    depends_on: []
+    description: Extract question features (domain, decision type, time horizon, stakes).
+  - key: classify
+    name: Classify Problem Type
+    stage_type: mechanical
+    agents_filter: null
+    depends_on: [features]
+    description: Map the question to one of eight canonical problem types.
+  - key: route
+    name: Route to Protocol
+    stage_type: mechanical
+    agents_filter: null
+    depends_on: [classify]
+    description: Select the best-fit protocol plus 1-2 alternatives with reasoning.
