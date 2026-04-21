@@ -1,0 +1,24 @@
+slug: workload
+display_name: Workload
+vertical: TBD (confirm with customer)
+description: Customer engagement -- knowledge graph to be populated during onboarding.
+primary_contact: TBD
+seeded_protocols: true
+connectors:
+  notion:
+    enabled: false
+    auth: mcp
+  granola:
+    enabled: false
+    auth: mcp
+  hubspot:
+    enabled: false
+  google_drive:
+    enabled: false
+  slack:
+    enabled: false
+notes: |
+  Onboarding playbook (run during kickoff):
+  1. Identify their canonical data sources
+  2. Provision credentials per connector
+  3. Enable + backfill: cegraph backfill --tenant workload

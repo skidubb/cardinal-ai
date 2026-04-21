@@ -1,0 +1,25 @@
+slug: imagine-wireless
+display_name: Imagine Wireless
+vertical: Wireless Carrier / Telecom
+description: Wireless connectivity provider. Knowledge graph TBD with customer onboarding.
+primary_contact: TBD
+seeded_protocols: true
+connectors:
+  notion:
+    enabled: false
+    auth: mcp
+  granola:
+    enabled: false
+    auth: mcp
+  hubspot:
+    enabled: false
+  google_drive:
+    enabled: false
+  slack:
+    enabled: false
+notes: |
+  Onboarding playbook (run during kickoff):
+  1. Identify their canonical data sources (CRM, doc store, comms, meetings)
+  2. Provision MCP credentials or API keys for each
+  3. Enable connectors here, then run: cegraph backfill --tenant imagine-wireless
+  4. Verify graph in FalkorDB browser, hand off audit deliverable

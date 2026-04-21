@@ -1,0 +1,24 @@
+slug: on3
+display_name: On3
+vertical: Sports Media / College Sports Recruiting
+description: College sports recruiting media platform -- knowledge graph TBD.
+primary_contact: TBD
+seeded_protocols: true
+connectors:
+  notion:
+    enabled: false
+    auth: mcp
+  granola:
+    enabled: false
+    auth: mcp
+  hubspot:
+    enabled: false
+  google_drive:
+    enabled: false
+  slack:
+    enabled: false
+notes: |
+  Onboarding playbook (run during kickoff):
+  1. Likely sources: editorial CMS, athlete database, recruiting data feeds, advertiser CRM
+  2. Provision credentials per connector
+  3. Backfill: cegraph backfill --tenant on3

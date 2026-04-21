@@ -127,6 +127,25 @@ KEY_REGISTRY: dict[str, KeyMeta] = {
         category="storage",
         description="Path to DuckDB agent memory database",
     ),
+    # ---- Knowledge graph (ce-graph) ----
+    "FALKORDB_URL": KeyMeta(
+        name="FALKORDB_URL",
+        required_by=["graph"],
+        category="storage",
+        description="FalkorDB connection URL (e.g. redis://localhost:6379)",
+    ),
+    "FALKORDB_GRAPH_NAME": KeyMeta(
+        name="FALKORDB_GRAPH_NAME",
+        required_by=["graph"],
+        category="storage",
+        description="FalkorDB graph name (default: cardinal_element)",
+    ),
+    "GRAPH_LLM_MODEL": KeyMeta(
+        name="GRAPH_LLM_MODEL",
+        required_by=["graph"],
+        category="storage",
+        description="LLM model used by Graphiti for entity extraction (default: claude-haiku-4-5-20251001)",
+    ),
     # ---- Search ----
     "BRAVE_API_KEY": KeyMeta(
         name="BRAVE_API_KEY",

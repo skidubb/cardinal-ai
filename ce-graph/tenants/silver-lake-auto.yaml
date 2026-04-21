@@ -1,0 +1,24 @@
+slug: silver-lake-auto
+display_name: Silver Lake Auto
+vertical: Automotive Retail / Dealership Group
+description: Automotive dealership operations -- knowledge graph TBD.
+primary_contact: TBD
+seeded_protocols: true
+connectors:
+  notion:
+    enabled: false
+    auth: mcp
+  granola:
+    enabled: false
+    auth: mcp
+  hubspot:
+    enabled: false
+  google_drive:
+    enabled: false
+  slack:
+    enabled: false
+notes: |
+  Onboarding playbook (run during kickoff):
+  1. Likely sources: DMS (dealer management system), CRM, lead-gen, BDC call logs
+  2. Provision credentials for each
+  3. Enable + backfill: cegraph backfill --tenant silver-lake-auto

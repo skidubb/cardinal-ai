@@ -91,6 +91,7 @@ Library-only (no CLI). Core in `src/ce_evals/core/` — `judge.py` + `judge_back
 
 - **`ce-shared/`**: Pricing (`MODEL_PRICING`, `cost_for_model()`), env registry (`KEY_REGISTRY`, `find_and_load_dotenv()`). Used by all projects. Single source of truth for model pricing and env var names.
 - **`ce-db/`**: Async SQLAlchemy + asyncpg + Alembic migrations. Postgres schema for runs, traces, costs. Used by Orchestration and optionally Evals.
+- **`ce-graph/`**: Knowledge graph layer (Graphiti + FalkorDB) for shared institutional memory across the C-Suite agents. Provides `Client`, `Engagement`, `Protocol`, `Decision`, `Correction`, `Lesson` entity types with temporal facts and provenance. Cypher query helpers in `queries.py`, semantic search via `GraphClient.search()`. Local FalkorDB via `docker compose up -d` from `ce-graph/`. See `ce-graph/SETUP.md`. Used by Agent Builder + Orchestration for cross-agent shared memory.
 
 ### Deployment
 

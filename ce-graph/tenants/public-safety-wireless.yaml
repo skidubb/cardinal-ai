@@ -1,0 +1,25 @@
+slug: public-safety-wireless
+display_name: Public Safety Wireless
+vertical: Public Sector / Wireless Communications
+description: Public safety wireless infrastructure -- knowledge graph TBD.
+primary_contact: TBD
+seeded_protocols: true
+connectors:
+  notion:
+    enabled: false
+    auth: mcp
+  granola:
+    enabled: false
+    auth: mcp
+  hubspot:
+    enabled: false
+  google_drive:
+    enabled: false
+  slack:
+    enabled: false
+notes: |
+  Onboarding playbook (run during kickoff):
+  1. Likely sources: contract repository, compliance docs, deployment records, agency contacts
+  2. Public sector: confirm data residency / security requirements before connecting
+  3. Provision credentials per connector
+  4. Backfill: cegraph backfill --tenant public-safety-wireless
