@@ -58,6 +58,22 @@ export default async function DashboardPage() {
           </Link>
         </section>
 
+        {/* Nav row to the four product surfaces */}
+        <nav className="flex flex-wrap gap-2 text-sm">
+          <Link href="/run" className="rounded-md border border-fuchsia-700/40 bg-fuchsia-950/20 px-3 py-1.5 text-fuchsia-200 hover:bg-fuchsia-950/40 transition">
+            Run a protocol →
+          </Link>
+          <Link href="/runs" className="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-900 transition">
+            All runs
+          </Link>
+          <Link href="/protocols" className="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-900 transition">
+            Protocol library
+          </Link>
+          <Link href="/c-suite" className="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-900 transition">
+            Your C-Suite
+          </Link>
+        </nav>
+
         {/* Stat row -- the system, not the graph */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label="Protocols available" value={protocolCount ?? "—"} hint="research-backed methodologies" />

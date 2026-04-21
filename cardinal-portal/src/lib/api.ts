@@ -82,12 +82,18 @@ export async function fetchRun(id: string): Promise<Run & {
 
 export type Protocol = {
   key: string;             // e.g. "p04_multi_round_debate"
-  code: string;            // e.g. "P04"
+  code?: string;           // not always set; "P04" / "P0a"
+  protocol_id?: string;    // Railway returns protocol_id; we treat it as code
   name: string;            // e.g. "Multi-Round Debate"
-  category: string;        // e.g. "debate"
+  category: string;        // e.g. "Liberating Structures"
   description?: string;
+  when_to_use?: string;
+  when_not_to_use?: string;
   min_agents?: number;
   max_agents?: number;
+  cost_tier?: "low" | "medium" | "high";
+  supports_rounds?: boolean;
+  problem_types?: string[];
 };
 
 export async function fetchProtocols(): Promise<Protocol[]> {
@@ -98,10 +104,16 @@ export async function fetchProtocols(): Promise<Protocol[]> {
 
 export type Agent = {
   key: string;             // e.g. "ceo", "gtm-vp-sales"
-  title: string;
+  name?: string;           // Railway returns "name"; we display this if present
+  title?: string;          // alternative display
+  category?: string;       // executive / cfo-team / cto-team / gtm-sales / etc.
   layer?: "c_suite" | "direct_report" | "functional";
   reports_to?: string;
   description?: string;
+  model?: string;
+  is_builtin?: boolean;
+  tools?: string[];
+  mcp_servers?: string[];
 };
 
 export async function fetchAgents(): Promise<Agent[]> {
