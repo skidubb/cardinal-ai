@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardinal Element — AI-Native Growth Architecture · Production v1</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #0e1426;
+    --card: rgba(20, 26, 45, 0.6);
+    --card-hover: rgba(28, 36, 60, 0.8);
+    --tile: rgba(15, 20, 38, 0.7);
+    --tile-2: rgba(18, 24, 44, 0.85);
+    --border: rgba(255, 255, 255, 0.06);
+    --border-soft: rgba(255, 255, 255, 0.04);
+    --text: #e5e7eb;
+    --text-2: #9ca3af;
+    --muted: #6b7280;
+    --dim: #4b5563;
+
+    --pink: #ec4899;
+    --rose: #f43f5e;
+    --blue: #3b82f6;
+    --indigo: #6366f1;
+    --cyan: #06b6d4;
+    --teal: #14b8a6;
+    --purple: #a855f7;
+    --violet: #8b5cf6;
+    --fuchsia: #d946ef;
+    --amber: #f59e0b;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --emerald: #10b981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv01", "tnum";
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139, 92, 246, 0.10), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 110%, rgba(34, 197, 94, 0.06), transparent 60%),
+      var(--bg);
+  }
+  .container {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 56px 56px 72px;
+    position: relative;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 32px;
+    margin-bottom: 28px;
+  }
+  .brand-block { max-width: 980px; }
+  .brand {
+    font-size: 34px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .brand .accent {
+    background: linear-gradient(135deg, #f472b6, #a855f7 50%, #06b6d4);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .badge {
+    display: inline-block;
+    margin-left: 14px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--text-2);
+    text-transform: uppercase;
+    vertical-align: middle;
+    transform: translateY(-7px);
+  }
+  .tagline {
+    margin-top: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.005em;
+  }
+  .tagline .em {
+    background: linear-gradient(135deg, var(--violet), var(--fuchsia));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .lede {
+    margin-top: 12px;
+    color: var(--text-2);
+    font-size: 14px;
+    max-width: 940px;
+    line-height: 1.65;
+  }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .meta {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-align: right;
+    line-height: 1.7;
+    flex-shrink: 0;
+  }
+  .meta .live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 999px;
+    color: var(--green);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .live .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  /* TOP STATS */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin: 28px 0 18px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 18px 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--c1, #ec4899) 0%, transparent 70%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+  .stat .num {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    color: var(--c1, #ec4899);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .lbl {
+    margin-top: 8px;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--text-2);
+    text-transform: uppercase;
+  }
+  .stat .sub {
+    margin-top: 3px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* RESEARCH STRIP */
+  .research-strip {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(217, 70, 239, 0.04) 60%, transparent);
+    border: 1px solid rgba(168, 85, 247, 0.18);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 13px;
+  }
+  .research-strip .ico {
+    font-size: 16px;
+    color: var(--violet);
+  }
+  .research-strip strong { color: var(--text); font-weight: 600; }
+  .research-strip .pipe { color: var(--dim); margin: 0 4px; }
+  .research-strip .text { color: var(--text-2); }
+
+  /* MAIN STAGE */
+  .stage {
+    position: relative;
+    padding: 0 56px;
+  }
+  .rail-left, .rail-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+  }
+  .rail-left { left: 0; }
+  .rail-right { right: 0; }
+  .rail-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 14px 0;
+  }
+
+  /* LAYER */
+  .layer {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px 24px;
+    margin-bottom: 14px;
+  }
+  .layer::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 14px; bottom: 14px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--accent, var(--pink));
+    box-shadow: 0 0 16px var(--accent, var(--pink));
+    opacity: 0.85;
+  }
+  .layer-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+  }
+  .layer-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .layer-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    background: var(--accent-bg, rgba(236, 72, 153, 0.12));
+    border: 1px solid var(--accent-border, rgba(236, 72, 153, 0.25));
+    font-size: 16px;
+  }
+  .layer-name { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .layer-sub { color: var(--text-2); font-size: 13px; margin-top: 2px; }
+  .layer-tag {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .tile {
+    background: var(--tile);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 12px 14px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.2s ease;
+  }
+  .tile::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--accent, #ec4899) 0%, transparent 60%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.4;
+  }
+  .tile:hover { background: var(--card-hover); }
+  .tile-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .tile-meta { font-size: 11px; color: var(--text-2); margin-top: 3px; line-height: 1.45; }
+
+  /* DOWN CHEVRON */
+  .down {
+    height: 14px;
+    display: grid;
+    place-items: center;
+    color: var(--dim);
+    font-size: 11px;
+  }
+
+  /* ACCENTS PER LAYER */
+  .l-data        { --accent: var(--pink);    --accent-bg: rgba(236,72,153,.10);  --accent-border: rgba(236,72,153,.25); }
+  .l-memory      { --accent: var(--blue);    --accent-bg: rgba(59,130,246,.10);  --accent-border: rgba(59,130,246,.25); }
+  .l-context     { --accent: var(--cyan);    --accent-bg: rgba(6,182,212,.10);   --accent-border: rgba(6,182,212,.25); }
+  .l-intel       { --accent: var(--purple);  --accent-bg: rgba(168,85,247,.10);  --accent-border: rgba(168,85,247,.25); }
+  .l-method      { --accent: var(--fuchsia); --accent-bg: rgba(217,70,239,.10);  --accent-border: rgba(217,70,239,.30); }
+  .l-orchestrate { --accent: var(--amber);   --accent-bg: rgba(245,158,11,.10);  --accent-border: rgba(245,158,11,.25); }
+  .l-execute     { --accent: var(--green);   --accent-bg: rgba(34,197,94,.10);   --accent-border: rgba(34,197,94,.25); }
+
+  /* METHODOLOGY LAYER — special treatment */
+  .layer.l-method {
+    background: linear-gradient(135deg, rgba(217, 70, 239, 0.06), rgba(168, 85, 247, 0.04) 50%, var(--card));
+    border-color: rgba(217, 70, 239, 0.2);
+  }
+  .layer.l-method .layer-name {
+    background: linear-gradient(135deg, var(--fuchsia), var(--violet));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .method-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .method-cat {
+    background: var(--tile-2);
+    border: 1px solid rgba(217, 70, 239, 0.15);
+    border-radius: 8px;
+    padding: 12px 14px;
+    position: relative;
+  }
+  .method-cat-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fuchsia);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .method-cat-count {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 10px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .method-list {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-2);
+    line-height: 1.55;
+  }
+  .method-list .p {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* C-SUITE ORG CHART */
+  .org {
+    background: rgba(245, 158, 11, 0.04);
+    border: 1px dashed rgba(245, 158, 11, 0.25);
+    border-radius: 10px;
+    padding: 18px;
+    margin-top: 12px;
+  }
+  .org-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .org-title {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--amber);
+    font-weight: 600;
+  }
+  .org-sub { font-size: 11px; color: var(--text-2); }
+  .ceo-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+  .ceo-card {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.06));
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    position: relative;
+  }
+  .ceo-card::after {
+    content: "";
+    position: absolute;
+    bottom: -14px;
+    left: 50%;
+    width: 1px; height: 14px;
+    background: rgba(245, 158, 11, 0.3);
+  }
+  .exec-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    position: relative;
+  }
+  .exec-row::before {
+    content: "";
+    position: absolute;
+    top: -7px; left: 8.33%; right: 8.33%;
+    height: 1px;
+    background: rgba(245, 158, 11, 0.25);
+  }
+  .exec {
+    background: var(--tile-2);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 8px;
+    padding: 10px;
+    position: relative;
+  }
+  .exec::before {
+    content: "";
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    width: 1px; height: 8px;
+    background: rgba(245, 158, 11, 0.25);
+  }
+  .exec-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--amber);
+  }
+  .exec-name {
+    font-size: 11px;
+    color: var(--text);
+    margin-top: 1px;
+    line-height: 1.3;
+  }
+  .reports {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(245, 158, 11, 0.15);
+  }
+  .report {
+    font-size: 10px;
+    color: var(--text-2);
+    line-height: 1.45;
+    padding: 1px 0;
+  }
+  .report-count {
+    margin-top: 6px;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* FEEDBACK CALLOUT */
+  .feedback {
+    margin-top: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--text-2);
+    font-size: 13px;
+  }
+  .feedback-ic { color: var(--green); font-size: 16px; }
+  .feedback strong { color: var(--text); font-weight: 600; }
+
+  /* INTEGRATIONS */
+  .integrations {
+    margin-top: 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .integrations-title {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--text-2);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .integrations-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--tile);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 32px;
+    letter-spacing: 0.03em;
+  }
+  .footer .dot { margin: 0 8px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="brand-block">
+      <div class="brand">
+        <span>Cardinal</span><span class="accent">Element</span>
+        <span class="badge">Production v1</span>
+      </div>
+      <div class="tagline">
+        AI-Native Growth Architecture &mdash; <span class="em">a productized consulting practice</span>
+      </div>
+      <p class="lede">
+        The <strong>Brain</strong> stores, organizes, and reasons across four layers &mdash; Data, Memory, Context, Intelligence &mdash; backed by <strong>23,000+ knowledge records</strong> across 11 Pinecone namespaces. The <strong>Methodology Layer</strong> turns reasoning into doctrine: <strong>55 research-backed coordination protocols</strong> drawn from cognitive science and decision theory. The <strong>Nervous System</strong> orchestrates a 7-executive C-Suite with 30+ functional reports, then ships the work through six production surfaces. Every run writes back, every cycle compounds.
+      </p>
+    </div>
+    <div class="meta">
+      <div class="live"><span class="dot"></span>Production · Railway</div>
+      <div style="margin-top: 10px">Brain &middot; Methodology &middot; Nervous System</div>
+      <div>7 Layers &middot; 4 Projects</div>
+    </div>
+  </div>
+
+  <!-- TOP STATS -->
+  <div class="stats">
+    <div class="stat" style="--c1: #ec4899;">
+      <div class="num">23K+</div>
+      <div class="lbl">Knowledge Records</div>
+      <div class="sub">11 namespaces · ce-gtm-knowledge</div>
+    </div>
+    <div class="stat" style="--c1: #d946ef;">
+      <div class="num">55</div>
+      <div class="lbl">Coordination Protocols</div>
+      <div class="sub">research-backed methodologies</div>
+    </div>
+    <div class="stat" style="--c1: #a855f7;">
+      <div class="num">378</div>
+      <div class="lbl">Skills Available</div>
+      <div class="sub">domain + plugin library</div>
+    </div>
+    <div class="stat" style="--c1: #3b82f6;">
+      <div class="num">95</div>
+      <div class="lbl">Agent Roles</div>
+      <div class="sub">executive + functional</div>
+    </div>
+    <div class="stat" style="--c1: #06b6d4;">
+      <div class="num">58</div>
+      <div class="lbl">Research Papers</div>
+      <div class="sub">multi-agent foundation corpus</div>
+    </div>
+    <div class="stat" style="--c1: #22c55e;">
+      <div class="num">3</div>
+      <div class="lbl">LLM Providers</div>
+      <div class="sub">claude · gpt-4 · gemini</div>
+    </div>
+  </div>
+
+  <!-- RESEARCH STRIP -->
+  <div class="research-strip">
+    <span class="ico">&#128218;</span>
+    <span class="text">
+      <strong>23,000+ Pinecone records across 11 namespaces</strong> &mdash; lennys-podcast, topline-podcast, ai-gtm, demand-gen, cro-school, meddic, consulting, revenue-architecture, market-analysis &amp; more.
+      <span class="pipe">&middot;</span>
+      <strong>58 academic papers</strong> feeding protocol design.
+      <span class="pipe">&middot;</span>
+      <strong>~159K lines of Python &middot; 374 test files &middot; 8 production tables.</strong>
+    </span>
+  </div>
+
+  <!-- STAGE -->
+  <div class="stage">
+
+    <!-- BRAIN RAIL (left) -->
+    <div class="rail-left">
+      <div class="rail-label" style="height: 56%; display: flex; align-items: center;">Brain</div>
+      <div class="rail-label" style="height: 44%; display: flex; align-items: center;">Nervous System</div>
+    </div>
+
+    <!-- FLOW RAIL (right) -->
+    <div class="rail-right">
+      <div class="rail-label" style="height: 50%; display: flex; align-items: center;">Query &darr;</div>
+      <div class="rail-label" style="height: 50%; display: flex; align-items: center;">Write-Back &uarr;</div>
+    </div>
+
+    <!-- LAYER 1: DATA -->
+    <div class="layer l-data">
+      <div class="layer-head">
+        <div class="layer-title">
+          <div class="layer-icon">&#128230;</div>
+          <div>
+            <div class="layer-name">Data Layer</div>
+            <div class="layer-sub">Raw storage &mdash; everything that ever existed</div>
+          </div>
+        </div>
+        <div class="layer-tag">Foundation</div>
+      </div>
+      <div class="grid">
+        <div class="tile"><div class="tile-name">ce-gtm-knowledge</div><div class="tile-meta">Pinecone &middot; 23K+ records &middot; 11 namespaces</div></div>
+        <div class="tile"><div class="tile-name">ce-agent-memory</div><div class="tile-meta">Pinecone &middot; learning + insights</div></div>
+        <div class="tile"><div class="tile-name">Postgres (ce-db)</div><div class="tile-meta">8 tables &middot; runs/traces/costs/insights</div></div>
+        <div class="tile"><div class="tile-name">DuckDB</div><div class="tile-meta">local learning + analytics</div></div>
+        <div class="tile"><div class="tile-name">Notion KB</div><div class="tile-meta">Cardinal Element knowledge base</div></div>
+        <div class="tile"><div class="tile-name">Granola DB</div><div class="tile-meta">meeting transcripts + notes</div></div>
+        <div class="tile"><div class="tile-name">Multi-Agent Research</div><div class="tile-meta">58 papers &middot; protocol source corpus</div></div>
+        <div class="tile"><div class="tile-name">CE-Evals Rubrics</div><div class="tile-meta">protocol_quality + strategic_advisory</div></div>
+      </div>
+    </div>
+    <div class="down">&darr;</div>
+
+    <!-- LAYER 2: MEMORY -->
+    <div class="layer l-memory">
+      <div class="layer-head">
+        <div class="layer-title">
+          <div class="layer-icon">&#129504;</div>
+          <div>
+            <div class="layer-name">Memory Layer</div>
+            <div class="layer-sub">Organized knowledge &mdash; persisted facts, traces, and decisions</div>
+          </div>
+        </div>
+        <div class="layer-tag">Persistence</div>
+      </div>
+      <div class="grid">
+        <div class="tile"><div class="tile-name">Per-Agent Memory</div><div class="tile-meta">role-scoped Pinecone namespaces</div></div>
+        <div class="tile"><div class="tile-name">Auto-Memory</div><div class="tile-meta">user / feedback / project / reference</div></div>
+        <div class="tile"><div class="tile-name">Cost Ledger</div><div class="tile-meta">per-run + per-model + per-agent spend</div></div>
+        <div class="tile"><div class="tile-name">Langfuse Traces</div><div class="tile-meta">spans &middot; latency &middot; tool use</div></div>
+        <div class="tile"><div class="tile-name">Run Audit Trail</div><div class="tile-meta">every protocol invocation + output</div></div>
+        <div class="tile"><div class="tile-name">Eval History</div><div class="tile-meta">judge scores &middot; rubric outcomes</div></div>
+        <div class="tile"><div class="tile-name">Decision Log</div><div class="tile-meta">why agent X chose path Y</div></div>
+        <div class="tile"><div class="tile-name">Session Persistence</div><div class="tile-meta">CLI conversations + state</div></div>
+      </div>
+    </div>
+    <div class="down">&darr;</div>
+
+    <!-- LAYER 3: CONTEXT -->
+    <div class="layer l-context">
+      <div class="layer-head">
+        <div class="layer-title">
+          <div class="layer-icon">&#127919;</div>
+          <div>
+            <div class="layer-name">Context Layer</div>
+            <div class="layer-sub">Task-scoped retrieval &mdash; what each model sees per turn</div>
+          </div>
+        </div>
+        <div class="layer-tag">Retrieval</div>
+      </div>
+      <div class="grid">
+        <div class="tile"><div class="tile-name">95 Role Prompts</div><div class="tile-meta">_ROLE_PROMPTS in sdk_agent.py</div></div>
+        <div class="tile"><div class="tile-name">27 Tool Schemas</div><div class="tile-meta">ALL_TOOL_SCHEMAS &middot; per-role mapping</div></div>
+        <div class="tile"><div class="tile-name">Agent Registry</div><div class="tile-meta">62 agents &middot; @category groups</div></div>
+        <div class="tile"><div class="tile-name">capability.yaml</div><div class="tile-meta">protocol limits + cost tier</div></div>
+        <div class="tile"><div class="tile-name">CLAUDE.md (×3)</div><div class="tile-meta">global + project + user instructions</div></div>
+        <div class="tile"><div class="tile-name">Skill Library</div><div class="tile-meta">378 callable skills + 8 CE-custom</div></div>
+        <div class="tile"><div class="tile-name">MCP Tool Discovery</div><div class="tile-meta">20 active server namespaces</div></div>
+        <div class="tile"><div class="tile-name">Context Assembler</div><div class="tile-meta">per-turn window builder</div></div>
+      </div>
+    </div>
+    <div class="down">&darr;</div>
+
+    <!-- LAYER 4: INTELLIGENCE -->
+    <div class="layer l-intel">
+      <div class="layer-head">
+        <div class="layer-title">
+          <div class="layer-icon">&#9889;</div>
+          <div>
+            <div class="layer-name">Intelligence Layer</div>
+            <div class="layer-sub">Reasoning engines &mdash; multi-provider models, embeddings, scoring</div>
+          </div>
+        </div>
+        <div class="layer-tag">Compute</div>
+      </div>
+      <div class="grid">
+        <div class="tile"><div class="tile-name">Claude Opus 4.7</div><div class="tile-meta">deep reasoning &middot; 1M context &middot; executives</div></div>
+        <div class="tile"><div class="tile-name">Claude Sonnet 4.6</div><div class="tile-meta">balanced default &middot; tool use</div></div>
+        <div class="tile"><div class="tile-name">Claude Haiku 4.5</div><div class="tile-meta">fast routing + orchestration</div></div>
+        <div class="tile"><div class="tile-name">GPT-4 Judge</div><div class="tile-meta">CE-Evals adversarial scoring</div></div>
+        <div class="tile"><div class="tile-name">Gemini Judge</div><div class="tile-meta">CE-Evals + Embeddings 2</div></div>
+        <div class="tile"><div class="tile-name">Adaptive Router (P0a)</div><div class="tile-meta">4-phase classifier &middot; picks protocol</div></div>
+        <div class="tile"><div class="tile-name">Langfuse Tracing</div><div class="tile-meta">spans &middot; cost &middot; latency</div></div>
+        <div class="tile"><div class="tile-name">Cost Tracker</div><div class="tile-meta">unit economics via ce-shared</div></div>
+      </div>
+    </div>
+    <div class="down">&darr;</div>
+
+    <!-- LAYER 5: METHODOLOGY (THE BRIDGE) -->
+    <div class="layer l-method">
+      <div class="layer-head">
+        <div class="layer-title">
+          <div class="layer-icon">&#128214;</div>
+          <div>
+            <div class="layer-name">Methodology Layer</div>
+            <div class="layer-sub">Decision doctrine &mdash; 54 research-backed coordination protocols. <strong style="color: var(--text);">The moat.</strong></div>
+          </div>
+        </div>
+        <div class="layer-tag">Decision Doctrine</div>
+      </div>
+      <div class="method-grid">
+        <div class="method-cat">
+          <div class="method-cat-name">Adversarial<span class="method-cat-count">3 protocols</span></div>
+          <div class="method-list"><span class="p">P16 ACH</span> &middot; <span class="p">P17 Red/Blue/White</span> &middot; <span class="p">P38 Klein Premortem</span></div>
+        </div>
+        <div class="method-cat">
+          <div class="method-cat-name">Debate &amp; Synthesis<span class="method-cat-count">5 protocols</span></div>
+          <div class="method-list"><span class="p">P3 Synthesis</span> &middot; <span class="p">P4 Multi-Round Debate</span> &middot; <span class="p">P14 Parallel Voices</span></div>
+        </div>
+        <div class="method-cat">
+          <div class="method-cat-name">Forecasting<span class="method-cat-count">3 protocols</span></div>
+          <div class="method-list"><span class="p">P32 Tetlock Forecast</span> &middot; <span class="p">Bayesian update</span> &middot; <span class="p">scenario branching</span></div>
+        </div>
+        <div class="method-cat">
+          <div class="method-cat-name">Decomposition<span class="method-cat-count">6 protocols</span></div>
+          <div class="method-list"><span class="p">P6 TRIZ</span> &middot; <span class="p">P22 sequential</span> &middot; <span class="p">P36 chain-of-decomp</span></div>
+        </div>
+        <div class="method-cat">
+          <div class="method-cat-name">Prioritization<span class="method-cat-count">4 protocols</span></div>
+          <div class="method-list"><span class="p">P29 PMI Enumeration</span> &middot; <span class="p">P45 Whitehead Weights</span></div>
+        </div>
+        <div class="method-cat">
+          <div class="method-cat-name">Routing &amp; Triage<span class="method-cat-count">3 protocols</span></div>
+          <div class="method-list"><span class="p">P0a Adaptive Router</span> &middot; <span class="p">P44 Kant Pre-Router</span></div>
+        </div>
+        <div class="method-cat">
+          <div class="method-cat-name">Domain Sense-Making<span class="method-cat-count">2 protocols</span></div>
+          <div class="method-list"><span class="p">Cynefin classification</span> &middot; <span class="p">P18 systems analysis</span></div>
+        </div>
+        <div class="method-cat">
+          <div class="method-cat-name">Estimation &amp; Constraint<span class="method-cat-count">28 more</span></div>
+          <div class="method-list"><span class="p">P23 estimation</span> &middot; <span class="p">P47 constraint def</span> &middot; portfolio &middot; meta &middot; chained protocols</div>
+        </div>
+      </div>
+    </div>
+    <div class="down">&darr;</div>
+
+    <!-- LAYER 6: ORCHESTRATION (with C-Suite Org Chart) -->
+    <div class="layer l-orchestrate">
+      <div class="layer-head">
+        <div class="layer-title">
+          <div class="layer-icon">&#127922;</div>
+          <div>
+            <div class="layer-name">Orchestration Layer</div>
+            <div class="layer-sub">Decides what runs &mdash; who does it, in what order. Hierarchical coordination.</div>
+          </div>
+        </div>
+        <div class="layer-tag">Control Plane</div>
+      </div>
+
+      <div class="grid">
+        <div class="tile"><div class="tile-name">Adaptive Router</div><div class="tile-meta">classify &rarr; resolve &rarr; execute</div></div>
+        <div class="tile"><div class="tile-name">Protocol Engine</div><div class="tile-meta">54 orchestrators &middot; async fan-out</div></div>
+        <div class="tile"><div class="tile-name">ServerAgent</div><div class="tile-meta">production &middot; direct API + tools</div></div>
+        <div class="tile"><div class="tile-name">SdkAgent</div><div class="tile-meta">CLI &middot; Claude Agent SDK subprocess</div></div>
+        <div class="tile"><div class="tile-name">Synthesis Agent</div><div class="tile-meta">collapses multi-agent output</div></div>
+        <div class="tile"><div class="tile-name">Mode Dispatcher</div><div class="tile-meta">production vs research</div></div>
+        <div class="tile"><div class="tile-name">Resolver</div><div class="tile-meta">safety rails + cost tier check</div></div>
+        <div class="tile"><div class="tile-name">Plan Mode</div><div class="tile-meta">approve before execute</div></div>
+      </div>
+
+      <!-- C-SUITE ORG CHART -->
+      <div class="org">
+        <div class="org-header">
+          <div class="org-title">C-Suite Org Chart</div>
+          <div class="org-sub">7 executives &middot; 30+ direct reports &middot; mirrors how real companies decide</div>
+        </div>
+        <div class="ceo-row">
+          <div class="ceo-card">CEO</div>
+        </div>
+        <div class="exec-row">
+          <div class="exec">
+            <div class="exec-title">CFO</div>
+            <div class="exec-name">Chief Financial Officer</div>
+            <div class="reports">
+              <div class="report">cash-flow-forecaster</div>
+              <div class="report">client-profitability</div>
+              <div class="report">pricing-strategist</div>
+              <div class="report-count">3 reports</div>
+            </div>
+          </div>
+          <div class="exec">
+            <div class="exec-title">CTO</div>
+            <div class="exec-name">Chief Technology Officer</div>
+            <div class="reports">
+              <div class="report">ai-systems-designer</div>
+              <div class="report">audit-architect</div>
+              <div class="report">internal-platform</div>
+              <div class="report-count">3 reports</div>
+            </div>
+          </div>
+          <div class="exec">
+            <div class="exec-title">CMO</div>
+            <div class="exec-name">Chief Marketing Officer</div>
+            <div class="reports">
+              <div class="report">brand-designer</div>
+              <div class="report">linkedin-ghostwriter</div>
+              <div class="report">thought-leadership</div>
+              <div class="report-count">6 reports</div>
+            </div>
+          </div>
+          <div class="exec">
+            <div class="exec-title">COO</div>
+            <div class="exec-name">Chief Operating Officer</div>
+            <div class="reports">
+              <div class="report">bench-coordinator</div>
+              <div class="report">engagement-manager</div>
+              <div class="report">process-builder</div>
+              <div class="report-count">3 reports</div>
+            </div>
+          </div>
+          <div class="exec">
+            <div class="exec-title">CPO</div>
+            <div class="exec-name">Chief Product Officer</div>
+            <div class="reports">
+              <div class="report">client-insights</div>
+              <div class="report">deliverable-designer</div>
+              <div class="report">service-designer</div>
+              <div class="report-count">3 reports</div>
+            </div>
+          </div>
+          <div class="exec">
+            <div class="exec-title">CRO</div>
+            <div class="exec-name">Chief Revenue Officer</div>
+            <div class="reports">
+              <div class="report">vp-sales · vp-success</div>
+              <div class="report">vp-revops · vp-partnerships</div>
+              <div class="report">+ 20 GTM specialists</div>
+              <div class="report-count">24 reports</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="down">&darr;</div>
+
+    <!-- LAYER 7: EXECUTION -->
+    <div class="layer l-execute">
+      <div class="layer-head">
+        <div class="layer-title">
+          <div class="layer-icon">&#128640;</div>
+          <div>
+            <div class="layer-name">Execution Layer</div>
+            <div class="layer-sub">Six production surfaces that ship work to clients</div>
+          </div>
+        </div>
+        <div class="layer-tag">Action</div>
+      </div>
+      <div class="grid">
+        <div class="tile"><div class="tile-name">FastAPI + SSE</div><div class="tile-meta">streaming run progress</div></div>
+        <div class="tile"><div class="tile-name">React Web UI</div><div class="tile-meta">live transcripts + reports</div></div>
+        <div class="tile"><div class="tile-name">csuite CLI</div><div class="tile-meta">ceo / cfo / synthesize / debate</div></div>
+        <div class="tile"><div class="tile-name">PDF Reports</div><div class="tile-meta">WeasyPrint &middot; client deliverables</div></div>
+        <div class="tile"><div class="tile-name">CE-Evals Harness</div><div class="tile-meta">multi-judge rubric runs</div></div>
+        <div class="tile"><div class="tile-name">n8n Workflows</div><div class="tile-meta">scheduled automations</div></div>
+        <div class="tile"><div class="tile-name">Webhooks &amp; Bots</div><div class="tile-meta">Slack &middot; Telegram &middot; iMessage</div></div>
+        <div class="tile"><div class="tile-name">Railway Production</div><div class="tile-meta">live container + Postgres addon</div></div>
+      </div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="feedback">
+      <span class="feedback-ic">&#8635;</span>
+      <span><strong>Compounding Loop.</strong> Execution writes traces, outputs, costs, eval scores, and corrections back into the Data Layer. Memory absorbs them. Methodology updates. Next run sees more context, picks the right protocol, costs less, scores higher. <strong>The system gets smarter every cycle.</strong></span>
+    </div>
+
+    <!-- INTEGRATIONS -->
+    <div class="integrations">
+      <div class="integrations-title">External Integrations &mdash; where the nervous system reaches the world</div>
+      <div class="integrations-list">
+        <span class="pill">Anthropic</span>
+        <span class="pill">OpenAI</span>
+        <span class="pill">Google AI</span>
+        <span class="pill">Pinecone</span>
+        <span class="pill">Notion</span>
+        <span class="pill">Granola</span>
+        <span class="pill">Slack</span>
+        <span class="pill">Gmail</span>
+        <span class="pill">Google Calendar</span>
+        <span class="pill">Google Drive</span>
+        <span class="pill">HubSpot</span>
+        <span class="pill">Stripe</span>
+        <span class="pill">QuickBooks</span>
+        <span class="pill">Langfuse</span>
+        <span class="pill">Postgres</span>
+        <span class="pill">GitHub</span>
+        <span class="pill">Railway</span>
+        <span class="pill">Vercel</span>
+        <span class="pill">Figma</span>
+        <span class="pill">Firebase</span>
+        <span class="pill">Clay</span>
+        <span class="pill">Context7</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Built on Claude Agent SDK<span class="dot">&middot;</span>Anthropic API<span class="dot">&middot;</span>Pinecone<span class="dot">&middot;</span>Postgres<span class="dot">&middot;</span>Langfuse<span class="dot">&middot;</span>Python 3.11+<span class="dot">&middot;</span>FastAPI<span class="dot">&middot;</span>React<span class="dot">&middot;</span>Railway
+  </div>
+
+</div>
+</body>
+</html>
