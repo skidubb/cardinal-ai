@@ -122,8 +122,68 @@ export async function fetchAgents(): Promise<Agent[]> {
 
 // ---- Knowledge graph stats (the fuel layer, not the front door) ----
 
-export type GraphStats = Record<string, number>;
+export type GraphStatsResponse = {
+  tenant_slug: string;
+  graph_name: string;
+  total_nodes: number;
+  counts: Record<string, number>;
+  all_labels: Record<string, number>;
+};
 
-export async function fetchGraphStats(): Promise<GraphStats> {
-  return authedFetch<GraphStats>("/api/graph/stats");
+export async function fetchGraphStats(): Promise<GraphStatsResponse> {
+  return authedFetch<GraphStatsResponse>("/api/graph/stats");
+}
+
+// ---- Usage (per-tenant cost + run totals) ----
+
+export type Usage = {
+  tenant_slug: string;
+  total_runs: number;
+  total_cost_usd: number;
+  last_run_at: string | null;
+  by_status: Record<string, { count: number; cost_usd: number }>;
+  completed_runs: number;
+  completed_cost_usd: number;
+};
+
+export async function fetchUsage(): Promise<Usage> {
+  return authedFetch<Usage>("/api/usage");
+}
+
+// ---- Connectors ----
+
+export type ConnectorMode = "direct_api" | "mcp_driven";
+
+export type ConnectorStatus = {
+  name: string;
+  mode: ConnectorMode;
+  enabled: boolean;
+  auth: string;
+  notes?: string | null;
+};
+
+export async function fetchConnectorsStatus(): Promise<{
+  tenant_slug: string;
+  connectors: ConnectorStatus[];
+}> {
+  return authedFetch("/api/connectors/status");
+}
+
+export type BackfillResponse = {
+  mode: "direct_api" | "mcp_runbook";
+  connector: string;
+  tenant_slug: string;
+  status: "queued" | "runbook_only";
+  message: string;
+  runbook?: string | null;
+};
+
+export async function startConnectorBackfill(
+  connector: string,
+  opts: { since?: string; limit?: number; dry_run?: boolean } = {},
+): Promise<BackfillResponse> {
+  return authedFetch("/api/connectors/start", {
+    method: "POST",
+    body: JSON.stringify({ connector, ...opts }),
+  });
 }

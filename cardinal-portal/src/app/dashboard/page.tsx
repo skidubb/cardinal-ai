@@ -1,22 +1,24 @@
 import { auth } from "@clerk/nextjs/server";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { fetchRuns, fetchProtocols, fetchAgents, type Run } from "@/lib/api";
+import { fetchRuns, fetchProtocols, fetchAgents, fetchUsage, fetchGraphStats, type Run } from "@/lib/api";
 
 export default async function DashboardPage() {
   const { orgSlug, orgRole, sessionClaims } = await auth();
 
-  // Fan out the canonical product calls. Each one is independently fail-soft
-  // so a missing endpoint on Railway doesn't blank the whole page during M0/M1.
-  const [runsResult, protocolsResult, agentsResult] = await Promise.allSettled([
+  const [runsResult, protocolsResult, agentsResult, usageResult, graphResult] = await Promise.allSettled([
     fetchRuns(10),
     fetchProtocols(),
     fetchAgents(),
+    fetchUsage(),
+    fetchGraphStats(),
   ]);
 
   const runs: Run[] = runsResult.status === "fulfilled" ? runsResult.value : [];
   const protocolCount = protocolsResult.status === "fulfilled" ? protocolsResult.value.length : null;
   const agentCount = agentsResult.status === "fulfilled" ? agentsResult.value.length : null;
+  const usage = usageResult.status === "fulfilled" ? usageResult.value : null;
+  const graph = graphResult.status === "fulfilled" ? graphResult.value : null;
   const apiError =
     runsResult.status === "rejected" ? String(runsResult.reason).slice(0, 200) : null;
 
@@ -72,17 +74,29 @@ export default async function DashboardPage() {
           <Link href="/c-suite" className="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-900 transition">
             Your C-Suite
           </Link>
+          <Link href="/knowledge" className="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-900 transition">
+            Knowledge
+          </Link>
         </nav>
 
-        {/* Stat row -- the system, not the graph */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Protocols available" value={protocolCount ?? "—"} hint="research-backed methodologies" />
-          <Stat label="Agent roles" value={agentCount ?? "—"} hint="C-Suite + functional reports" />
-          <Stat label="Runs to date" value={runs.length} hint="this tenant" />
+        {/* Stat row -- protocols, agents, runs, cost, graph size */}
+        <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Stat label="Protocols" value={protocolCount ?? "—"} hint="research-backed methodologies" />
+          <Stat label="Agent roles" value={agentCount ?? "—"} hint="C-Suite + functional" />
           <Stat
-            label="Active engagements"
-            value={runs.filter((r) => r.status === "running").length}
-            hint="currently executing"
+            label="Runs to date"
+            value={usage?.total_runs ?? runs.length}
+            hint={usage?.last_run_at ? `last ${new Date(usage.last_run_at).toLocaleDateString()}` : "this tenant"}
+          />
+          <Stat
+            label="Cost to date"
+            value={usage?.total_cost_usd != null ? `$${usage.total_cost_usd.toFixed(4)}` : "—"}
+            hint={usage?.completed_runs != null ? `${usage.completed_runs} completed` : "this tenant"}
+          />
+          <Stat
+            label="Graph nodes"
+            value={graph?.total_nodes ?? "—"}
+            hint={graph?.graph_name ? graph.graph_name : "fuel layer"}
           />
         </section>
 
