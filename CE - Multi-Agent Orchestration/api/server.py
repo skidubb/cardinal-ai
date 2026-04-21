@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.database import create_db_and_tables
-from api.routers import agents, integrations, knowledge, pipelines, protocols, reports, router as adaptive_router, runs, teams
+from api.routers import agents, auth as auth_router, integrations, knowledge, pipelines, protocols, reports, router as adaptive_router, runs, teams
 from api.routers.agents import tools_router
 
 find_and_load_dotenv()
@@ -76,6 +76,7 @@ async def auth_middleware(request: Request, call_next):
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 
+app.include_router(auth_router.router)
 app.include_router(tools_router)
 app.include_router(agents.router)
 app.include_router(integrations.router)

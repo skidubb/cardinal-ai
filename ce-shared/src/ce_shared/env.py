@@ -146,6 +146,43 @@ KEY_REGISTRY: dict[str, KeyMeta] = {
         category="storage",
         description="LLM model used by Graphiti for entity extraction (default: claude-haiku-4-5-20251001)",
     ),
+    # ---- Clerk (auth + organizations + billing) ----
+    "CLERK_PUBLISHABLE_KEY": KeyMeta(
+        name="CLERK_PUBLISHABLE_KEY",
+        required_by=["portal"],
+        category="auth",
+        description="Clerk publishable key (pk_test_/pk_live_) -- safe to expose to client",
+    ),
+    "CLERK_SECRET_KEY": KeyMeta(
+        name="CLERK_SECRET_KEY",
+        required_by=["portal", "orchestration"],
+        category="auth",
+        description="Clerk secret key (sk_test_/sk_live_) -- server-side only",
+    ),
+    "CLERK_JWKS_URL": KeyMeta(
+        name="CLERK_JWKS_URL",
+        required_by=["orchestration"],
+        category="auth",
+        description="Clerk JWKS URL for JWT signature verification on Railway (e.g. https://<app>.clerk.accounts.dev/.well-known/jwks.json)",
+    ),
+    "CLERK_WEBHOOK_SECRET": KeyMeta(
+        name="CLERK_WEBHOOK_SECRET",
+        required_by=["orchestration"],
+        category="auth",
+        description="Clerk webhook signing secret (Svix) for verifying webhook payloads",
+    ),
+    "CLERK_JWT_TEMPLATE": KeyMeta(
+        name="CLERK_JWT_TEMPLATE",
+        required_by=["portal"],
+        category="auth",
+        description="Name of the Clerk JWT template used by portal -> Railway (default: ce-railway)",
+    ),
+    "CE_DEV_TENANT": KeyMeta(
+        name="CE_DEV_TENANT",
+        required_by=[],
+        category="auth",
+        description="Optional local-dev tenant slug used by API when no JWT is present. Defaults to 'cardinal-element'.",
+    ),
     # ---- Search ----
     "BRAVE_API_KEY": KeyMeta(
         name="BRAVE_API_KEY",

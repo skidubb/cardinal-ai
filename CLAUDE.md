@@ -14,6 +14,7 @@ Monorepo for Cardinal Element's agentic AI work. Consolidates three previously s
 | `CE - Multi-Agent Orchestration/` | 53 coordination protocols + 56-agent registry + FastAPI web UI | `pip install -r requirements.txt` |
 | `CE - Evals/` | LLM-as-judge evaluation framework (Claude, GPT-4, Gemini backends) | `pip install -e .` (setuptools) |
 | `n8n Workflows/` | n8n automation workflow JSON exports | N/A (imported into n8n) |
+| `cardinal-portal/` | Customer-facing web portal — Next.js 16 + Clerk + shadcn (Vercel) | `cd cardinal-portal && npm install && npm run dev` |
 
 Each project has its own venv. Always activate the project-specific venv before running commands.
 
@@ -91,7 +92,19 @@ Library-only (no CLI). Core in `src/ce_evals/core/` — `judge.py` + `judge_back
 
 - **`ce-shared/`**: Pricing (`MODEL_PRICING`, `cost_for_model()`), env registry (`KEY_REGISTRY`, `find_and_load_dotenv()`). Used by all projects. Single source of truth for model pricing and env var names.
 - **`ce-db/`**: Async SQLAlchemy + asyncpg + Alembic migrations. Postgres schema for runs, traces, costs. Used by Orchestration and optionally Evals.
-- **`ce-graph/`**: Knowledge graph layer (Graphiti + FalkorDB) for shared institutional memory across the C-Suite agents. Provides `Client`, `Engagement`, `Protocol`, `Decision`, `Correction`, `Lesson` entity types with temporal facts and provenance. Cypher query helpers in `queries.py`, semantic search via `GraphClient.search()`. Local FalkorDB via `docker compose up -d` from `ce-graph/`. See `ce-graph/SETUP.md`. Used by Agent Builder + Orchestration for cross-agent shared memory.
+- **`ce-graph/`**: Knowledge graph layer (Graphiti + FalkorDB) for shared institutional memory across the C-Suite agents. Provides `Client`, `Engagement`, `Protocol`, `Decision`, `Correction`, `Lesson` entity types with temporal facts and provenance. Cypher query helpers in `queries.py`, semantic search via `GraphClient.search()`. Local FalkorDB via `docker compose up -d` from `ce-graph/`. **Multi-tenant**: each customer = own FalkorDB graph (6 tenants provisioned: cardinal-element, imagine-wireless, workload, silver-lake-auto, public-safety-wireless, on3). CLI: `cegraph list/status/init/create/drop`. See `ce-graph/SETUP.md` and `ce-graph/ONBOARDING.md`. Used by Agent Builder + Orchestration for cross-agent shared memory.
+
+### Productization stack (Clerk + Railway split)
+
+The customer-facing platform is split into two halves:
+
+- **`cardinal-portal/`** — Next.js 16 + Clerk + shadcn, deployed to Vercel. Owns: auth (sign-in/sign-up/MFA), Organizations (= tenants), Clerk Billing (Stripe subscriptions), customer dashboard, connector setup wizard, query UI, CE admin console. **You don't build:** login forms, billing portal, member management, role UI, JWT issuance — Clerk handles all of it.
+
+- **Railway backend (`CE - Multi-Agent Orchestration/api/`)** — FastAPI engine. Owns: protocol execution, ce-graph queries, ingest workers, per-tenant cost tracking. Validates incoming Clerk JWTs via `api/middleware/clerk_auth.py`, extracts `org_slug` claim → scopes every operation to that tenant's FalkorDB graph + Pinecone namespace.
+
+The two communicate via Clerk-issued JWTs in `Authorization: Bearer <jwt>`. Tenant identity flows: Clerk Organization → `org.slug` → ce-graph tenant slug.
+
+See `/Users/scottewalt/.claude/plans/are-you-currently-relying-imperative-token.md` for the 6-milestone roadmap to first paying customer.
 
 ### Deployment
 
