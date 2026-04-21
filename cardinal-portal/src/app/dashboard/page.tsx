@@ -77,6 +77,9 @@ export default async function DashboardPage() {
           <Link href="/knowledge" className="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-900 transition">
             Knowledge
           </Link>
+          <Link href="/corrections" className="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-900 transition">
+            Corrections
+          </Link>
         </nav>
 
         {/* Stat row -- protocols, agents, runs, cost, graph size */}

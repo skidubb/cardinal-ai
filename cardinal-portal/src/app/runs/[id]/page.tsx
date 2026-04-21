@@ -3,6 +3,7 @@ import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchRun } from "@/lib/api";
+import NewCorrectionForm from "../../corrections/NewCorrectionForm";
 
 type RunDetail = Awaited<ReturnType<typeof fetchRun>> & {
   outputs?: Array<{
@@ -114,6 +115,19 @@ export default async function RunDetailPage({
                   {run.error_message.slice(0, 800)}
                 </div>
               ) : null}
+            </section>
+
+            {/* Correct this run -- writes a Correction node scoped to this decision */}
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm uppercase tracking-wider text-slate-400">
+                  Correct this
+                </h2>
+                <span className="text-[10px] text-slate-500">
+                  Will apply to future runs touching this decision
+                </span>
+              </div>
+              <NewCorrectionForm initialScope="decision" initialTarget={id} compact />
             </section>
 
             {/* Agent outputs */}

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { Agent, Protocol } from "@/lib/api";
+import MemoryBrief from "./MemoryBrief";
 
 type SseEvent = { event: string; data: Record<string, unknown> };
 
@@ -191,6 +192,9 @@ export default function RunForm({
           className="w-full bg-slate-950/60 border border-slate-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-fuchsia-500"
           disabled={running}
         />
+        <div className="mt-3">
+          <MemoryBrief question={question} />
+        </div>
       </section>
 
       <div className="grid md:grid-cols-2 gap-6">

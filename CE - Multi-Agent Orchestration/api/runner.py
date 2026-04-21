@@ -243,6 +243,21 @@ async def run_protocol_stream(
         OrchestratorClass = _load_orchestrator_class(protocol_key)
         agents = build_production_agents(agent_keys)
 
+        # M5: Assemble context from the tenant's knowledge graph + inject as
+        # institutional_memory. Best-effort -- failures don't block the run.
+        try:
+            from protocols.context_assembler import assemble_context
+            _ce_brief = await assemble_context(tenant_slug, question, agent_keys)
+            if _ce_brief:
+                for agent in agents:
+                    if hasattr(agent, "institutional_memory"):
+                        existing = getattr(agent, "institutional_memory", None) or ""
+                        agent.institutional_memory = (
+                            (existing + "\n\n" if existing else "") + _ce_brief
+                        )
+        except Exception:
+            pass
+
         # Protocol learning: classify question + retrieve insights + inject memory
         _learning_categories = ["unclassified"]
         try:
@@ -480,6 +495,19 @@ async def run_protocol_stream(
                     "recoverable": True,
                 }
             )
+
+        # M5: Write a Decision node to the tenant's knowledge graph. This is
+        # what closes the compounding loop -- future runs query these decisions
+        # via context_assembler. Best-effort; never blocks the run.
+        try:
+            from protocols.graph_writer import write_decision
+            try:
+                envelope.run_id = run_id  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            await write_decision(tenant_slug=tenant_slug, envelope=envelope, run_id_source=str(run_id))
+        except Exception:
+            pass
 
         if persist_outcome.telemetry_degraded:
             for warning in persist_outcome.warnings:
