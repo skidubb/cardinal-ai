@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchRun } from "@/lib/api";
 import NewCorrectionForm from "../../corrections/NewCorrectionForm";
+import { DeleteRunButton } from "./DeleteRunButton";
 
 type RunDetail = Awaited<ReturnType<typeof fetchRun>> & {
   outputs?: Array<{
@@ -57,14 +58,17 @@ export default async function RunDetailPage({
               {orgSlug ? <span className="font-mono">{orgSlug}</span> : "(no org)"}
             </p>
           </div>
-          <a
-            href={`${railwayApi}/api/reports/${id}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary"
-          >
-            Download PDF &darr;
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href={`${railwayApi}/api/reports/${id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary"
+            >
+              Download PDF &darr;
+            </a>
+            <DeleteRunButton id={id} />
+          </div>
         </header>
 
         {apiError ? (

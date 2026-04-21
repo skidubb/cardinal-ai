@@ -78,6 +78,24 @@ export async function fetchRun(id: string): Promise<Run & {
   return authedFetch(`/api/runs/${id}`);
 }
 
+export async function deleteRun(id: string | number): Promise<{ deleted: number }> {
+  return authedFetch<{ deleted: number }>(`/api/runs/${id}`, { method: "DELETE" });
+}
+
+export type BulkDeleteResult = {
+  deleted: number;
+  deleted_ids: number[];
+  skipped: number[];
+};
+
+export async function deleteRunsBulk(ids: Array<string | number>): Promise<BulkDeleteResult> {
+  const numericIds = ids.map((id) => Number(id)).filter((n) => Number.isFinite(n));
+  return authedFetch<BulkDeleteResult>("/api/runs/bulk", {
+    method: "DELETE",
+    body: JSON.stringify({ ids: numericIds }),
+  });
+}
+
 // ---- Protocols ----
 
 export type Protocol = {

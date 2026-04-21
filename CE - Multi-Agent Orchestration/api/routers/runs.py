@@ -99,6 +99,47 @@ def list_runs(
     ]
 
 
+class BulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+def _cascade_delete_run(session: Session, run: Run) -> None:
+    for step in session.exec(select(RunStep).where(RunStep.run_id == run.id)).all():
+        session.delete(step)
+    for output in session.exec(select(AgentOutput).where(AgentOutput.run_id == run.id)).all():
+        session.delete(output)
+    session.delete(run)
+
+
+@router.delete("/bulk")
+async def delete_runs_bulk(
+    payload: BulkDeleteRequest,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> dict:
+    """Delete multiple runs by id, scoped to the caller's tenant.
+
+    Silently skips ids that don't exist or belong to another tenant,
+    so the caller can't probe for cross-tenant run ids.
+    """
+    if not payload.ids:
+        return {"deleted": 0, "skipped": []}
+    if len(payload.ids) > 200:
+        raise HTTPException(status_code=400, detail="Maximum 200 ids per bulk delete")
+
+    deleted: list[int] = []
+    skipped: list[int] = []
+    for run_id in payload.ids:
+        run = session.get(Run, run_id)
+        if not run or run.tenant_slug != tenant_slug:
+            skipped.append(run_id)
+            continue
+        _cascade_delete_run(session, run)
+        deleted.append(run_id)
+    session.commit()
+    return {"deleted": len(deleted), "deleted_ids": deleted, "skipped": skipped}
+
+
 @router.delete("/{run_id}")
 async def delete_run(
     run_id: int,
@@ -113,12 +154,7 @@ async def delete_run(
         # Don't leak existence of other-tenant runs -- return 404
         raise HTTPException(status_code=404, detail="Run not found")
 
-    # Delete associated records
-    for step in session.exec(select(RunStep).where(RunStep.run_id == run_id)).all():
-        session.delete(step)
-    for output in session.exec(select(AgentOutput).where(AgentOutput.run_id == run_id)).all():
-        session.delete(output)
-    session.delete(run)
+    _cascade_delete_run(session, run)
     session.commit()
     return {"deleted": run_id}
 
