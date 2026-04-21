@@ -10,7 +10,7 @@ import re
 import json as _json
 import logging
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session
 
@@ -22,6 +22,7 @@ from api.context_pipeline import (
 )
 from api.database import engine
 from api.manifest import get_protocol_manifest
+from api.middleware.clerk_auth import resolve_tenant
 from api.models import Run
 from api.routers.runs import ProtocolRunRequest
 from api.runner import run_protocol_stream
@@ -39,11 +40,18 @@ def list_protocols() -> list[dict]:
 # ── POST /run — declared BEFORE GET /{key}/stages to avoid route conflict ─────
 
 @router.post("/run")
-async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> StreamingResponse:
+async def start_protocol_run(
+    payload: ProtocolRunRequest,
+    request: Request,
+    tenant_slug: str = Depends(resolve_tenant),
+) -> StreamingResponse:
     """Start a protocol run and stream SSE events.
 
     Runs complete server-side regardless of client disconnect. Close the
-    browser tab and the run keeps going — check Run History for results.
+    browser tab and the run keeps going -- check Run History for results.
+
+    The run row is stamped with ``tenant_slug`` derived from the caller's
+    Clerk JWT (or the configured fallback for unauthenticated local calls).
     """
     with Session(engine) as session:
         run = Run(
@@ -51,6 +59,7 @@ async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> S
             protocol_key=payload.protocol_key,
             question=payload.question,
             status="pending",
+            tenant_slug=tenant_slug,
         )
         session.add(run)
         session.commit()
@@ -70,6 +79,7 @@ async def start_protocol_run(payload: ProtocolRunRequest, request: Request) -> S
                 orchestration_model=payload.orchestration_model,
                 rounds=payload.rounds,
                 no_tools=payload.no_tools,
+                tenant_slug=tenant_slug,
             ):
                 await event_queue.put(chunk)
         finally:

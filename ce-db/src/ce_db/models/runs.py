@@ -17,9 +17,11 @@ class Run(Base):
         Index("ix_runs_protocol_key", "protocol_key"),
         Index("ix_runs_status", "status"),
         Index("ix_runs_created_at", "created_at"),
+        Index("ix_runs_tenant_slug", "tenant_slug"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_slug: Mapped[str] = mapped_column(String(100), default="cardinal-element", index=True)
     protocol_key: Mapped[str] = mapped_column(String(100))
     question: Mapped[str] = mapped_column(Text)
     agent_keys: Mapped[dict] = mapped_column(JSONB, default=list)

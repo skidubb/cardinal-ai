@@ -217,8 +217,14 @@ async def run_protocol_stream(
     rounds: int | None = None,
     no_tools: bool = False,
     context: "RunContext | None" = None,
+    tenant_slug: str = "cardinal-element",
 ) -> AsyncGenerator[str, None]:
-    """Execute a protocol and yield SSE events."""
+    """Execute a protocol and yield SSE events.
+
+    ``tenant_slug`` is propagated to ``persist_run`` so the Postgres run row
+    is correctly tenant-scoped. Defaults to ``cardinal-element`` for CLI/local
+    callers that don't have an auth context.
+    """
     from api.context_pipeline import RunContext, build_effective_question, cleanup_run_context
 
     yield _sse_event("run_start", {"run_id": run_id, "protocol_key": protocol_key})
@@ -463,6 +469,7 @@ async def run_protocol_stream(
                 source="api",
                 started_at=started_at,
                 envelope=envelope,
+                tenant_slug=tenant_slug,
             )
         except Exception as pg_err:
             persist_outcome.warnings.append(
@@ -546,6 +553,7 @@ async def run_protocol_stream(
                 source="api",
                 started_at=started_at,
                 error=tb_str,
+                tenant_slug=tenant_slug,
             )
             run_warnings.extend(outcome.warnings)
         except Exception as pg_err:

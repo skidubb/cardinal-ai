@@ -19,6 +19,7 @@ from jinja2 import Environment, FileSystemLoader
 from sqlmodel import Session
 
 from api.database import get_session
+from api.middleware.clerk_auth import resolve_tenant
 from api.models import Run
 from api.report_helpers import build_envelope_from_db
 from protocols.protocol_report import from_envelope
@@ -55,9 +56,13 @@ def _prepare_report_for_template(report_dict: dict[str, Any]) -> dict[str, Any]:
     return d
 
 
-def _load_report(run_id: int, session: Session):
+def _load_report(run_id: int, session: Session, tenant_slug: str | None = None):
+    """Load a report. If ``tenant_slug`` is given, also enforce tenant scoping
+    (return 404 rather than 403 to avoid leaking existence)."""
     run = session.get(Run, run_id)
     if not run or run.status != "completed":
+        raise HTTPException(status_code=404, detail="Completed run not found")
+    if tenant_slug is not None and run.tenant_slug != tenant_slug:
         raise HTTPException(status_code=404, detail="Completed run not found")
     envelope = build_envelope_from_db(run, session)
     verdict = json.loads(run.judge_verdict_json) if run.judge_verdict_json and run.judge_verdict_json != "{}" else None
@@ -70,8 +75,12 @@ def _render_report_html(report: dict[str, Any]) -> str:
 
 
 @router.get("/api/reports/{run_id}/pdf")
-async def get_run_pdf(run_id: int, session: Session = Depends(get_session)) -> Response:
-    report = _load_report(run_id, session)
+async def get_run_pdf(
+    run_id: int,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> Response:
+    report = _load_report(run_id, session, tenant_slug=tenant_slug)
     html = _render_report_html(report)
     try:
         import weasyprint

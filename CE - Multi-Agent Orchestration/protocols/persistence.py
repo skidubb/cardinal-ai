@@ -70,8 +70,15 @@ async def persist_run(
     started_at: datetime | None = None,
     error: str | None = None,
     envelope: RunEnvelope | None = None,
+    tenant_slug: str = "cardinal-element",
 ) -> PersistOutcome:
-    """Persist a protocol run to Postgres and return structured outcome info."""
+    """Persist a protocol run to Postgres and return structured outcome info.
+
+    ``tenant_slug`` defaults to ``cardinal-element`` so existing CLI callers
+    continue to work without any code changes (their runs land in CE's own
+    reference tenant). API callers should pass an explicit slug derived from
+    the caller's auth context.
+    """
     outcome = PersistOutcome()
     implicit_tracker_used = False
 
@@ -122,6 +129,7 @@ async def persist_run(
     try:
         async with get_session() as session:
             run = Run(
+                tenant_slug=tenant_slug,
                 protocol_key=envelope.protocol_key,
                 question=envelope.question,
                 agent_keys=envelope.agent_keys,

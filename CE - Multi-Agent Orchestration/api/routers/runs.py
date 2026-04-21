@@ -16,6 +16,7 @@ from sqlmodel import Session, col, select
 from sse_starlette.sse import EventSourceResponse
 
 from api.database import engine, get_session
+from api.middleware.clerk_auth import resolve_tenant
 from api.models import AgentOutput, Run, RunStep
 from api.report_helpers import build_envelope_from_db
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -99,10 +100,17 @@ def list_runs(
 
 
 @router.delete("/{run_id}")
-def delete_run(run_id: int, session: Session = Depends(get_session)) -> dict:
+async def delete_run(
+    run_id: int,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> dict:
     """Delete a run and all its associated data (steps, outputs)."""
     run = session.get(Run, run_id)
     if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.tenant_slug != tenant_slug:
+        # Don't leak existence of other-tenant runs -- return 404
         raise HTTPException(status_code=404, detail="Run not found")
 
     # Delete associated records
@@ -157,10 +165,14 @@ async def _replay_completed_run(run: Run, session: Session) -> AsyncGenerator[st
 
 
 @router.get("/{run_id}/stream")
-async def stream_run(run_id: int, session: Session = Depends(get_session)) -> EventSourceResponse:
+async def stream_run(
+    run_id: int,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> EventSourceResponse:
     """Replay a completed run as SSE events."""
     run = session.get(Run, run_id)
-    if not run:
+    if not run or run.tenant_slug != tenant_slug:
         raise HTTPException(status_code=404, detail="Run not found")
     if run.status not in ("completed", "failed", "cancelled"):
         raise HTTPException(status_code=202, detail="Run still in progress")
@@ -172,9 +184,13 @@ async def stream_run(run_id: int, session: Session = Depends(get_session)) -> Ev
 
 
 @router.get("/{run_id}")
-def get_run(run_id: int, session: Session = Depends(get_session)) -> dict:
+async def get_run(
+    run_id: int,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> dict:
     run = session.get(Run, run_id)
-    if not run:
+    if not run or run.tenant_slug != tenant_slug:
         raise HTTPException(status_code=404, detail="Run not found")
 
     steps = session.exec(
