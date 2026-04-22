@@ -7,11 +7,23 @@ telemetry degradation warnings in-band through ``PersistOutcome``.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
 from protocols.run_envelope import RunEnvelope, build_run_envelope
+
+
+def _default_tenant_slug() -> str:
+    """Return the CLI default tenant, respecting CE_ALLOW_PROD opt-in.
+
+    Resolved at call time (not import time) so late .env loads are honored.
+    Unauth'd CLI runs default to ``local-dev`` unless ``CE_ALLOW_PROD=1``.
+    """
+    if os.environ.get("CE_ALLOW_PROD") == "1":
+        return "cardinal-element"
+    return os.environ.get("CE_DEV_TENANT") or "local-dev"
 
 _log = logging.getLogger(__name__)
 
@@ -70,15 +82,19 @@ async def persist_run(
     started_at: datetime | None = None,
     error: str | None = None,
     envelope: RunEnvelope | None = None,
-    tenant_slug: str = "cardinal-element",
+    tenant_slug: str | None = None,
 ) -> PersistOutcome:
     """Persist a protocol run to Postgres and return structured outcome info.
 
-    ``tenant_slug`` defaults to ``cardinal-element`` so existing CLI callers
-    continue to work without any code changes (their runs land in CE's own
-    reference tenant). API callers should pass an explicit slug derived from
-    the caller's auth context.
+    When ``tenant_slug`` is None (the typical CLI path), it is resolved via
+    ``_default_tenant_slug()`` -- ``local-dev`` by default, ``cardinal-element``
+    only if ``CE_ALLOW_PROD=1`` is set (Railway does; local dev does not).
+    This prevents unauth'd CLI runs from silently writing to production state.
+    API callers always pass an explicit slug derived from the caller's auth
+    context via ``resolve_tenant`` and are unaffected.
     """
+    if tenant_slug is None:
+        tenant_slug = _default_tenant_slug()
     outcome = PersistOutcome()
     implicit_tracker_used = False
 
@@ -144,6 +160,7 @@ async def persist_run(
                 error_message=error[:4000] if error else None,
                 started_at=start or now,
                 completed_at=now,
+                created_at=now,  # Explicit tz-naive; Run model default is tz-aware which collides with TIMESTAMP WITHOUT TIME ZONE column.
             )
             session.add(run)
             await session.flush()
