@@ -15,9 +15,12 @@ import { ProtocolDiagram } from "@/components/run/ProtocolDiagram";
 import { useProtocolStages } from "@/components/run/useProtocolStages";
 import { inferLiveStage } from "@/components/run/liveStageInference";
 import { RouterDecisionCard } from "@/components/run/RouterDecisionCard";
+import { RunHeartbeat } from "@/components/run/RunHeartbeat";
+import { RunActivityLog } from "@/components/run/RunActivityLog";
+import { buildRunTimeline } from "@/components/run/runTimeline";
 import { Markdown } from "@/components/ui/markdown";
 
-type SseEvent = { event: string; data: Record<string, unknown> };
+type SseEvent = { event: string; data: Record<string, unknown>; receivedAt: number };
 
 type AgentTrace = {
   agent_key: string;
@@ -84,6 +87,8 @@ export default function RunForm({
     }
     return inferLiveStage(stagesData.stages, events);
   }, [stagesData, events, mode]);
+
+  const timeline = useMemo(() => buildRunTimeline(events), [events]);
 
   const selectedProtocol = protocols.find((p) => p.key === protocolKey);
 
@@ -265,7 +270,7 @@ export default function RunForm({
           } catch {
             continue;
           }
-          handleEvent({ event: eventName, data });
+          handleEvent({ event: eventName, data, receivedAt: Date.now() });
         }
       }
     } catch (e: unknown) {
@@ -471,6 +476,8 @@ export default function RunForm({
                   initialData={stagesData}
                   activeStageKey={liveStage.activeStageKey}
                   completedStageKeys={liveStage.completedStageKeys}
+                  timeline={running || events.length > 0 ? timeline : null}
+                  agentCount={agentKeys.length}
                 />
               </div>
             ) : null}
@@ -649,8 +656,11 @@ export default function RunForm({
             ) : null}
           </div>
 
+          <RunHeartbeat timeline={timeline} />
+          <RunActivityLog timeline={timeline} />
+
           {Object.values(traces).map((t) => (
-            <details key={t.agent_key} open className="rounded-xl border border-border bg-card">
+            <details key={t.agent_key} className="rounded-xl border border-border bg-card">
               <summary className="flex cursor-pointer items-center justify-between p-3">
                 <span className="font-mono text-sm text-primary">{t.agent_key}</span>
                 <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
@@ -673,13 +683,6 @@ export default function RunForm({
             <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
               <div className="ce-eyebrow mb-2">Synthesis</div>
               <Markdown>{synthesis}</Markdown>
-            </div>
-          ) : null}
-
-          {running ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
-              Running... {events.length} events received
             </div>
           ) : null}
         </section>
