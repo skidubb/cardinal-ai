@@ -15,6 +15,7 @@ import { ProtocolDiagram } from "@/components/run/ProtocolDiagram";
 import { useProtocolStages } from "@/components/run/useProtocolStages";
 import { inferLiveStage } from "@/components/run/liveStageInference";
 import { RouterDecisionCard } from "@/components/run/RouterDecisionCard";
+import { Markdown } from "@/components/ui/markdown";
 
 type SseEvent = { event: string; data: Record<string, unknown> };
 
@@ -659,9 +660,11 @@ export default function RunForm({
                 </span>
               </summary>
               <div className="px-4 pb-4">
-                <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-foreground">
-                  {t.text || <span className="italic text-muted-foreground">(no output yet)</span>}
-                </pre>
+                {t.text ? (
+                  <Markdown className="text-xs">{t.text}</Markdown>
+                ) : (
+                  <span className="italic text-muted-foreground">(no output yet)</span>
+                )}
               </div>
             </details>
           ))}
@@ -669,9 +672,7 @@ export default function RunForm({
           {synthesis ? (
             <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
               <div className="ce-eyebrow mb-2">Synthesis</div>
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
-                {synthesis}
-              </pre>
+              <Markdown>{synthesis}</Markdown>
             </div>
           ) : null}
 

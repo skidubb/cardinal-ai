@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 MAX_TEXT_LEN = 10_000
-MAX_RESULT_STR_LEN = 5_000
+MAX_RESULT_STR_LEN = 50_000  # Per-agent narrative can be long; don't truncate to 5k.
 
 
 def _utc_now() -> datetime:
@@ -324,6 +324,21 @@ def extract_agent_outputs(result: Any, agent_keys: list[str]) -> list[AgentOutpu
             )
         if outputs:
             return outputs
+
+    # Klein Premortem-style: {agent_name: markdown_text} dict under known attrs
+    for attr in ("narratives", "per_agent_outputs", "agent_narratives", "responses_by_agent"):
+        val = getattr(result, attr, None)
+        if isinstance(val, dict) and val:
+            for name, text in val.items():
+                add_once(
+                    AgentOutputEnvelope(
+                        agent_key=name_to_key(str(name), agent_keys),
+                        agent_name=str(name),
+                        text=_trim_text(_value_text(text), MAX_RESULT_STR_LEN),
+                    )
+                )
+            if outputs:
+                return outputs
 
     # Stage-heavy outputs
     if hasattr(result, "stages") and isinstance(result.stages, list):

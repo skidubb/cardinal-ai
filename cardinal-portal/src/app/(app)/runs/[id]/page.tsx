@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { fetchRun } from "@/lib/api";
 import NewCorrectionForm from "../../corrections/NewCorrectionForm";
 import { DeleteRunButton } from "./DeleteRunButton";
+import { Markdown } from "@/components/ui/markdown";
 
 type RunDetail = Awaited<ReturnType<typeof fetchRun>> & {
   outputs?: Array<{
@@ -147,9 +148,7 @@ export default async function RunDetailPage({
                       </span>
                     </summary>
                     <div className="px-5 pb-5 pt-0">
-                      <pre className="whitespace-pre-wrap text-sm text-foreground font-sans leading-relaxed">
-                        {o.output_text}
-                      </pre>
+                      <Markdown>{o.output_text}</Markdown>
                     </div>
                   </details>
                 ))}
