@@ -270,7 +270,7 @@ class ServerAgent:
             "max_tokens": 16_384,
             "system": system_prompt,
             "messages": messages,
-            "thinking": {"type": "adaptive", "budget_tokens": 10_000},
+            "thinking": {"type": "adaptive"},
         }
         if tools:
             create_kwargs["tools"] = tools

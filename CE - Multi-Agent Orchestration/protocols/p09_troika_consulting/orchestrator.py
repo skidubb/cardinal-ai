@@ -83,7 +83,6 @@ class TroikaOrchestrator:
             max_tokens=16_000,
             thinking={
                 "type": "adaptive",
-                "budget_tokens": self.thinking_budget,
             },
             system=agent.system_prompt,
             messages=[
@@ -180,7 +179,6 @@ class TroikaOrchestrator:
             max_tokens=16_000,
             thinking={
                 "type": "adaptive",
-                "budget_tokens": self.thinking_budget,
             },
             system=agent.system_prompt,
             messages=[
@@ -299,7 +297,6 @@ class TroikaOrchestrator:
                     max_tokens=16_000,
                     thinking={
                         "type": "adaptive",
-                        "budget_tokens": self.thinking_budget,
                     },
                     messages=[
                         {"role": "user", "content": FINAL_SYNTHESIS_PROMPT.format(

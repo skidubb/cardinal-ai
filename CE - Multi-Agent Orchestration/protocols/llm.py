@@ -361,8 +361,10 @@ async def _agent_complete_inner(
         }
 
         if _is_anthropic_model(agent_model) and thinking_budget > 0:
-            # Claude 4.x uses adaptive thinking; "enabled" is legacy and 400s.
-            kwargs["thinking"] = {"type": "adaptive", "budget_tokens": thinking_budget}
+            # Claude 4.x uses adaptive thinking. budget_tokens is rejected
+            # by the API in adaptive mode — use output_config.effort to
+            # control depth instead (model picks budget per-turn).
+            kwargs["thinking"] = {"type": "adaptive"}
 
         if not effective_no_tools and tools:
             kwargs["tools"] = tools
@@ -400,8 +402,8 @@ async def _agent_complete_inner(
         "messages": messages,
     }
     if thinking_budget > 0:
-        # Claude 4.x uses adaptive thinking; "enabled" is legacy and 400s.
-        create_kwargs["thinking"] = {"type": "adaptive", "budget_tokens": thinking_budget}
+        # Claude 4.x adaptive mode rejects budget_tokens.
+        create_kwargs["thinking"] = {"type": "adaptive"}
     else:
         create_kwargs["thinking"] = {"type": "disabled"}
     if effective_tools:

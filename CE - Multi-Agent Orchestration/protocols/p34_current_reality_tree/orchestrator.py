@@ -116,7 +116,7 @@ class CRTOrchestrator:
                 self.client,
                 model=self.thinking_model,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
+                thinking={"type": "adaptive"},
                 system=agent["system_prompt"],
                 messages=messages,
                 agent_name=agent["name"],
@@ -136,7 +136,7 @@ class CRTOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": CAUSAL_CHAIN_PROMPT.format(
@@ -153,7 +153,7 @@ class CRTOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": LOGIC_AUDIT_PROMPT.format(
@@ -172,7 +172,7 @@ class CRTOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "adaptive", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": SYNTHESIS_PROMPT.format(
