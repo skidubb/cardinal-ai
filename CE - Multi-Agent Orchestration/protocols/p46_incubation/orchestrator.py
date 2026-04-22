@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, filter_exceptions
+from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -121,16 +121,15 @@ class IncubationOrchestrator:
         prompt = ANALYSIS_PROMPT.format(question=question)
 
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "adaptive"},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent.get("name"),
             )
-            return extract_text(response)
+            return response
 
         _results = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
@@ -153,7 +152,7 @@ class IncubationOrchestrator:
             }],
             agent_name="compression",
         )
-        return extract_text(response).strip()
+        return response.strip()
 
     async def _free_associate(self, tension: str) -> str:
         """Phase 3: Clean agent free-associates with no context. Temperature=1.0."""
@@ -168,7 +167,7 @@ class IncubationOrchestrator:
             }],
             agent_name="free_association",
         )
-        return extract_text(response)
+        return response
 
     async def _evaluate(
         self, question: str, tension: str, associations: str, analyses: str
@@ -190,6 +189,6 @@ class IncubationOrchestrator:
             }],
             agent_name="evaluation",
         )
-        return extract_text(response)
+        return response
 
 

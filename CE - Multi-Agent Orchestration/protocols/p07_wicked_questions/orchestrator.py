@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL, BALANCED_MODEL
-from protocols.llm import extract_text, llm_complete, parse_json_array, filter_exceptions
+from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete, parse_json_array
 
 from .prompts import (
     RANKING_PROMPT,
@@ -148,15 +148,15 @@ class WickedQuestionsOrchestrator:
         prompt = TENSION_GENERATION_PROMPT.format(question=topic)
 
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=2048,
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return extract_text(response)
+            return response
 
         _results = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
@@ -180,7 +180,7 @@ class WickedQuestionsOrchestrator:
             }],
             agent_name="wickedness_test",
         )
-        text = extract_text(response)
+        text = response
         return parse_json_array(text)
 
     async def _rank(self, wicked_questions: str) -> list[dict]:
@@ -195,7 +195,7 @@ class WickedQuestionsOrchestrator:
             }],
             agent_name="ranking",
         )
-        return parse_json_array(extract_text(response))
+        return parse_json_array(response)
 
     async def _synthesize(self, topic: str, ranked: list[dict]) -> str:
         """Stage 4: Produce final strategic briefing."""
@@ -212,7 +212,7 @@ class WickedQuestionsOrchestrator:
             }],
             agent_name="synthesis",
         )
-        return extract_text(response)
+        return response
 
 
 

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, filter_exceptions
+from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -60,18 +60,15 @@ class WhatSoWhatNowWhatOrchestrator:
 
     async def _think(self, agent: dict[str, str], prompt: str) -> str:
         """Call thinking model with extended thinking for an agent."""
-        response = await llm_complete(
-            self.client,
-            model=self.thinking_model,
+        response = await agent_complete(
+            agent,
+            fallback_model=self.thinking_model,
+            anthropic_client=self.client,
+            thinking_budget=self.thinking_budget,
             max_tokens=16_000,
-            thinking={
-                "type": "adaptive",
-            },
-            system=agent["system_prompt"],
             messages=[{"role": "user", "content": prompt}],
-            agent_name=agent["name"],
         )
-        return extract_text(response)
+        return response
 
     async def _orchestrate(self, prompt: str, stage_label: str = "consolidation") -> str:
         """Call orchestration model (Haiku) for consolidation."""
@@ -82,7 +79,7 @@ class WhatSoWhatNowWhatOrchestrator:
             messages=[{"role": "user", "content": prompt}],
             agent_name=stage_label,
         )
-        return extract_text(response)
+        return response
 
     def _count(self, calls: dict[str, int], model: str, n: int = 1) -> None:
         calls[model] = calls.get(model, 0) + n
@@ -241,7 +238,7 @@ class WhatSoWhatNowWhatOrchestrator:
                 ],
                 agent_name="final_synthesis",
             )
-            final_synthesis = extract_text(response)
+            final_synthesis = response
             self._count(model_calls, self.thinking_model)
             end_span(span, output="final synthesis completed")
         except Exception:

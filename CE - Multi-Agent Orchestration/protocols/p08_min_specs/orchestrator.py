@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -198,18 +198,15 @@ class MinSpecsOrchestrator:
                 agent_name=agent["name"],
                 system_prompt=agent["system_prompt"],
             )
-            resp = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            resp = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={
-                    "type": "adaptive",
-                },
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            parsed = parse_json_object(extract_text(resp))
+            parsed = parse_json_object(resp)
             return parsed.get("specs", [])
 
         results = await asyncio.gather(*[_one(a) for a in self.agents], return_exceptions=True)

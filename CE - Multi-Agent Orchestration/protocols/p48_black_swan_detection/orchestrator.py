@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, filter_exceptions, parse_json_array
+from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete, parse_json_array
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -145,16 +145,15 @@ class BlackSwanOrchestrator:
     async def _parallel_agents(self, prompt: str) -> list[str]:
         """Run prompt across all agents in parallel using thinking model."""
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "adaptive"},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent.get("name"),
             )
-            return extract_text(response)
+            return response
 
         responses = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
@@ -174,7 +173,7 @@ class BlackSwanOrchestrator:
             }],
             agent_name="confluence_extraction",
         )
-        return parse_json_array(extract_text(response))
+        return parse_json_array(response)
 
     async def _synthesize(
         self,
@@ -202,7 +201,7 @@ class BlackSwanOrchestrator:
             }],
             agent_name="adversarial_memo",
         )
-        return extract_text(response)
+        return response
 
     def _combine(self, responses: list[str]) -> str:
         """Combine per-agent responses with agent name headers."""

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_object, filter_exceptions
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -111,17 +111,18 @@ class PreMortemOrchestrator:
             question=question, time_horizon=time_horizon
         )
 
-        async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+        async def query_agent(agent) -> str:
+            # agent_complete flows through ServerAgent.chat() which resolves
+            # per-role tools and runs the Anthropic tool-use loop. Produces
+            # evidence-grounded narratives instead of pure parametric reasoning.
+            return await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "adaptive"},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return extract_text(response)
 
         _results = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -139,16 +139,15 @@ class AbductionOrchestrator:
         prompt = ABDUCTION_PROMPT.format(anomaly=anomaly)
 
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "adaptive"},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return extract_text(response)
+            return response
 
         responses = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
@@ -165,16 +164,15 @@ class AbductionOrchestrator:
         prompt = DEDUCTION_PROMPT.format(anomaly=anomaly, hypotheses=hypotheses)
 
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "adaptive"},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return extract_text(response)
+            return response
 
         responses = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
@@ -193,16 +191,15 @@ class AbductionOrchestrator:
         )
 
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "adaptive"},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return extract_text(response)
+            return response
 
         responses = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
@@ -228,7 +225,7 @@ class AbductionOrchestrator:
             }],
             agent_name="loop_decision",
         )
-        return parse_json_object(extract_text(response))
+        return parse_json_object(response)
 
     async def _synthesize(self, question: str, cycles: list[dict]) -> str:
         """Produce final briefing across all cycles."""
@@ -246,7 +243,7 @@ class AbductionOrchestrator:
             }],
             agent_name="synthesis",
         )
-        return extract_text(response)
+        return response
 
 
 
