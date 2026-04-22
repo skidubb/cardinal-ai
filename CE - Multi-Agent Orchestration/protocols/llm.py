@@ -235,6 +235,21 @@ def _is_anthropic_model(model: str) -> bool:
     return model.startswith("anthropic/") or "claude" in model.lower()
 
 
+def _model_accepts_temperature(model: str) -> bool:
+    """Claude 4.x deprecated the temperature parameter (API returns 400).
+
+    Non-Claude-4 Anthropic models and non-Anthropic models still accept it.
+    """
+    if not model:
+        return True
+    low = model.lower()
+    return not (
+        "claude-opus-4" in low
+        or "claude-sonnet-4" in low
+        or "claude-haiku-4" in low
+    )
+
+
 async def agent_complete(
     agent: dict,
     fallback_model: str,
@@ -346,6 +361,26 @@ async def _agent_complete_inner(
     effective_no_tools = no_tools or _no_tools.get()
     system_prompt = system or agent.get("system_prompt", "")
     agent_model = agent.get("model")
+    agent_temperature = agent.get("temperature")
+    # Extended thinking requires temperature=1.0 (API default). Treat a
+    # non-default temperature as an explicit opt-out of extended thinking —
+    # but only on models that still accept the temperature parameter. Claude
+    # 4.x rejects temperature with HTTP 400, so we silently ignore it there.
+    target_model = agent_model or fallback_model
+    custom_temperature = (
+        agent_temperature is not None
+        and float(agent_temperature) != 1.0
+        and _model_accepts_temperature(target_model)
+    )
+    if (
+        agent_temperature is not None
+        and float(agent_temperature) != 1.0
+        and not _model_accepts_temperature(target_model)
+    ):
+        _log.warning(
+            "agent %s: temperature=%s ignored — model %s does not accept temperature",
+            agent.get("name", "unknown"), agent_temperature, target_model,
+        )
 
     if agent_model:
         # LiteLLM path — agent owns its model
@@ -360,11 +395,14 @@ async def _agent_complete_inner(
             "max_tokens": max_tokens,
         }
 
-        if _is_anthropic_model(agent_model) and thinking_budget > 0:
+        if _is_anthropic_model(agent_model) and thinking_budget > 0 and not custom_temperature:
             # Claude 4.x uses adaptive thinking. budget_tokens is rejected
             # by the API in adaptive mode — use output_config.effort to
             # control depth instead (model picks budget per-turn).
             kwargs["thinking"] = {"type": "adaptive"}
+
+        if custom_temperature:
+            kwargs["temperature"] = float(agent_temperature)
 
         if not effective_no_tools and tools:
             kwargs["tools"] = tools
@@ -401,11 +439,13 @@ async def _agent_complete_inner(
         "system": system_prompt,
         "messages": messages,
     }
-    if thinking_budget > 0:
+    if thinking_budget > 0 and not custom_temperature:
         # Claude 4.x adaptive mode rejects budget_tokens.
         create_kwargs["thinking"] = {"type": "adaptive"}
     else:
         create_kwargs["thinking"] = {"type": "disabled"}
+    if custom_temperature:
+        create_kwargs["temperature"] = float(agent_temperature)
     if effective_tools:
         create_kwargs["tools"] = effective_tools
 
@@ -533,7 +573,11 @@ def gather_with_exceptions(*coros_or_futures):
 
 
 def filter_exceptions(results: list, label: str = "gather") -> list:
-    """Filter exceptions from gather_with_exceptions results, logging warnings."""
+    """Filter exceptions from gather_with_exceptions results, logging warnings.
+
+    DROPS failed entries — callers must NOT rely on positional alignment with
+    the input. For alignment-preserving behavior, use filter_exceptions_aligned().
+    """
     good = []
     for r in results:
         if isinstance(r, BaseException):
@@ -541,6 +585,31 @@ def filter_exceptions(results: list, label: str = "gather") -> list:
         else:
             good.append(r)
     return good
+
+
+def filter_exceptions_aligned(
+    results: list,
+    label: str = "gather",
+    labels: list[str] | None = None,
+) -> list:
+    """Replace exceptions with None, preserving positional alignment.
+
+    Use when downstream code zips the results back against the original input
+    (e.g. the agent list). Keeps list length equal to the input so positional
+    pairing stays correct. Failed items become None — callers must skip them.
+
+    ``labels`` is an optional parallel list (e.g. agent names) used only for
+    log messages so each failure names the agent that died.
+    """
+    aligned: list = []
+    for i, r in enumerate(results):
+        if isinstance(r, BaseException):
+            who = labels[i] if labels and i < len(labels) else f"idx={i}"
+            log.warning("%s: %s failed: %s: %s", label, who, type(r).__name__, r)
+            aligned.append(None)
+        else:
+            aligned.append(r)
+    return aligned
 
 
 def parse_json_array(text: str) -> list:

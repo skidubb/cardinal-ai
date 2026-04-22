@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete
+from protocols.llm import agent_complete, extract_text, filter_exceptions_aligned, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -59,11 +59,17 @@ class CRTOrchestrator:
         span = create_span("stage:surface_udes", {"agent_count": len(self.agents)})
         try:
             raw_udes = await self._surface_udes(question)
-            result.udes = {
-                agent["name"]: raw_udes[i]
-                for i, agent in enumerate(self.agents)
-            }
-            end_span(span, output=f"{len(raw_udes)} UDE sets surfaced")
+            survivors = [
+                (agent, raw)
+                for agent, raw in zip(self.agents, raw_udes)
+                if raw is not None
+            ]
+            if not survivors:
+                raise RuntimeError(
+                    "p34_current_reality_tree: all agents failed during surface_udes"
+                )
+            result.udes = {agent["name"]: raw for agent, raw in survivors}
+            end_span(span, output=f"{len(survivors)}/{len(self.agents)} UDE sets surfaced")
         except Exception:
             end_span(span, error="surface_udes failed")
             raise
@@ -73,8 +79,7 @@ class CRTOrchestrator:
         span = create_span("stage:build_causal_tree", {})
         try:
             all_ude_text = "\n\n".join(
-                f"=== {agent['name']} ===\n{raw}"
-                for agent, raw in zip(self.agents, raw_udes)
+                f"=== {agent['name']} ===\n{raw}" for agent, raw in survivors
             )
             result.causal_tree = await self._build_causal_tree(question, all_ude_text)
             end_span(span, output="causal tree built")
@@ -126,7 +131,11 @@ class CRTOrchestrator:
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        _results = filter_exceptions(_results, label="p34_current_reality_tree")
+        _results = filter_exceptions_aligned(
+            _results,
+            label="p34_current_reality_tree",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return _results
 
     async def _build_causal_tree(self, question: str, all_udes: str) -> str:

@@ -53,6 +53,9 @@ export function AgentForm({ mode, catalog, namespaces, initial }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [category, setCategory] = useState(initial?.category ?? "other");
   const [model, setModel] = useState(initial?.model ?? MODEL_OPTIONS[0].value);
+  const [temperature, setTemperature] = useState<number>(
+    typeof initial?.temperature === "number" ? initial.temperature : 1.0,
+  );
   const [systemPrompt, setSystemPrompt] = useState(initial?.system_prompt ?? "");
   const [personality, setPersonality] = useState(initial?.personality ?? "");
   const [tools, setTools] = useState<string[]>(initial?.tools ?? []);
@@ -120,6 +123,7 @@ export function AgentForm({ mode, catalog, namespaces, initial }: Props) {
       name: name.trim(),
       category,
       model,
+      temperature,
       system_prompt: systemPrompt,
       personality,
       tools,
@@ -219,6 +223,25 @@ export function AgentForm({ mode, catalog, namespaces, initial }: Props) {
             </select>
           </Field>
         </div>
+        <Field
+          label={`Temperature · ${temperature.toFixed(1)}`}
+          hint="0.0 = deterministic, 1.0 = default (uses extended thinking), 2.0 = maximum variance. Custom values disable extended thinking."
+        >
+          <input
+            type="range"
+            min={0}
+            max={2}
+            step={0.1}
+            value={temperature}
+            onChange={(e) => setTemperature(Number(e.target.value))}
+            className="w-full accent-[rgb(var(--ce-indigo-500))]"
+          />
+          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+            <span>0.0</span>
+            <span>1.0 (default)</span>
+            <span>2.0</span>
+          </div>
+        </Field>
       </section>
 
       {/* System prompt */}

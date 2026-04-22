@@ -6,13 +6,16 @@ and get back a list of questions pre-mapped to the best-fit protocol.
 
 from __future__ import annotations
 
+import html as _html_lib
 import json
 import logging
+import re
 from io import BytesIO
 from typing import Literal
 
 import anthropic
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+import httpx
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from api.context_pipeline import (
@@ -82,6 +85,97 @@ def _extract_text_from_upload(file_type: str, raw: bytes) -> str:
     )
 
 
+# ── URL ingestion ────────────────────────────────────────────────────────────
+URL_FETCH_TIMEOUT = 20.0
+MAX_URL_BYTES = 10_000_000  # 10 MB per URL
+MAX_URLS = 5
+
+# Block elements whose content is typically chrome, not article text.
+_HTML_STRIP_TAGS = ("script", "style", "nav", "footer", "aside", "header", "form", "svg", "noscript")
+# Block-level elements we want to preserve as paragraph breaks in the output.
+_HTML_BLOCK_TAGS = ("p", "div", "br", "h1", "h2", "h3", "h4", "h5", "h6", "li", "tr", "section", "article")
+_HTML_BLOCK_RE = re.compile(
+    r"</?(?:" + "|".join(_HTML_BLOCK_TAGS) + r")[^>]*>", re.IGNORECASE
+)
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_HTML_WS_RE = re.compile(r"[ \t]+")
+_HTML_NEWLINES_RE = re.compile(r"\n\s*\n\s*")
+
+
+def _extract_text_from_html(raw: str) -> str:
+    """Strip HTML to readable text using stdlib only.
+
+    Good enough for Claude to reason over — not trying to replicate
+    trafilatura-quality extraction. Removes scripts, styles, and common
+    chrome; preserves paragraph breaks so structure survives.
+    """
+    cleaned = raw
+    for tag in _HTML_STRIP_TAGS:
+        cleaned = re.sub(
+            rf"<{tag}\b[^>]*>.*?</{tag}>",
+            " ",
+            cleaned,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+    cleaned = _HTML_BLOCK_RE.sub("\n", cleaned)
+    cleaned = _HTML_TAG_RE.sub(" ", cleaned)
+    cleaned = _html_lib.unescape(cleaned)
+    cleaned = _HTML_WS_RE.sub(" ", cleaned)
+    cleaned = _HTML_NEWLINES_RE.sub("\n\n", cleaned)
+    return cleaned.strip()
+
+
+async def _fetch_url_text(url: str) -> str:
+    """Fetch a URL and return extracted text. Raises HTTPException on failure."""
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise HTTPException(
+            status_code=400,
+            detail=f"URL must start with http:// or https://: {url}",
+        )
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=URL_FETCH_TIMEOUT,
+            headers={"User-Agent": "CE-Discover/1.0 (+Cardinal Element)"},
+        ) as client:
+            resp = await client.get(url)
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to fetch {url}: {type(exc).__name__}: {exc}",
+        ) from exc
+
+    if resp.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=f"URL returned HTTP {resp.status_code}: {url}",
+        )
+
+    raw_bytes = resp.content[:MAX_URL_BYTES]
+    content_type = (resp.headers.get("content-type") or "").lower()
+
+    # PDF URLs
+    if "application/pdf" in content_type or url.lower().split("?", 1)[0].endswith(".pdf"):
+        text = _extract_text_from_pdf(raw_bytes)
+    else:
+        # Treat everything else as text-ish; best-effort decode.
+        try:
+            body = raw_bytes.decode(resp.encoding or "utf-8", errors="replace")
+        except (LookupError, UnicodeDecodeError):
+            body = raw_bytes.decode("utf-8", errors="replace")
+        if "html" in content_type or body.lstrip().lower().startswith(("<!doctype", "<html")):
+            text = _extract_text_from_html(body)
+        else:
+            text = body
+
+    if not text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail=f"No extractable text at URL: {url}",
+        )
+    return text
+
+
 def _token_estimate(text: str) -> int:
     return len(text) // ESTIMATED_CHARS_PER_TOKEN
 
@@ -131,6 +225,28 @@ SEVERITY (pick exactly one):
 high   — core to the decision; wrong answer materially changes the outcome
 medium — shapes execution; wrong answer causes meaningful rework
 low    — worth tracking; not decision-critical alone
+
+CATEGORY → PROTOCOL GUIDANCE (use as strong prior; override only when a
+specific protocol's `when_to_use` clearly fits better):
+- strategic    → p04_multi_round_debate (decisions with opposing valid views)
+- financial    → p39_popper_falsification (testable/falsifiable claim) OR
+                 p32_tetlock_forecast (probabilistic forecast / scenarios)
+- operational  → p13_ecocycle_planning (portfolio-wide lifecycle) OR
+                 p22_sequential_pipeline (stepwise execution work)
+- competitive  → p17_red_blue_white (adversarial pressure-test) OR
+                 p06_triz (inversion / contradiction resolution)
+- legal        → p16_ach (evidence-vs-hypothesis grid)
+- technical    → p34_current_reality_tree (root-cause logic) OR
+                 p06_triz (contradiction / design trade-offs)
+- market       → p32_tetlock_forecast (quantified forecasts) OR
+                 p07_wicked_questions (paradox / tension framing)
+- people       → p09_troika_consulting (advisory facilitation) OR
+                 p10_heard_seen_respected (empathy / listening patterns)
+
+Special cases:
+- Questions with a specific testable claim ("X will hold under Y") → prefer
+  p39_popper_falsification over p32_tetlock_forecast.
+- Questions that are truly bull/bear framings → p04_multi_round_debate wins.
 
 PROTOCOL CATALOG:
 {catalog}
@@ -249,16 +365,28 @@ def _validate_questions(raw: dict, catalog: list[dict]) -> list[DiscoveredQuesti
 
 @router.post("/discover-questions", response_model=DiscoverResult)
 async def discover_questions(
-    files: list[UploadFile] = File(...),
+    files: list[UploadFile] = File(default=[]),
+    urls: list[str] = Form(default=[]),
     tenant_slug: str = Depends(resolve_tenant),
 ) -> DiscoverResult:
-    if not files:
-        raise HTTPException(status_code=400, detail="At least one file is required.")
+    # Filter out empty URL strings coming from the form (e.g. trailing input).
+    cleaned_urls = [u.strip() for u in urls if u and u.strip()]
+
+    if not files and not cleaned_urls:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide at least one file or URL.",
+        )
     if len(files) > 5:
         raise HTTPException(status_code=400, detail="Upload at most 5 files per call.")
+    if len(cleaned_urls) > MAX_URLS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Provide at most {MAX_URLS} URLs per call.",
+        )
 
     total_bytes = 0
-    extracted_blocks: list[tuple[str, str]] = []  # (filename, text)
+    extracted_blocks: list[tuple[str, str]] = []  # (label, text)
     for f in files:
         raw = await f.read()
         total_bytes += len(raw)
@@ -288,14 +416,22 @@ async def discover_questions(
             )
         extracted_blocks.append((filename, text))
 
+    for url in cleaned_urls:
+        url_text = await _fetch_url_text(url)
+        extracted_blocks.append((url, url_text))
+
     combined = "\n\n---\n\n".join(
         f"### {name}\n\n{body}" for name, body in extracted_blocks
     )
-    source_filename = (
-        extracted_blocks[0][0]
-        if len(extracted_blocks) == 1
-        else f"{len(extracted_blocks)} files"
-    )
+    if len(extracted_blocks) == 1:
+        source_filename = extracted_blocks[0][0]
+    else:
+        parts = []
+        if files:
+            parts.append(f"{len(files)} file{'s' if len(files) != 1 else ''}")
+        if cleaned_urls:
+            parts.append(f"{len(cleaned_urls)} URL{'s' if len(cleaned_urls) != 1 else ''}")
+        source_filename = " + ".join(parts)
 
     client = anthropic.AsyncAnthropic()
 

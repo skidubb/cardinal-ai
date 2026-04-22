@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete
+from protocols.llm import agent_complete, extract_text, filter_exceptions_aligned, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -102,9 +102,13 @@ class WhatSoWhatNowWhatOrchestrator:
                 for agent in self.agents
             ]
             what_texts = await asyncio.gather(*what_tasks, return_exceptions=True)
-            what_texts = filter_exceptions(what_texts, label="p15_what_so_what_now_what")
+            what_texts = filter_exceptions_aligned(
+                what_texts,
+                label="p15_what_so_what_now_what",
+                labels=[a.get("name", "?") for a in self.agents],
+            )
             self._count(model_calls, self.thinking_model, len(self.agents))
-            end_span(span, output=f"{len(what_texts)} observations collected")
+            end_span(span, output=f"{sum(1 for t in what_texts if t is not None)}/{len(self.agents)} observations collected")
         except Exception:
             end_span(span, error="what_observations failed")
             raise
@@ -112,7 +116,11 @@ class WhatSoWhatNowWhatOrchestrator:
 
         what_observations: dict[str, str] = {}
         for agent, text in zip(self.agents, what_texts):
+            if text is None:
+                continue
             what_observations[agent["name"]] = text
+        if not what_observations:
+            raise RuntimeError("p15_what_so_what_now_what: all agents failed during WHAT phase")
 
         # --- Phase 2: Consolidate observations (Haiku) ---
         t0 = time.time()
@@ -149,9 +157,13 @@ class WhatSoWhatNowWhatOrchestrator:
                 for agent in self.agents
             ]
             so_what_texts = await asyncio.gather(*so_what_tasks, return_exceptions=True)
-            so_what_texts = filter_exceptions(so_what_texts, label="p15_what_so_what_now_what")
+            so_what_texts = filter_exceptions_aligned(
+                so_what_texts,
+                label="p15_what_so_what_now_what",
+                labels=[a.get("name", "?") for a in self.agents],
+            )
             self._count(model_calls, self.thinking_model, len(self.agents))
-            end_span(span, output=f"{len(so_what_texts)} implications collected")
+            end_span(span, output=f"{sum(1 for t in so_what_texts if t is not None)}/{len(self.agents)} implications collected")
         except Exception:
             end_span(span, error="so_what_implications failed")
             raise
@@ -159,6 +171,8 @@ class WhatSoWhatNowWhatOrchestrator:
 
         so_what_implications: dict[str, str] = {}
         for agent, text in zip(self.agents, so_what_texts):
+            if text is None:
+                continue
             so_what_implications[agent["name"]] = text
 
         # --- Phase 4: Consolidate implications (Haiku) ---
@@ -199,9 +213,13 @@ class WhatSoWhatNowWhatOrchestrator:
                 for agent in self.agents
             ]
             now_what_texts = await asyncio.gather(*now_what_tasks, return_exceptions=True)
-            now_what_texts = filter_exceptions(now_what_texts, label="p15_what_so_what_now_what")
+            now_what_texts = filter_exceptions_aligned(
+                now_what_texts,
+                label="p15_what_so_what_now_what",
+                labels=[a.get("name", "?") for a in self.agents],
+            )
             self._count(model_calls, self.thinking_model, len(self.agents))
-            end_span(span, output=f"{len(now_what_texts)} action plans collected")
+            end_span(span, output=f"{sum(1 for t in now_what_texts if t is not None)}/{len(self.agents)} action plans collected")
         except Exception:
             end_span(span, error="now_what_actions failed")
             raise
@@ -209,6 +227,8 @@ class WhatSoWhatNowWhatOrchestrator:
 
         now_what_actions: dict[str, str] = {}
         for agent, text in zip(self.agents, now_what_texts):
+            if text is None:
+                continue
             now_what_actions[agent["name"]] = text
 
         # --- Phase 6: Final synthesis (Opus) ---

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete
+from protocols.llm import agent_complete, extract_text, filter_exceptions_aligned, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -66,15 +66,22 @@ class IncubationOrchestrator:
             span = create_span("stage:load_problem", {"agent_count": len(self.agents)})
             try:
                 raw_analyses = await self._analyze(question)
+                survivors = [
+                    (agent, text)
+                    for agent, text in zip(self.agents, raw_analyses)
+                    if text is not None
+                ]
+                if not survivors:
+                    raise RuntimeError(
+                        "p46_incubation: all agents failed during problem analysis"
+                    )
                 result.agent_analyses = {
-                    agent["name"]: raw_analyses[i]
-                    for i, agent in enumerate(self.agents)
+                    agent["name"]: text for agent, text in survivors
                 }
                 analyses_text = "\n\n".join(
-                    f"=== {agent['name']} ===\n{text}"
-                    for agent, text in zip(self.agents, raw_analyses)
+                    f"=== {agent['name']} ===\n{text}" for agent, text in survivors
                 )
-                end_span(span, output=f"{len(raw_analyses)} agent analyses")
+                end_span(span, output=f"{len(survivors)}/{len(self.agents)} agent analyses")
             except Exception:
                 end_span(span, error="load_problem failed")
                 raise
@@ -135,7 +142,11 @@ class IncubationOrchestrator:
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        _results = filter_exceptions(_results, label="p46_incubation")
+        _results = filter_exceptions_aligned(
+            _results,
+            label="p46_incubation",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return _results
 
     async def _compress(self, question: str, analyses: str) -> str:

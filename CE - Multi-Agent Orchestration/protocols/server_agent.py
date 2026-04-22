@@ -165,6 +165,21 @@ async def _execute_tool(tool_name: str, tool_input: dict) -> tuple[str, float]:
 MAX_TOOL_ITERATIONS = 15
 
 
+def _model_accepts_temperature(model: str) -> bool:
+    """Claude 4.x deprecated the temperature parameter (API returns 400).
+
+    Other Anthropic models and non-Anthropic models via LiteLLM still accept it.
+    """
+    if not model:
+        return True
+    low = model.lower()
+    return not (
+        "claude-opus-4" in low
+        or "claude-sonnet-4" in low
+        or "claude-haiku-4" in low
+    )
+
+
 class ServerAgent:
     """Production agent for server deployment — direct Anthropic API with tools.
 
@@ -179,9 +194,15 @@ class ServerAgent:
     - Dict-style access for protocol compatibility
     """
 
-    def __init__(self, role: str, model: str = "claude-opus-4-7"):
+    def __init__(
+        self,
+        role: str,
+        model: str = "claude-opus-4-7",
+        temperature: float | None = None,
+    ):
         self.role = role
         self.model = model
+        self.temperature = temperature
         self.name = _get_agent_name(role)
         self.cost = 0.0
         self.input_tokens = 0
@@ -270,8 +291,26 @@ class ServerAgent:
             "max_tokens": 16_384,
             "system": system_prompt,
             "messages": messages,
-            "thinking": {"type": "adaptive"},
         }
+        # Claude 4.x deprecated the temperature parameter entirely and rejects
+        # it with HTTP 400. Extended thinking also requires temperature=1.0 on
+        # models that still accept it. Apply a custom temperature only on
+        # models that support it AND disable thinking in that branch.
+        custom_temp = (
+            self.temperature is not None
+            and float(self.temperature) != 1.0
+            and _model_accepts_temperature(self.model)
+        )
+        if custom_temp:
+            create_kwargs["thinking"] = {"type": "disabled"}
+            create_kwargs["temperature"] = float(self.temperature)
+        else:
+            create_kwargs["thinking"] = {"type": "adaptive"}
+            if self.temperature is not None and float(self.temperature) != 1.0:
+                logger.warning(
+                    "temperature=%s ignored: model %s does not accept temperature",
+                    self.temperature, self.model,
+                )
         if tools:
             create_kwargs["tools"] = tools
 

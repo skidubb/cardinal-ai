@@ -36,7 +36,13 @@ export default async function ProtocolsPage() {
   }
 
   const grouped = groupByCategory(protocols);
-  const categoryNames = Object.keys(grouped).sort();
+  const META_CATEGORY = "Meta-Protocols";
+  const otherCategoryNames = Object.keys(grouped)
+    .filter((c) => c !== META_CATEGORY)
+    .sort();
+  const categoryNames = grouped[META_CATEGORY]
+    ? [META_CATEGORY, ...otherCategoryNames]
+    : otherCategoryNames;
 
   return (
     <div className="mx-auto max-w-6xl px-8 py-10 space-y-6">
@@ -68,37 +74,65 @@ export default async function ProtocolsPage() {
           </div>
         ) : null}
 
-        {categoryNames.map((cat) => (
-          <section key={cat} className="space-y-3">
-            <div className="border-b border-border pb-2">
-              <h2 className="text-base font-bold tracking-tight">
-                {cat} <span className="text-xs text-muted-foreground ml-2">{grouped[cat].length}</span>
-              </h2>
-              {CATEGORY_DESCRIPTIONS[cat] ? (
-                <p className="text-xs text-muted-foreground mt-1">{CATEGORY_DESCRIPTIONS[cat]}</p>
-              ) : null}
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {grouped[cat].map((p) => (
-                <ProtocolCard key={p.key} protocol={p} />
-              ))}
-            </div>
-          </section>
-        ))}
+        {categoryNames.map((cat) => {
+          const isMeta = cat === META_CATEGORY;
+          return (
+            <section key={cat} className="space-y-3">
+              <div className="border-b border-border pb-2">
+                <h2 className="text-base font-bold tracking-tight flex items-center gap-2">
+                  {cat}
+                  <span className="text-xs text-muted-foreground">{grouped[cat].length}</span>
+                  {isMeta ? (
+                    <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-primary/40 text-primary font-mono">
+                      Router
+                    </span>
+                  ) : null}
+                </h2>
+                {CATEGORY_DESCRIPTIONS[cat] ? (
+                  <p className="text-xs text-muted-foreground mt-1">{CATEGORY_DESCRIPTIONS[cat]}</p>
+                ) : null}
+                {isMeta ? (
+                  <p className="text-[11px] text-muted-foreground mt-1 italic">
+                    Infrastructure protocols — invoked automatically via Smart Route on Ask. Not selectable as a standalone run.
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {grouped[cat].map((p) => (
+                  <ProtocolCard key={p.key} protocol={p} isRouter={isMeta} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
     </div>
   );
 }
 
-function ProtocolCard({ protocol }: { protocol: Protocol }) {
+function ProtocolCard({ protocol, isRouter = false }: { protocol: Protocol; isRouter?: boolean }) {
   const code = protocol.protocol_id ?? protocol.code ?? protocol.key.split("_")[0].toUpperCase();
   const tier = protocol.cost_tier;
+  // Router meta-protocols route the user to Smart Route on Ask rather than a
+  // direct run, since they are invoked by the router itself, not selected.
+  const href = isRouter ? "/run?mode=smart" : `/run?protocol=${protocol.key}`;
   return (
     <Link
-      href={`/run?protocol=${protocol.key}`}
-      className="group block rounded-xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/50"
+      href={href}
+      className={`group block rounded-xl border p-4 transition-all duration-300 ${
+        isRouter
+          ? "border-primary/30 bg-primary/5 hover:border-primary/60"
+          : "border-border bg-card hover:border-primary/50"
+      }`}
     >
       <div className="flex items-baseline justify-between mb-1">
-        <span className="font-mono text-xs text-primary">{code}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-xs text-primary">{code}</span>
+          {isRouter ? (
+            <span className="text-[8px] uppercase tracking-wider px-1 py-0.5 rounded bg-primary/20 text-primary font-mono">
+              Internal
+            </span>
+          ) : null}
+        </div>
         {tier ? (
           <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${
             tier === "low" ? "border-[rgb(var(--ce-green-500))]/40 text-[rgb(var(--ce-green-500))]" :
@@ -115,7 +149,11 @@ function ProtocolCard({ protocol }: { protocol: Protocol }) {
       {protocol.description ? (
         <div className="text-xs text-muted-foreground mt-2 line-clamp-2 text-pretty">{protocol.description}</div>
       ) : null}
-      {(protocol.min_agents || protocol.max_agents) ? (
+      {isRouter ? (
+        <div className="text-[10px] text-primary/80 mt-2 italic">
+          Invoked via Smart Route on Ask
+        </div>
+      ) : (protocol.min_agents || protocol.max_agents) ? (
         <div className="text-[10px] text-muted-foreground mt-2 font-mono">
           {protocol.min_agents ?? "?"}-{protocol.max_agents ?? "?"} agents
           {protocol.supports_rounds ? " · multi-round" : ""}

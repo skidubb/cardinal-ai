@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete, parse_json_array, parse_json_object
+from protocols.llm import agent_complete, extract_text, filter_exceptions_aligned, llm_complete, parse_json_array, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 import re
@@ -144,12 +144,17 @@ class FalsificationOrchestrator:
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        raw_outputs = filter_exceptions(raw_outputs, label="p39_popper_falsification")
+        raw_outputs = filter_exceptions_aligned(
+            raw_outputs,
+            label="p39_popper_falsification",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
 
         # Combine all agent outputs and deduplicate via orchestration model
         combined = "\n\n".join(
             f"=== {agent['name']} ===\n{output}"
             for agent, output in zip(self.agents, raw_outputs)
+            if output is not None
         )
         response = await llm_complete(
             self.client,
@@ -219,13 +224,18 @@ class FalsificationOrchestrator:
                 *(query_agent(agent) for agent in self.agents),
                 return_exceptions=True,
             )
-            results = filter_exceptions(results, label="p39_popper_falsification")
+            results = filter_exceptions_aligned(
+                results,
+                label="p39_popper_falsification",
+                labels=[a.get("name", "?") for a in self.agents],
+            )
             condition_dict["evidence_for"] = []
             condition_dict["evidence_against"] = []
             condition_dict["assessment"] = ""
             condition_dict["agent_analyses"] = {
                 agent["name"]: result
                 for agent, result in zip(self.agents, results)
+                if result is not None
             }
 
         await asyncio.gather(*(search_condition(c) for c in conditions), return_exceptions=True)

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete, parse_json_object
+from protocols.llm import agent_complete, extract_text, filter_exceptions_aligned, llm_complete, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -153,10 +153,15 @@ class AbductionOrchestrator:
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        responses = filter_exceptions(responses, label="p36_peirce_abduction")
+        responses = filter_exceptions_aligned(
+            responses,
+            label="p36_peirce_abduction",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return "\n\n".join(
             f"=== {agent['name']} ===\n{resp}"
             for agent, resp in zip(self.agents, responses)
+            if resp is not None
         )
 
     async def _deduction(self, anomaly: str, hypotheses: str) -> str:
@@ -178,10 +183,15 @@ class AbductionOrchestrator:
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        responses = filter_exceptions(responses, label="p36_peirce_abduction")
+        responses = filter_exceptions_aligned(
+            responses,
+            label="p36_peirce_abduction",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return "\n\n".join(
             f"=== {agent['name']} ===\n{resp}"
             for agent, resp in zip(self.agents, responses)
+            if resp is not None
         )
 
     async def _induction(self, anomaly: str, hypotheses: str, predictions: str) -> str:
@@ -205,10 +215,15 @@ class AbductionOrchestrator:
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        responses = filter_exceptions(responses, label="p36_peirce_abduction")
+        responses = filter_exceptions_aligned(
+            responses,
+            label="p36_peirce_abduction",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return "\n\n".join(
             f"=== {agent['name']} ===\n{resp}"
             for agent, resp in zip(self.agents, responses)
+            if resp is not None
         )
 
     async def _loop_decision(self, anomaly: str, evidence_assessment: str) -> dict:

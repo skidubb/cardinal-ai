@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, emit_stage, extract_text, filter_exceptions
+from protocols.llm import agent_complete, emit_stage, extract_text, filter_exceptions_aligned
 from protocols.synthesis import SynthesisEngine
 from protocols.tracing import make_client
 from .prompts import SYNTHESIS_SYSTEM_PROMPT
@@ -78,8 +78,9 @@ class SynthesisOrchestrator:
             result.perspectives = [
                 AgentPerspective(name=agent["name"], response=resp)
                 for agent, resp in zip(self.agents, responses)
+                if resp is not None
             ]
-            end_span(span, output=f"{len(responses)} perspectives")
+            end_span(span, output=f"{len(result.perspectives)}/{len(self.agents)} perspectives")
         except Exception:
             end_span(span, error="parallel_query failed")
             raise
@@ -113,7 +114,11 @@ class SynthesisOrchestrator:
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        _results = filter_exceptions(_results, label="p03_parallel_synthesis")
+        _results = filter_exceptions_aligned(
+            _results,
+            label="p03_parallel_synthesis",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return _results
 
     async def _synthesize(

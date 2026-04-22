@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete, parse_json_array
+from protocols.llm import agent_complete, extract_text, filter_exceptions_aligned, llm_complete, parse_json_array
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -159,7 +159,11 @@ class BlackSwanOrchestrator:
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        return filter_exceptions(responses, label="p48_black_swan_detection")
+        return filter_exceptions_aligned(
+            responses,
+            label="p48_black_swan_detection",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
 
     async def _confluence_extract(self, threshold_scans: str) -> list[dict]:
         """Layer 3: Mechanical confluence extraction using orchestration model."""
@@ -204,8 +208,13 @@ class BlackSwanOrchestrator:
         return response
 
     def _combine(self, responses: list[str]) -> str:
-        """Combine per-agent responses with agent name headers."""
+        """Combine per-agent responses with agent name headers.
+
+        Skips entries that are None (agents that failed), preserving the
+        positional pairing between surviving agents and their outputs.
+        """
         return "\n\n".join(
             f"=== {agent['name']} ===\n{resp}"
             for agent, resp in zip(self.agents, responses)
+            if resp is not None
         )

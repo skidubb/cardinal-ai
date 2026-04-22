@@ -39,6 +39,36 @@ def get_agent_mode() -> str:
     return _agent_mode
 
 
+def _load_db_overrides(keys: list[str]) -> dict[str, dict]:
+    """Load per-agent model/temperature overrides from the Agent table.
+
+    Returns a dict keyed by agent key containing only fields that are set
+    (non-empty model, explicit temperature). Missing keys or DB unavailability
+    resolve to an empty dict so callers fall back to defaults.
+    """
+    try:
+        from sqlmodel import Session, select
+        from api.database import engine
+        from api.models import Agent as AgentModel
+    except Exception:
+        return {}
+
+    overrides: dict[str, dict] = {}
+    try:
+        with Session(engine) as session:
+            stmt = select(AgentModel).where(AgentModel.key.in_(keys))  # type: ignore[attr-defined]
+            rows = list(session.execute(stmt).scalars())
+            for row in rows:
+                entry: dict = {}
+                if row.model:
+                    entry["model"] = row.model
+                entry["temperature"] = row.temperature
+                overrides[row.key] = entry
+    except Exception as exc:
+        logger.debug("DB agent override lookup failed: %s", exc, exc_info=True)
+    return overrides
+
+
 def build_production_agents(keys: list[str], model: str = "claude-opus-4-7") -> list[ServerAgent]:
     """Build production agents using ServerAgent (direct Anthropic API + tools).
 
@@ -47,15 +77,24 @@ def build_production_agents(keys: list[str], model: str = "claude-opus-4-7") -> 
     - Per-role tool schemas with full agentic tool loop
     - Pinecone memory, DuckDB experience logs (graceful degradation)
     - Real token-level cost tracking from API responses
+    - DB-level overrides for model and temperature (when present)
 
     No subprocess spawning — works in Docker, Railway, any server environment.
     """
+    keys_lower = [k.lower() for k in keys]
+    overrides = _load_db_overrides(keys_lower)
+
     agents: list[ServerAgent] = []
 
-    for key in keys:
-        key_lower = key.lower()
-        agent = ServerAgent(role=key_lower, model=model)
+    for key_lower in keys_lower:
+        ov = overrides.get(key_lower, {})
+        agent_model = ov.get("model") or model
+        agent_temp = ov.get("temperature")
+        agent = ServerAgent(role=key_lower, model=agent_model, temperature=agent_temp)
         agents.append(agent)
-        logger.info("Production agent created: %s (%s)", key_lower, agent.name)
+        logger.info(
+            "Production agent created: %s (%s) model=%s temperature=%s",
+            key_lower, agent.name, agent_model, agent_temp,
+        )
 
     return agents

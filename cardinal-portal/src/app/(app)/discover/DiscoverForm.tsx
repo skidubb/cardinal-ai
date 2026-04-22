@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FileText, Link2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 type Severity = "high" | "medium" | "low";
@@ -37,14 +38,45 @@ const SEVERITY_RANK: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
 
 export function DiscoverForm() {
   const [files, setFiles] = useState<File[]>([]);
+  const [urls, setUrls] = useState<string[]>([]);
+  const [urlDraft, setUrlDraft] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DiscoverResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  function addUrl() {
+    const raw = urlDraft.trim();
+    if (!raw) return;
+    let normalized = raw;
+    if (!/^https?:\/\//i.test(normalized)) {
+      normalized = `https://${normalized}`;
+    }
+    try {
+      const u = new URL(normalized);
+      if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("bad-protocol");
+    } catch {
+      setUrlError("Enter a valid http(s) URL.");
+      return;
+    }
+    if (urls.includes(normalized)) {
+      setUrlDraft("");
+      setUrlError(null);
+      return;
+    }
+    if (urls.length >= 5) {
+      setUrlError("Max 5 URLs per call.");
+      return;
+    }
+    setUrls((curr) => [...curr, normalized]);
+    setUrlDraft("");
+    setUrlError(null);
+  }
+
   async function onSubmit() {
-    if (files.length === 0) {
-      setError("Pick at least one file.");
+    if (files.length === 0 && urls.length === 0) {
+      setError("Add at least one file or URL.");
       return;
     }
     setStatus("uploading");
@@ -53,6 +85,7 @@ export function DiscoverForm() {
 
     const fd = new FormData();
     for (const f of files) fd.append("files", f);
+    for (const u of urls) fd.append("urls", u);
 
     try {
       const resp = await fetch("/api/proxy/discover-questions", {
@@ -77,8 +110,14 @@ export function DiscoverForm() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border border-primary/30 bg-primary/5 p-6">
-        <label className="ce-label mb-2 block">Document</label>
+      <section className="rounded-xl border border-primary/30 bg-primary/5 p-6 space-y-4">
+        <div>
+          <label className="ce-label mb-2 block">Source</label>
+          <p className="text-xs text-muted-foreground">
+            Upload PDF, DOCX, TXT, or MD — or paste a URL (article, 10-K filing, blog post, PDF link).
+          </p>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -103,21 +142,56 @@ export function DiscoverForm() {
           <button
             type="button"
             onClick={onSubmit}
-            disabled={status === "uploading" || files.length === 0}
+            disabled={status === "uploading" || (files.length === 0 && urls.length === 0)}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-[rgb(var(--ce-indigo-500))] disabled:opacity-40"
           >
             {status === "uploading" ? "Analyzing…" : "Discover questions"}
           </button>
         </div>
 
-        {files.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1.5">
+        <div>
+          <label className="ce-label mb-1.5 block text-[11px]">Or paste a URL</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="url"
+              value={urlDraft}
+              onChange={(e) => {
+                setUrlDraft(e.target.value);
+                if (urlError) setUrlError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addUrl();
+                }
+              }}
+              disabled={status === "uploading"}
+              placeholder="https://example.com/article"
+              className="min-w-[260px] flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={addUrl}
+              disabled={status === "uploading" || !urlDraft.trim()}
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm transition-colors hover:border-primary/50 disabled:opacity-50"
+            >
+              Add URL
+            </button>
+          </div>
+          {urlError ? (
+            <div className="mt-1 text-[11px] text-destructive">{urlError}</div>
+          ) : null}
+        </div>
+
+        {(files.length > 0 || urls.length > 0) ? (
+          <div className="flex flex-wrap gap-1.5">
             {files.map((f, i) => (
               <span
-                key={`${f.name}-${i}`}
+                key={`file-${f.name}-${i}`}
                 className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[11px] text-primary"
                 title={`${(f.size / 1024).toFixed(1)} KB`}
               >
+                <FileText size={11} />
                 {f.name}
                 <button
                   type="button"
@@ -130,12 +204,31 @@ export function DiscoverForm() {
                 </button>
               </span>
             ))}
+            {urls.map((u, i) => (
+              <span
+                key={`url-${u}-${i}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[11px] text-primary max-w-[420px]"
+                title={u}
+              >
+                <Link2 size={11} className="shrink-0" />
+                <span className="truncate">{u.replace(/^https?:\/\//, "")}</span>
+                <button
+                  type="button"
+                  onClick={() => setUrls((curr) => curr.filter((_, idx) => idx !== i))}
+                  disabled={status === "uploading"}
+                  className="ml-1 shrink-0 text-muted-foreground transition-colors hover:text-destructive"
+                  aria-label={`Remove ${u}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
           </div>
         ) : null}
 
         {status === "uploading" ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Parsing and analyzing. A 50-page PDF typically takes 20–40 seconds.
+          <p className="text-xs text-muted-foreground">
+            Parsing and analyzing. A 50-page PDF typically takes 20–40 seconds. URLs are fetched and cleaned before analysis.
           </p>
         ) : null}
       </section>
