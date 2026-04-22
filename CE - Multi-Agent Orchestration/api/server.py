@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+# Load .env BEFORE importing routers/protocols — langfuse_tracing + clerk_auth
+# read env at module import time, so the .env must be in os.environ before the
+# router graph is built.
+from ce_shared.env import find_and_load_dotenv
+
+find_and_load_dotenv()
+
 import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from ce_shared.env import find_and_load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -17,8 +23,6 @@ from fastapi.staticfiles import StaticFiles
 from api.database import create_db_and_tables
 from api.routers import agents, auth as auth_router, connectors as connectors_router, context_preview, corrections as corrections_router, discover as discover_router, graph as graph_router, integrations, knowledge, pipelines, protocols, reports, router as adaptive_router, runs, teams, usage as usage_router, webhooks_clerk
 from api.routers.agents import tools_router
-
-find_and_load_dotenv()
 
 logger = logging.getLogger(__name__)
 
