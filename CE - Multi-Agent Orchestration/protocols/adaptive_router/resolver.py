@@ -25,6 +25,8 @@ PROTOCOLS_DIR = Path(__file__).resolve().parent.parent
 # Expand as eval data justifies.
 DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
     {
+        "p00_direct",
+        "p01_single_agent",
         "p03_parallel_synthesis",
         "p04_multi_round_debate",
         "p06_triz",
@@ -170,8 +172,15 @@ class Resolver:
     ) -> tuple[list[str], list[str]]:
         """Return (final_agents, adjustment_notes)."""
         notes: list[str] = []
-        min_a = int(cap.get("min_agents") or 1)
+        min_a = int(cap.get("min_agents") or 0)
         max_a = cap.get("max_agents")  # may be None = no cap
+
+        # Agent-less protocols (e.g., P00 Direct): short-circuit with empty list
+        # so the runner doesn't inject default generalists into a no-agent flow.
+        if min_a == 0 and max_a is not None and int(max_a) == 0:
+            if requested:
+                notes.append(f"protocol takes no agents — ignoring {len(requested)} requested")
+            return [], notes
 
         agents = list(requested) if requested else list(self.default_agents)
         if not requested:

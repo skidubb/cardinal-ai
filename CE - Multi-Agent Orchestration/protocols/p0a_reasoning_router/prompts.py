@@ -36,6 +36,8 @@ Extracted features:
 {features_json}
 
 Problem types (choose one):
+- Factual Lookup: Facts, definitions, mechanical conversions, trivial questions answerable without expertise.
+- Role Expertise: Question clearly fits ONE expert role (CFO, CTO, CMO, etc.) and benefits from that role's tools, with no need for multiple perspectives.
 - Diagnostic: Root cause analysis, why something happened, what's going wrong
 - Exploration: Generating new ideas, brainstorming, creative options
 - Adversarial: Competing interests, attack/defend, stress-testing a plan
@@ -69,7 +71,12 @@ Classification reasoning: {type_reasoning}
 
 {protocol_mapping}
 
-Select the best protocol using these rules:
+**Triage first — before considering any multi-agent protocol:**
+- If the question is a factual lookup, a mechanical conversion, or is trivially answerable WITHOUT expertise, tools, or multiple perspectives → recommend **P00** (Direct LLM Response). Example: "What year did WWII end?", "Convert 50 USD to EUR at today's rate."
+- If the question clearly fits exactly ONE expert role (CFO, CTO, CMO, etc.) and benefits from that role's tools (web_search, etc.) but does NOT need multiple perspectives or debate → recommend **P01** (Single Agent). Example: "As a CFO, how should I depreciate this asset?", "Pull Snowflake's latest ARR."
+- Only fall through to multi-agent protocols when the question genuinely benefits from multiple perspectives, debate, synthesis, or structured coordination.
+
+Then, within multi-agent protocols, select using these rules:
 1. If complexity < 2 and risk < 2, prefer cheaper protocols regardless of problem type.
 2. If decomposability >= 4 and sequential_dependencies <= 2, prefer PARALLEL protocols (P3, P14, P6) — parallelizable tasks benefit most from multi-agent coordination.
 3. If sequential_dependencies >= 4, prefer SEQUENTIAL protocols (P22, P36, P47) — sequential tasks degrade under parallel coordination.

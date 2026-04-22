@@ -117,7 +117,18 @@ class AdaptiveRouterOrchestrator:
         except Exception as exc:
             adjustments = [f"resolver failed: {exc}"]
 
-        auto_executable = tier == "high" and plan is not None
+        # For low-tier short-circuits (P00 Direct / P01 Single Agent), the
+        # cost/risk of a wrong route is negligible — user can easily re-run
+        # with a better-matched protocol. Allow auto-execute at "mid" tier for
+        # these only. Multi-agent protocols still require "high" confidence.
+        low_tier_short_circuit = (
+            plan is not None
+            and plan.protocol_key in {"p00_direct", "p01_single_agent"}
+        )
+        auto_executable = plan is not None and (
+            tier == "high"
+            or (low_tier_short_circuit and tier == "mid")
+        )
 
         return RouterDecision(
             question=question,
