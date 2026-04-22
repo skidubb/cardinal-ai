@@ -28,6 +28,10 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from ce_shared.env import find_and_load_dotenv
+
+find_and_load_dotenv()  # Must run before langfuse_tracing import so LANGFUSE_SECRET_KEY is visible.
+
 from protocols.blackboard import BlackboardEntry
 from protocols.decentralized_actions import (
     Contribution,
