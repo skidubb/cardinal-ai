@@ -8,6 +8,7 @@ import asyncio
 import json
 from datetime import datetime, timezone
 
+from protocols._preflight import print_preflight
 from protocols.agents import BUILTIN_AGENTS, build_agents
 from protocols.langfuse_tracing import get_trace_id
 
@@ -89,7 +90,14 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=None, help="Random pairing seed (default: non-deterministic)")
     parser.add_argument("--units", default="", help="Scale/units note injected into prompts")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail-fast on preflight errors. Default: WARN only in dev, strict in prod.",
+    )
     args = parser.parse_args()
+
+    print_preflight(strict=args.strict or None)
 
     agents = build_agents(args.agents, mode=args.mode)
     orchestrator = GossipOrchestrator(

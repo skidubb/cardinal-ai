@@ -120,6 +120,10 @@ All 53 protocols have built-in observability via two layers:
 
 **Postgres persistence** (`protocols/persistence.py`): Every CLI `run.py` calls `persist_run()` after execution, writing the run metadata, result JSON, and Langfuse trace_id to the `runs` table. Agent-level outputs are extracted where the result format supports it. Uses `ce-db` package with async SQLAlchemy + asyncpg. Default connection: `postgresql+asyncpg://ce:ce_local@localhost:5432/ce_platform` (Docker Compose).
 
+**Schema note**: there are **two** run-tracking schemas in this DB — `run` (old SQLModel, powers the UI) and `runs` (Alembic-managed, audit sink). Both are load-bearing. See [`docs/schema.md`](docs/schema.md) for the contract and failure-mode cheat sheet.
+
+**Preflight checks** (`protocols/_preflight.py`): Every CLI invocation prints a banner and validates Langfuse, `ce_db`, Postgres reachability, and Alembic head. In dev these are warnings; pass `--strict` or set `ENV=production` / `CE_PREFLIGHT_STRICT=1` to abort on any FAIL. Escape hatch: `CE_SKIP_PREFLIGHT=1`.
+
 **Infrastructure**: `docker-compose.yml` runs Postgres. Langfuse uses Langfuse Cloud (`us.cloud.langfuse.com`) — self-hosted config is commented out in docker-compose.yml.
 
 ```bash
