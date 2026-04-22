@@ -1,0 +1,52 @@
+protocol_id: P57
+name: Liquid Democracy
+category: Decentralized Coordination
+problem_types:
+- Prioritization
+- Multi-Stakeholder
+cost_tier: low
+min_agents: 3
+max_agents: null
+supports_rounds: false
+description: Delegation-based weighted Borda voting — agents vote or delegate to peers with better expertise.
+when_to_use: Uneven expertise, want to surface who drove the decision, cross-domain questions.
+when_not_to_use: Equal expertise (use P20 Borda), need diverse independent voices (delegation collapses diversity).
+tools_enabled: true
+
+decentralization_scorecard:
+  control: "decentralized — each agent chooses to vote or delegate"
+  information: "decentralized — full option pool and peer list shared on the Blackboard"
+  communication: "decentralized — agents exchange via Blackboard entries"
+  termination: "distributed quorum — protocol ends when every agent emits vote or delegation"
+
+stages:
+  - name: "Propose candidates"
+    produces: options
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent proposes 1-3 candidate answers. Parallel."
+  - name: "Dedup ballot"
+    produces: ballot_options
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Deterministic string-normalize + prefix cluster. No LLM."
+  - name: "Vote or delegate"
+    produces: [votes, delegations]
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent either ranks options directly or delegates to a peer. Parallel."
+  - name: "Resolve chains"
+    produces: effective_votes
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "DFS through delegation chains, detect cycles, compute effective votes."
+  - name: "Weighted Borda tally"
+    produces: tally
+    kind: mechanical
+    required: true
+    summary_role: primary_summary
+    description: "Deterministic Borda score with delegation weights. Final answer = winning option verbatim."
