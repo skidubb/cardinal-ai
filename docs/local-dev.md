@@ -78,6 +78,65 @@ docker exec ce-agents-postgres-1 psql -U ce -d ce_platform \
   -c "SELECT protocol_key, status, started_at FROM runs ORDER BY started_at DESC LIMIT 3;"
 ```
 
+## Wiring CLI runs into the cardinal-portal UI
+
+Bootstrap gives you a working CLI + Postgres. To see those runs in the portal UI at `http://localhost:3001/runs`, you need three more pieces:
+
+### 1. CLI tenant matches your portal Clerk org
+
+The portal filters runs by the signed-in org's slug. CLI runs are tagged via `CE_DEV_TENANT`. Align them:
+
+```bash
+# in repo root .env
+CE_DEV_TENANT=cardinal-element   # or whatever your Clerk org slug is
+```
+
+If unset, CLI writes land under `local-dev` and won't be visible to a `cardinal-element` portal session.
+
+### 2. Portal points at local FastAPI
+
+In `cardinal-portal/.env.local`:
+
+```
+NEXT_PUBLIC_RAILWAY_API_URL=http://localhost:8000
+```
+
+Restart the Next.js dev server after changing this (NEXT_PUBLIC_* vars are read at startup).
+
+### 3. FastAPI is running on 8000
+
+```bash
+cd "CE - Multi-Agent Orchestration" && source venv/bin/activate
+uvicorn api.server:app --port 8000 --host 127.0.0.1
+```
+
+Keep this running in its own terminal (or use `nohup ... > /tmp/uvicorn.log 2>&1 &` for a detached session).
+
+### Verifying the chain works
+
+```bash
+# 1. API is reachable
+curl -s http://localhost:8000/api/health  # expect {"status":"ok","db":"postgres"}
+
+# 2. Detail endpoint returns a row with tenant filter
+curl -s http://localhost:8000/api/runs/<id> | python -m json.tool | head -10
+
+# 3. Run a protocol and refresh http://localhost:3001/runs — the new row should be at the top.
+python -m protocols.p57_liquid_democracy.run -q "portal visibility test" -a ceo --strict
+```
+
+### Retagging historical rows to the portal tenant
+
+Any CLI runs written before step 1 was in place will still have `tenant_slug='local-dev'` and be invisible to a `cardinal-element` portal session. Retag safely:
+
+```sql
+-- Scoped to CLI-origin rows only; will NOT touch API-originated data.
+UPDATE run  SET tenant_slug='cardinal-element' WHERE tenant_slug='local-dev' AND type IN ('backfill','single');
+UPDATE runs SET tenant_slug='cardinal-element' WHERE tenant_slug='local-dev' AND source IN ('backfill','cli');
+```
+
+Run via `docker exec on3-postgres psql -U ce -d ce_platform -c "<sql>"` or your local equivalent.
+
 ## Related docs
 
 - Preflight contract: `CE - Multi-Agent Orchestration/protocols/_preflight.py` (check implementation)
