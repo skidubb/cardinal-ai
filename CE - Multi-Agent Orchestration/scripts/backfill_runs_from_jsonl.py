@@ -7,9 +7,12 @@ files that were written before `persist_run()` was healthy end-to-end.
 Sets source='backfill' so they're distinguishable from live runs.
 Skips any file whose run_id already has a row in `runs`.
 
+By default ALSO writes matching rows to the legacy `run` (SQLModel) table
+so the portal UI displays them. Pass ``--skip-legacy`` to disable.
+
 Usage:
     cd "CE - Multi-Agent Orchestration" && source venv/bin/activate
-    python scripts/backfill_runs_from_jsonl.py [--dry-run] [DIR]
+    python scripts/backfill_runs_from_jsonl.py [--dry-run] [--skip-legacy] [DIR]
 
 Default DIR is `smoke-tests/`.
 """
@@ -24,6 +27,14 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Ensure the orchestration dir (one level up from scripts/) is on sys.path so
+# `from api.database import engine` resolves when the script is invoked as
+# `python scripts/backfill_runs_from_jsonl.py` (Python otherwise only adds
+# scripts/ to sys.path, not the orchestration root).
+_ORCH_ROOT = Path(__file__).resolve().parent.parent
+if str(_ORCH_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ORCH_ROOT))
 
 from ce_shared.env import find_and_load_dotenv
 
@@ -100,7 +111,63 @@ def parse_jsonl(path: Path) -> dict | None:
     }
 
 
-async def backfill(dir_path: Path, dry_run: bool = False) -> None:
+def _write_legacy_row(summary: dict, now: datetime) -> bool:
+    """Insert a row into the old SQLModel `run` table so the UI shows it.
+
+    Idempotent: if a row with matching (protocol_key, started_at, type='backfill')
+    exists, returns True without re-inserting. Returns False on failure.
+    """
+    import json as _json
+
+    try:
+        from sqlmodel import Session as _SQLSess
+        from sqlmodel import select as _sqlm_select
+
+        from api.database import engine as _legacy_engine
+        from api.models import Run as _LegacyRun
+    except Exception as e:
+        print(f"  legacy import failed: {e}", file=sys.stderr)
+        return False
+    try:
+        started_naive = summary["started_at"].replace(tzinfo=None) if summary["started_at"] else now
+        completed_naive = summary["completed_at"].replace(tzinfo=None) if summary["completed_at"] else now
+        with _SQLSess(_legacy_engine) as session:
+            existing = session.exec(
+                _sqlm_select(_LegacyRun).where(
+                    _LegacyRun.protocol_key == summary["protocol_key"],
+                    _LegacyRun.started_at == started_naive,
+                    _LegacyRun.type == "backfill",
+                )
+            ).first()
+            if existing is not None:
+                return True
+
+            legacy_run = _LegacyRun(
+                type="backfill",
+                protocol_key=summary["protocol_key"],
+                question=summary["question"][:2000],
+                tenant_slug="local-dev",
+                status="completed",
+                cost_usd=0.0,
+                trace_id=None,
+                error_message=None,
+                started_at=started_naive,
+                completed_at=completed_naive,
+                judge_verdict_json="{}",
+                context_mode=None,
+                context_files_json="[]",
+                agent_keys_json=_json.dumps(summary["agents"] or []),
+                steps_json="[]",
+            )
+            session.add(legacy_run)
+            session.commit()
+        return True
+    except Exception as e:
+        print(f"  legacy write failed for {summary['short_run_id']}: {e}", file=sys.stderr)
+        return False
+
+
+async def backfill(dir_path: Path, dry_run: bool = False, skip_legacy: bool = False) -> None:
     files = sorted(dir_path.glob("p*.jsonl"))
     print(f"Found {len(files)} jsonl files in {dir_path}")
 
@@ -123,13 +190,21 @@ async def backfill(dir_path: Path, dry_run: bool = False) -> None:
 
         for summary in summaries:
             marker = f"{summary['protocol_key']}::{summary['short_run_id']}"
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+            legacy_written = False
+            if not skip_legacy and not dry_run:
+                legacy_written = _write_legacy_row(summary, now)
+
             if marker in already_backfilled:
-                print(f"  skip (already backfilled): {marker}")
+                print(
+                    f"  skip (ce-db already backfilled): {marker}"
+                    + (" — legacy row added for UI" if legacy_written else "")
+                )
                 continue
 
             started = summary["started_at"]
             completed = summary["completed_at"]
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
             start_naive = started.replace(tzinfo=None) if started else now
             end_naive = completed.replace(tzinfo=None) if completed else now
 
@@ -137,6 +212,7 @@ async def backfill(dir_path: Path, dry_run: bool = False) -> None:
                 f"  {'[dry-run] would insert' if dry_run else 'insert'}: "
                 f"{summary['protocol_key']} run={summary['short_run_id']} "
                 f"agents={len(summary['agents'])} started={start_naive:%Y-%m-%d %H:%M}"
+                + (" (+legacy row)" if legacy_written else "")
             )
 
             if dry_run:
@@ -178,12 +254,17 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("dir", nargs="?", default="smoke-tests")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--skip-legacy",
+        action="store_true",
+        help="Only write to the new `runs` (ce-db) table; skip the legacy `run` (UI) table.",
+    )
     args = parser.parse_args()
     dir_path = Path(args.dir).resolve()
     if not dir_path.is_dir():
         print(f"not a directory: {dir_path}", file=sys.stderr)
         sys.exit(1)
-    asyncio.run(backfill(dir_path, dry_run=args.dry_run))
+    asyncio.run(backfill(dir_path, dry_run=args.dry_run, skip_legacy=args.skip_legacy))
 
 
 if __name__ == "__main__":

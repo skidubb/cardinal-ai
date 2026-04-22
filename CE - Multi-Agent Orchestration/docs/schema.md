@@ -1,4 +1,6 @@
-# Schema — `run` vs `runs` (it's not a bug)
+# Schema — `run` vs `runs` (dual-write bridge; unify later)
+
+> **STATUS (2026-04-22):** `persist_run()` is a **dual-write** — every run lands in both `run` (old SQLModel, UI) and `runs` (ce-db, audit). This is a **time-boxed bridge**, not the target architecture. The correct long-term answer is one source of truth. See [Migration debt](#migration-debt) at the bottom.
 
 Two Postgres table families coexist in the `ce_platform` database. They serve different purposes and are both load-bearing. This document exists because the naming confuses every new contributor (and caused an afternoon of debugging on 2026-04-22).
 
@@ -6,12 +8,13 @@ Two Postgres table families coexist in the `ce_platform` database. They serve di
 
 | Tables | Schema owner | Writers | Readers | Purpose |
 |---|---|---|---|---|
-| `run`, `agentoutput`, `runstep`, `pipeline`, `pipelinestep`, `team`, `integration` | Hand-coded SQLModel in `api/database.py` | `api/runner.py`, `api/routers/*.py` | `api/routers/runs.py`, portal UI via `/api/runs` | **Application state.** Powers the web UI's run history, run detail pages, pipeline execution tracking. |
+| `run`, `agentoutput`, `runstep`, `pipeline`, `pipelinestep`, `team`, `integration` | Hand-coded SQLModel in `api/database.py` | `api/runner.py`, `api/routers/*.py`, **and** `persist_run()` via `_write_legacy_run` (dual-write, default on for CLI) | `api/routers/runs.py`, portal UI via `/api/runs` | **Application state.** Powers the web UI's run history, run detail pages, pipeline execution tracking. |
 | `runs`, `agent_outputs`, `agents`, `protocol_insights`, `run_learnings`, `eval_*` | Alembic-managed in `ce-db` package | `protocols/persistence.py:persist_run()` (called by every CLI and the API post-run hook) | None yet | **Audit/telemetry sink.** Durable record of every protocol run for cost analytics, Langfuse cross-reference, cross-project evals. Written from both CLI and API; no consumer in the codebase today. |
 
 Rule of thumb:
-- If you want to **show** a run to a user (API, UI), use `run`.
-- If you want to **record** a run for durable audit/eval, use `persist_run()` → `runs`.
+- Calling `persist_run()` from CLI → writes to **both** tables (UI visibility + audit).
+- Calling `persist_run()` from the API runner → writes **only** to `runs` (pass `also_write_legacy=False`; the API wrote its `run` row upfront).
+- Direct SQLModel writes (from `api/routers/*`) → `run` only.
 
 ## Why two?
 
@@ -44,9 +47,23 @@ Apply locally: `cd ce-db && alembic upgrade head`. Apply on Railway: already aut
 | Preflight says `[ok] Postgres` but `[FAIL] Alembic` | `DATABASE_URL` points at a Postgres that exists but hasn't been migrated (e.g., a container with the old `run` schema only) | Either migrate that DB, or point `DATABASE_URL` at a DB that has been migrated. |
 | Preflight says `[FAIL] Langfuse: key is set but client never initialized` | `.env` loaded after `protocols.langfuse_tracing` was imported. The decorator silently degrades to a passthrough. | Add `find_and_load_dotenv()` at the top of the module doing the import, BEFORE any `from protocols.langfuse_tracing import ...`. See `protocols/p53_contract_net/orchestrator.py:16-19` for the canonical pattern. |
 
+## Migration debt
+
+The dual-write buys us UI visibility today without blocking on a multi-day schema migration. It is not the target architecture. **When we retire it**, the options are:
+
+1. **Option A (recommended):** UI reads from `runs` (ce-db). Rewrite `api/routers/runs.py` + `api/routers/protocols.py` + `ui/src/api.ts` to consume the new shape. Old `run`, `agentoutput`, `runstep` get dropped. UUID primary keys replace int PKs in URLs. Pipeline RunStep semantics need a new home in ce-db.
+2. **Option B:** Kill `ce-db`'s run tracking; keep `run` as the only store. `persist_run()` becomes a thin wrapper over SQLModel. Loses Alembic for run-tracking, keeps it for eval/insight tables.
+
+Whoever closes this: delete `_write_legacy_run()` in `protocols/persistence.py`, remove `also_write_legacy` from the `persist_run` signature, remove all `also_write_legacy=False` params in `api/runner.py`. Then pick Option A or B and execute.
+
+Tracking marker (grep-able): `DUAL_WRITE_DEBT`. Sites:
+- `protocols/persistence.py:_write_legacy_run()`
+- `api/runner.py` — 4 call sites with `also_write_legacy=False`
+- `scripts/backfill_runs_from_jsonl.py` — legacy write path
+
 ## See also
 
 - `protocols/_preflight.py` — the checks enforcing this contract
-- `protocols/persistence.py` — the `persist_run()` entry point
+- `protocols/persistence.py` — the `persist_run()` entry point and `_write_legacy_run()` bridge
 - `ce-db/src/ce_db/models/runs.py` — the new schema definition
 - `CE - Multi-Agent Orchestration/api/database.py` — the old schema definition

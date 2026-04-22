@@ -485,6 +485,7 @@ async def run_protocol_stream(
                 started_at=started_at,
                 envelope=envelope,
                 tenant_slug=tenant_slug,
+                also_write_legacy=False,  # API already wrote the legacy Run row upfront (status=pending) and updated it post-run.
             )
         except Exception as pg_err:
             persist_outcome.warnings.append(
@@ -512,12 +513,14 @@ async def run_protocol_stream(
         if persist_outcome.telemetry_degraded:
             for warning in persist_outcome.warnings:
                 envelope.add_warning(warning)
-            with Session(engine) as session:
-                run = session.get(Run, run_id)
-                if run and run.status == "completed":
-                    run.error_message = json.dumps([w.as_dict() for w in envelope.warnings])[:4000]
-                    session.add(run)
-                    session.commit()
+            fatal_warnings = [w for w in envelope.warnings if not w.recoverable]
+            if fatal_warnings:
+                with Session(engine) as session:
+                    run = session.get(Run, run_id)
+                    if run and run.status == "completed":
+                        run.error_message = json.dumps([w.as_dict() for w in fatal_warnings])[:4000]
+                        session.add(run)
+                        session.commit()
 
         # Protocol learning: record run outcome
         try:
@@ -582,6 +585,7 @@ async def run_protocol_stream(
                 started_at=started_at,
                 error=tb_str,
                 tenant_slug=tenant_slug,
+                also_write_legacy=False,  # API already updated the legacy Run row to status=failed above.
             )
             run_warnings.extend(outcome.warnings)
         except Exception as pg_err:
@@ -873,6 +877,7 @@ async def run_pipeline_stream(
                 source="api",
                 started_at=pipeline_started_at,
                 envelope=pipeline_envelope,
+                also_write_legacy=False,  # Pipeline runner already wrote its legacy Run row.
             )
             if persist_outcome.telemetry_degraded:
                 for warning in persist_outcome.warnings:
@@ -938,6 +943,7 @@ async def run_pipeline_stream(
                 source="api",
                 started_at=pipeline_started_at,
                 error=tb_str,
+                also_write_legacy=False,  # Pipeline runner already updated the legacy Run row to status=failed above.
             )
             run_error_warnings.extend(outcome.warnings)
         except Exception as pg_err:
