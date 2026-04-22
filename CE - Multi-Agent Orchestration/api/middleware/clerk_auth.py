@@ -172,6 +172,21 @@ async def get_auth_with_org(ctx: ClerkAuthContext = Depends(get_auth)) -> ClerkA
 
 DEFAULT_TENANT = "cardinal-element"
 
+# Clerk auto-appends a 16+ digit numeric ID to org slugs when the base slug is
+# already taken in the instance (e.g. "cardinal-element-1776752029963075226").
+# We canonicalize those to their base slug so runs persisted under either
+# form are accessible from either session variant.
+import re as _re
+_CLERK_SUFFIX_RE = _re.compile(r"^(.+)-(\d{10,})$")
+
+
+def _canonicalize_slug(slug: str) -> str:
+    """Strip Clerk's auto-appended long numeric suffix."""
+    if not slug:
+        return slug
+    m = _CLERK_SUFFIX_RE.match(slug)
+    return m.group(1) if m else slug
+
 
 async def resolve_tenant(request: Request) -> str:
     """Best-effort tenant resolution. Returns a slug, never raises.
@@ -186,14 +201,14 @@ async def resolve_tenant(request: Request) -> str:
             try:
                 ctx = await get_auth(request)
                 if ctx.org_slug:
-                    return ctx.org_slug
+                    return _canonicalize_slug(ctx.org_slug)
             except HTTPException:
                 pass  # fall through to env/default
 
     # 2. Env override (local dev convenience)
     env_slug = os.environ.get("CE_DEV_TENANT")
     if env_slug:
-        return env_slug
+        return _canonicalize_slug(env_slug)
 
     # 3. Default to CE's own tenant
     return DEFAULT_TENANT
