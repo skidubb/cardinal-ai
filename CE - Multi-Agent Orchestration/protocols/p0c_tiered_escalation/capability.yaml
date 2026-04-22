@@ -11,3 +11,23 @@ description: Escalate from cheap single-agent to expensive multi-agent based on 
 when_to_use: When cost optimization matters and question complexity is uncertain.
 when_not_to_use: When running a known-complex protocol directly.
 tools_enabled: false
+
+stages:
+  - name: "Tier progression"
+    produces: tier_results
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Progress through tiers (single-agent → multi-agent → full orchestration) until confidence threshold is met"
+  - name: "Final response"
+    produces: [final_response, final_tier]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Return the answer from the tier that achieved sufficient confidence"
+  - name: "Human escalation flag"
+    produces: [flagged_for_human, flag_reason]
+    kind: mechanical
+    required: false
+    summary_role: structured_prelude
+    description: "If no tier reached confidence, flag for human review with reason"

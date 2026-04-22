@@ -11,3 +11,29 @@ description: Rapid ideation — 8 ideas in 8 minutes from each agent.
 when_to_use: Divergent thinking, creative solution generation.
 when_not_to_use: Convergent decisions, quantitative estimation.
 tools_enabled: true
+
+stages:
+  - name: "Rapid ideation"
+    produces: raw_ideas
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent generates 8 ideas in 8 minutes — no self-censoring"
+  - name: "Cluster ideas"
+    produces: clusters
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Group overlapping ideas into thematic clusters"
+  - name: "Vote on top ideas"
+    produces: [vote_tally, top_ideas]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Each agent votes for the most promising ideas; surface the top set"
+  - name: "Develop concepts"
+    produces: developed_concepts
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Expand top-voted ideas into actionable concepts with approach + first step"

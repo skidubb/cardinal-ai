@@ -11,3 +11,23 @@ description: Categorical framework for ethical/practical pre-screening of decisi
 when_to_use: Decisions with ethical dimensions needing principled screening.
 when_not_to_use: Pure quantitative analysis, technical decisions.
 tools_enabled: true
+
+stages:
+  - name: "Classify problem type"
+    produces: problem_type
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Classify into one of Kant's problem categories"
+  - name: "Classify modality"
+    produces: [modality, modality_reasoning]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Determine whether the question is actual / possible / necessary (Kantian modality)"
+  - name: "Route with rationale"
+    produces: [recommended_protocol, routing_rationale]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Recommend the appropriate protocol with a routing rationale"

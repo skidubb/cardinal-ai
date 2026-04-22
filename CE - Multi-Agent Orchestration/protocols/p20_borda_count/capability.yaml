@@ -11,3 +11,23 @@ description: Ranked-choice voting to aggregate preferences into consensus.
 when_to_use: Ranking options with multiple stakeholder preferences.
 when_not_to_use: Binary decisions, quantitative estimation.
 tools_enabled: true
+
+stages:
+  - name: "Collect ranked ballots"
+    produces: ballots
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent submits a ranked preference order over the options"
+  - name: "Score and aggregate"
+    produces: [borda_scores, final_ranking, winner, margin, consensus_score, reasoning_clusters]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Compute Borda scores; surface the final ranking, winner, margin, and consensus strength"
+  - name: "Narrative report"
+    produces: report
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Produce the decision narrative explaining the ranking and where agents disagreed"

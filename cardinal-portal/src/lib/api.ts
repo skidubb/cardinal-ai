@@ -61,6 +61,45 @@ export async function fetchRuns(limit: number = 20): Promise<Run[]> {
   return authedFetch<Run[]>(`/api/runs?limit=${limit}`);
 }
 
+// ---- Protocol report (attached to completed runs) ----
+
+export type StageAuditStatus = "ok" | "missing" | "partial" | "degraded" | "implicit" | "unknown";
+
+export type StageAudit = {
+  name: string;
+  intent: string;
+  status: StageAuditStatus;
+  observed: string;
+  advice: string | null;
+};
+
+export type RunAudit = {
+  stages: StageAudit[];
+  completeness: string;
+  overall_advice: string | null;
+};
+
+export type ProtocolReport = {
+  participants: string[];
+  executive_summary: string;
+  key_findings: string[];
+  disagreements: string[];
+  confidence_score: number;
+  confidence_label: string;
+  synthesis: string;
+  agent_contributions: Array<{
+    agent_key: string;
+    agent_name: string;
+    text: string;
+    cost_usd: number;
+    model: string;
+    tool_calls: unknown[];
+  }>;
+  cost_summary: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  audit: RunAudit | Record<string, never>;
+};
+
 export async function fetchRun(id: string): Promise<Run & {
   result?: unknown;
   outputs?: Array<{
@@ -74,6 +113,7 @@ export async function fetchRun(id: string): Promise<Run & {
   }>;
   steps?: Array<{ id: number; step_order: number; protocol_key: string; status: string }>;
   error_message?: string | null;
+  protocol_report?: ProtocolReport | null;
 }> {
   return authedFetch(`/api/runs/${id}`);
 }

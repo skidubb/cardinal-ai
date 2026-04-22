@@ -13,3 +13,23 @@ description: Identify classic system archetype patterns (fixes that fail, shifti
 when_to_use: Recurring problems suggesting systemic patterns.
 when_not_to_use: One-time decisions, creative brainstorming.
 tools_enabled: true
+
+stages:
+  - name: "Observe dynamics"
+    produces: observed_dynamics
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent describes observed dynamics and patterns in the system"
+  - name: "Score against archetypes"
+    produces: [archetype_scores, best_matches]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Score observations against classic archetypes (fixes that fail, shifting the burden, limits to growth, etc.)"
+  - name: "Recommend interventions"
+    produces: interventions
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Propose interventions aligned with the dominant archetype's known leverage points"

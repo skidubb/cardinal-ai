@@ -11,3 +11,35 @@ description: Map initiatives across birth-maturity-destruction-renewal lifecycle
 when_to_use: Portfolio management, deciding what to grow/sunset/renew.
 when_not_to_use: Single initiative analysis, simple prioritization.
 tools_enabled: true
+
+stages:
+  - name: "Assess initiatives"
+    produces: agent_assessments
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent scores each initiative's ecocycle stage (birth / maturity / destruction / renewal)"
+  - name: "Build consensus"
+    produces: [consensus_stages, contested]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Aggregate agent assessments; surface contested initiatives"
+  - name: "Resolve contested initiatives"
+    produces: consensus_stages
+    kind: agent
+    required: false
+    summary_role: working_notes
+    description: "Deliberate on initiatives where agents disagreed"
+  - name: "Action plans"
+    produces: action_plans
+    kind: synthesis
+    required: true
+    summary_role: structured_prelude
+    description: "Produce per-initiative action plan (grow / hold / sunset / renew)"
+  - name: "Portfolio summary"
+    produces: portfolio_summary
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Narrative summary of the portfolio health and recommended shifts"

@@ -12,3 +12,35 @@ description: Surface interests, map conflicts, generate mutual-gains options.
 when_to_use: Competing interests needing a win-win resolution.
 when_not_to_use: Simple factual questions, single-perspective analysis.
 tools_enabled: true
+
+stages:
+  - name: "Map interests"
+    produces: interest_maps
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent surfaces its underlying interests (needs, fears, aspirations)"
+  - name: "Categorize interests"
+    produces: categorized_interests
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Sort interests into shared / compatible / conflicting across agents"
+  - name: "Generate options"
+    produces: generated_options
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Brainstorm mutual-gains options that address interests"
+  - name: "Score options"
+    produces: [option_scores, interest_satisfaction]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Score each option by interest satisfaction across agents"
+  - name: "Select agreement"
+    produces: selected_agreement
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Pick the highest-satisfaction option as the negotiated agreement"

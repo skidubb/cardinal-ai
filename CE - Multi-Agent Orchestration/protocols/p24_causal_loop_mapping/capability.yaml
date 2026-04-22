@@ -11,3 +11,29 @@ description: Map reinforcing/balancing feedback loops in a system.
 when_to_use: Understanding complex dynamics, finding leverage points.
 when_not_to_use: Simple linear cause-effect, prioritization.
 tools_enabled: true
+
+stages:
+  - name: "Identify variables"
+    produces: variables
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Enumerate the key variables in the system"
+  - name: "Map causal links"
+    produces: causal_links
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Identify directed causal links between variables with polarity (+/-)"
+  - name: "Detect feedback loops"
+    produces: [reinforcing_loops, balancing_loops]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Surface reinforcing and balancing feedback loops from the causal graph"
+  - name: "Identify leverage points"
+    produces: leverage_points
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Recommend leverage points where small interventions yield outsize change"

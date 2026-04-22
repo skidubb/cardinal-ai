@@ -11,3 +11,23 @@ description: Determine if a question is trivial enough to skip multi-agent orche
 when_to_use: Pre-screening before routing — saves cost on simple questions.
 when_not_to_use: Complex strategic questions that clearly need multi-agent analysis.
 tools_enabled: false
+
+stages:
+  - name: "Feature extraction"
+    produces: features
+    kind: mechanical
+    required: true
+    summary_role: ignore
+    description: "Extract question features — complexity, time horizon, stakes"
+  - name: "Skip-or-escalate decision"
+    produces: [decision, confidence, reasoning]
+    kind: mechanical
+    required: true
+    summary_role: primary_summary
+    description: "Decide whether the question can be answered by a single agent or needs full orchestration"
+  - name: "Single-agent response"
+    produces: single_agent_response
+    kind: agent
+    required: false
+    summary_role: structured_prelude
+    description: "If skip is chosen, emit the direct answer inline"

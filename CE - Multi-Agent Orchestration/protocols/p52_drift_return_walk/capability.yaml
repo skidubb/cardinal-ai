@@ -1,0 +1,51 @@
+protocol_id: P52
+name: Drift Return Walk
+category: Wave 2 Research
+problem_types:
+- Exploration
+cost_tier: high
+min_agents: 3
+max_agents: null
+supports_rounds: false
+description: Walk variant that explicitly drifts far from the question then returns — tests whether insights survive the return.
+when_to_use: Stuck questions where direct framing produces predictable answers.
+when_not_to_use: Time-sensitive decisions, well-bounded problems.
+tools_enabled: true
+
+stages:
+  - name: "Frame the drift"
+    produces: frame
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Define the question + designed drift trajectory (how far, what axes)"
+  - name: "Shallow walk"
+    produces: shallow_outputs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent's shallow pass, drift-aware"
+  - name: "Deep walk (drift phase)"
+    produces: deep_outputs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Deep pass that intentionally drifts away from the original question"
+  - name: "Return phase"
+    produces: cross_exam
+    kind: agent
+    required: false
+    summary_role: working_notes
+    description: "Agents return to the original question carrying insights from the drift"
+  - name: "Collision fusion"
+    produces: collisions
+    kind: mechanical
+    required: false
+    summary_role: structured_prelude
+    description: "Surface collisions between drift insights and returned framing"
+  - name: "Synthesis"
+    produces: [synthesis_text, synthesis]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Produce a synthesis that traces which drift insights survived the return"

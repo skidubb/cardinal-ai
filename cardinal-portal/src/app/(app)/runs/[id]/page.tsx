@@ -1,25 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { fetchRun } from "@/lib/api";
+import { fetchRun, type StageAudit, type StageAuditStatus } from "@/lib/api";
 import NewCorrectionForm from "../../corrections/NewCorrectionForm";
 import { DeleteRunButton } from "./DeleteRunButton";
 import { Markdown } from "@/components/ui/markdown";
 
-type RunDetail = Awaited<ReturnType<typeof fetchRun>> & {
-  outputs?: Array<{
-    id: number;
-    agent_key: string;
-    model?: string | null;
-    output_text: string;
-    cost_usd?: number;
-    input_tokens?: number;
-    output_tokens?: number;
-  }>;
-  steps?: Array<{ id: number; step_order: number; protocol_key: string; status: string; cost_usd?: number }>;
-  error_message?: string | null;
-  protocol_report?: { metadata?: Record<string, unknown> } | null;
-};
+type RunDetail = Awaited<ReturnType<typeof fetchRun>>;
 
 export default async function RunDetailPage({
   params,
@@ -115,6 +102,43 @@ export default async function RunDetailPage({
               ) : null}
             </section>
 
+            {/* Run Audit — observed vs intended stage table */}
+            {run.protocol_report?.audit && "stages" in run.protocol_report.audit && run.protocol_report.audit.stages.length > 0 ? (
+              <AuditCard
+                stages={run.protocol_report.audit.stages}
+                completeness={run.protocol_report.audit.completeness}
+                overallAdvice={run.protocol_report.audit.overall_advice}
+              />
+            ) : null}
+
+            {/* Executive Summary — elevated above agent transcripts so users see the answer, not working notes */}
+            {run.protocol_report?.executive_summary ? (
+              <section className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="ce-label">Executive Summary</h2>
+                  {run.protocol_report.confidence_score > 0 ? (
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      Confidence: {run.protocol_report.confidence_label} ({run.protocol_report.confidence_score}/5)
+                    </span>
+                  ) : null}
+                </div>
+                <div className="text-sm leading-relaxed text-foreground">
+                  <Markdown>{run.protocol_report.executive_summary}</Markdown>
+                </div>
+              </section>
+            ) : null}
+
+            {/* Full Synthesis — the complete adapter-composed answer */}
+            {run.protocol_report?.synthesis &&
+              run.protocol_report.synthesis !== run.protocol_report.executive_summary ? (
+              <section className="rounded-xl border border-border bg-card p-5">
+                <h2 className="ce-label mb-3">Full Synthesis</h2>
+                <div className="text-sm leading-relaxed text-foreground">
+                  <Markdown>{run.protocol_report.synthesis}</Markdown>
+                </div>
+              </section>
+            ) : null}
+
             <section className="space-y-2">
               <div className="flex items-center justify-between">
                 <h2 className="ce-label">Correct this</h2>
@@ -125,33 +149,34 @@ export default async function RunDetailPage({
               <NewCorrectionForm initialScope="decision" initialTarget={id} compact />
             </section>
 
-            {run.outputs && run.outputs.length > 0 ? (
+            {run.outputs && run.outputs.filter((o) => o.agent_key !== "_synthesis").length > 0 ? (
               <section className="space-y-3">
-                <h2 className="ce-label">Agent transcripts</h2>
-                {run.outputs.map((o) => (
-                  <details
-                    key={o.id}
-                    className="rounded-xl border border-border bg-card group"
-                    open={o.agent_key === "_synthesis"}
-                  >
-                    <summary className="cursor-pointer p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono text-sm text-primary">{o.agent_key}</span>
-                        {o.model ? (
-                          <span className="text-[10px] text-muted-foreground font-mono">{o.model}</span>
-                        ) : null}
+                <h2 className="ce-label">Agent transcripts · Working notes</h2>
+                {run.outputs
+                  .filter((o) => o.agent_key !== "_synthesis")
+                  .map((o) => (
+                    <details
+                      key={o.id}
+                      className="rounded-xl border border-border bg-card group"
+                    >
+                      <summary className="cursor-pointer p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono text-sm text-primary">{o.agent_key}</span>
+                          {o.model ? (
+                            <span className="text-[10px] text-muted-foreground font-mono">{o.model}</span>
+                          ) : null}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          {o.cost_usd ? `$${o.cost_usd.toFixed(4)}` : ""}
+                          {o.input_tokens ? `  ${o.input_tokens}↓` : ""}
+                          {o.output_tokens ? ` ${o.output_tokens}↑` : ""}
+                        </span>
+                      </summary>
+                      <div className="px-5 pb-5 pt-0">
+                        <Markdown>{o.output_text}</Markdown>
                       </div>
-                      <span className="text-[10px] text-muted-foreground tabular-nums">
-                        {o.cost_usd ? `$${o.cost_usd.toFixed(4)}` : ""}
-                        {o.input_tokens ? `  ${o.input_tokens}↓` : ""}
-                        {o.output_tokens ? ` ${o.output_tokens}↑` : ""}
-                      </span>
-                    </summary>
-                    <div className="px-5 pb-5 pt-0">
-                      <Markdown>{o.output_text}</Markdown>
-                    </div>
-                  </details>
-                ))}
+                    </details>
+                  ))}
               </section>
             ) : null}
           </>
@@ -166,5 +191,80 @@ function Meta({ label, value, mono }: { label: string; value: string; mono?: boo
       <span className="ce-label mr-2">{label}:</span>
       <span className={mono ? "font-mono" : ""}>{value}</span>
     </div>
+  );
+}
+
+const STATUS_STYLES: Record<StageAuditStatus, string> = {
+  ok: "bg-[rgb(var(--ce-green-500))]/15 text-[rgb(var(--ce-green-500))] border-[rgb(var(--ce-green-500))]/30",
+  missing: "bg-destructive/15 text-destructive border-destructive/30",
+  partial:
+    "bg-[rgb(var(--ce-yellow-500))]/15 text-[rgb(var(--ce-yellow-500))] border-[rgb(var(--ce-yellow-500))]/30",
+  degraded:
+    "bg-[rgb(var(--ce-yellow-500))]/15 text-[rgb(var(--ce-yellow-500))] border-[rgb(var(--ce-yellow-500))]/30",
+  implicit: "bg-secondary text-muted-foreground border-border",
+  unknown: "bg-secondary text-muted-foreground border-border",
+};
+
+function StatusPill({ status }: { status: StageAuditStatus }) {
+  return (
+    <span
+      className={`inline-block rounded border px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-wider ${
+        STATUS_STYLES[status] ?? STATUS_STYLES.unknown
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function AuditCard({
+  stages,
+  completeness,
+  overallAdvice,
+}: {
+  stages: StageAudit[];
+  completeness: string;
+  overallAdvice: string | null;
+}) {
+  return (
+    <section className="rounded-xl border border-border bg-card p-5">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className="ce-label">Run Audit · Observed vs Intended</h2>
+        {completeness ? (
+          <span className="text-[10px] font-mono text-muted-foreground">{completeness}</span>
+        ) : null}
+      </div>
+      <div className="space-y-2">
+        {stages.map((stage, i) => (
+          <div
+            key={`${stage.name}-${i}`}
+            className="flex items-start gap-3 border-t border-border pt-2 first:border-t-0 first:pt-0"
+          >
+            <div className="mt-0.5 w-16 shrink-0">
+              <StatusPill status={stage.status} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold">{stage.name}</div>
+              {stage.intent ? (
+                <div className="text-[11px] text-muted-foreground">{stage.intent}</div>
+              ) : null}
+              {stage.advice ? (
+                <div className="mt-1 rounded border-l-2 border-[rgb(var(--ce-yellow-500))] bg-[rgb(var(--ce-yellow-500))]/10 px-2 py-1 text-[11px] text-foreground">
+                  {stage.advice}
+                </div>
+              ) : null}
+            </div>
+            <div className="w-1/3 shrink-0 font-mono text-[10px] text-muted-foreground">
+              {stage.observed}
+            </div>
+          </div>
+        ))}
+      </div>
+      {overallAdvice ? (
+        <div className="mt-3 rounded border-l-2 border-[rgb(var(--ce-yellow-500))] bg-[rgb(var(--ce-yellow-500))]/10 px-3 py-2 text-xs text-foreground">
+          {overallAdvice}
+        </div>
+      ) : null}
+    </section>
   );
 }

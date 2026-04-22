@@ -1,0 +1,52 @@
+protocol_id: P49
+name: Walk Base
+category: Wave 2 Research
+problem_types:
+- Exploration
+- Divergent Ideation
+cost_tier: high
+min_agents: 3
+max_agents: null
+supports_rounds: false
+description: Cognitive walk protocol — shallow + deep passes across agent perspectives with collision detection.
+when_to_use: Exploratory questions needing breadth + depth + cross-pollination.
+when_not_to_use: Quick decisions, well-structured estimation tasks.
+tools_enabled: true
+
+stages:
+  - name: "Frame the walk"
+    produces: frame
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Produce a frame artifact that defines the question and the walk parameters"
+  - name: "Shallow walk"
+    produces: shallow_outputs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent takes a quick pass across the frame — breadth over depth"
+  - name: "Deep walk"
+    produces: deep_outputs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent takes a deep pass on their strongest angle"
+  - name: "Cross-examination"
+    produces: cross_exam
+    kind: agent
+    required: false
+    summary_role: working_notes
+    description: "Agents cross-examine each other's deep walks"
+  - name: "Collision fusion"
+    produces: collisions
+    kind: mechanical
+    required: false
+    summary_role: structured_prelude
+    description: "Detect cross-walk collisions and surface them as fusion opportunities"
+  - name: "Synthesis"
+    produces: [synthesis_text, synthesis]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Produce the walk synthesis — both a narrative summary and a structured WalkSynthesis artifact"
