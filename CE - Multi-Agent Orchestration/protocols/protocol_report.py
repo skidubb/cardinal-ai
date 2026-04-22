@@ -161,6 +161,9 @@ class ProtocolReport:
     agent_contributions: list[AgentContribution]
     cost_summary: dict[str, Any]
     metadata: dict[str, Any]
+    # Supplemental: observed-vs-intended stage audit. Empty dict when no
+    # audit data is available (e.g. legacy runs before the adapter shipped).
+    audit: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         """Return a fully serializable dict representation."""
@@ -175,6 +178,7 @@ class ProtocolReport:
             "agent_contributions": [c.as_dict() for c in self.agent_contributions],
             "cost_summary": self.cost_summary,
             "metadata": self.metadata,
+            "audit": self.audit,
         }
 
 
@@ -196,9 +200,20 @@ def from_envelope(
     """
     summary = envelope.result_summary or ""
 
-    # Executive summary: first paragraph (split on double newline)
-    paragraphs = [p.strip() for p in summary.split("\n\n") if p.strip()]
-    executive_summary = paragraphs[0] if paragraphs else summary
+    # Executive summary: the full adapter-produced summary renders in the
+    # "Full Synthesis" section, so the Executive block shows a short headline.
+    # Pick the first paragraph that isn't just a markdown heading — those
+    # mark section boundaries (e.g. "## Failure Modes") rather than substance.
+    executive_summary = ""
+    for para in (p.strip() for p in summary.split("\n\n") if p.strip()):
+        stripped = para.lstrip("# ").strip()
+        # Skip bare headings (short, no terminal period)
+        if len(stripped) < 120 and not stripped.endswith((".", "!", "?", ":", "…")):
+            continue
+        executive_summary = para
+        break
+    if not executive_summary and summary:
+        executive_summary = summary
 
     # Confidence from judge verdict
     score = 0
@@ -236,6 +251,9 @@ def from_envelope(
         "completed_at": _iso(envelope.completed_at),
     }
 
+    # Supplemental audit — surfaced from envelope.metadata when present
+    audit = envelope.metadata.get("audit", {}) if isinstance(envelope.metadata, dict) else {}
+
     return ProtocolReport(
         participants=list(envelope.agent_keys),
         executive_summary=executive_summary,
@@ -247,4 +265,5 @@ def from_envelope(
         agent_contributions=contributions,
         cost_summary=dict(envelope.cost),
         metadata=metadata,
+        audit=audit if isinstance(audit, dict) else {},
     )

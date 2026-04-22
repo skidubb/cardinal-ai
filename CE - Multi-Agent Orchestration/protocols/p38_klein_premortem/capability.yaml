@@ -12,3 +12,26 @@ description: Imagine the plan has failed — work backward to find what went wro
 when_to_use: Stress-testing plans before commitment.
 when_not_to_use: Post-mortem analysis, estimation tasks.
 tools_enabled: true
+
+stages:
+  - name: "Frame pre-mortem"
+    implicit: true
+    description: "18-months-forward thesis-failed framing, embedded in the agent prompt"
+  - name: "Independent failure narratives"
+    produces: narratives
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent writes an independent retrospective of how the thesis failed"
+  - name: "Failure mode extraction"
+    produces: [failure_modes, overlooked_signals]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Dedupe narratives into convergent vs unique failure modes and surface early warning signals"
+  - name: "Mitigation synthesis"
+    produces: mitigation_map
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Produce an actionable mitigation map with owners, triggers, and early warning signals"

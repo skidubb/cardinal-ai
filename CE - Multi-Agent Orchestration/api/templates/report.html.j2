@@ -319,6 +319,78 @@
   }
   .findings-list li strong { color: var(--fg); }
 
+  /* ── Run Audit block (supplemental — trust/orientation) ──────── */
+  .run-audit {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0 22px;
+    background: var(--bg-card);
+    font-size: 11px;
+    line-height: 1.55;
+  }
+  .run-audit-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .run-audit-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+  }
+  .run-audit-completeness {
+    font-size: 10.5px;
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+  }
+  .run-audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4px 0;
+  }
+  .run-audit-table td {
+    padding: 6px 8px 6px 0;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--slate-700);
+  }
+  .run-audit-table tr:last-child td { border-bottom: none; }
+  .run-audit-status {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .run-audit-status.status-ok       { background: #DCFCE7; color: #15803D; }
+  .run-audit-status.status-missing  { background: #FEE2E2; color: #B91C1C; }
+  .run-audit-status.status-partial  { background: #FEF3C7; color: #A16207; }
+  .run-audit-status.status-degraded { background: #FEF3C7; color: #A16207; }
+  .run-audit-status.status-implicit { background: var(--slate-100); color: var(--slate-500); }
+  .run-audit-status.status-unknown  { background: var(--slate-100); color: var(--slate-500); }
+  .run-audit-stage-name { font-weight: 600; color: var(--fg); }
+  .run-audit-stage-intent { color: var(--fg-muted); font-size: 10.5px; margin-top: 1px; }
+  .run-audit-stage-observed { font-family: var(--font-mono); font-size: 10px; color: var(--fg-muted); }
+  .run-audit-advice {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: #FEF3C7;
+    border-left: 3px solid var(--yellow-500);
+    border-radius: 0 4px 4px 0;
+    color: #78350F;
+    font-size: 10.5px;
+  }
+
   /* ── Executive Summary block ──────────────────────────────────── */
   .exec-summary {
     border-left: 3px solid var(--accent);
@@ -651,6 +723,44 @@
     <li>{{ finding }}</li>
     {% endfor %}
   </ul>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!--  RUN AUDIT (supplemental — orientation / trust)                    -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if report.audit and report.audit.stages %}
+<div class="run-audit">
+  <div class="run-audit-header">
+    <span class="run-audit-title">Run Audit · Observed vs Intended</span>
+    {% if report.audit.completeness %}
+    <span class="run-audit-completeness">{{ report.audit.completeness }}</span>
+    {% endif %}
+  </div>
+  <table class="run-audit-table">
+    {% for stage in report.audit.stages %}
+    <tr>
+      <td style="width: 10%;">
+        <span class="run-audit-status status-{{ stage.status }}">{{ stage.status }}</span>
+      </td>
+      <td>
+        <div class="run-audit-stage-name">{{ stage.name }}</div>
+        {% if stage.intent %}
+        <div class="run-audit-stage-intent">{{ stage.intent }}</div>
+        {% endif %}
+      </td>
+      <td style="width: 35%;">
+        <div class="run-audit-stage-observed">{{ stage.observed }}</div>
+        {% if stage.advice %}
+        <div class="run-audit-advice" style="margin-top: 4px;">{{ stage.advice }}</div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% if report.audit.overall_advice %}
+  <div class="run-audit-advice">{{ report.audit.overall_advice }}</div>
+  {% endif %}
 </div>
 {% endif %}
 

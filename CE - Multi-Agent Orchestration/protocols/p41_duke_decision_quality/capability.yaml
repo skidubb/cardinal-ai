@@ -12,3 +12,17 @@ description: Annie Duke framework — separate decision quality from outcome qua
 when_to_use: Evaluating decision processes, not just outcomes.
 when_not_to_use: Simple factual questions, creative brainstorming.
 tools_enabled: true
+
+stages:
+  - name: "Dimension scoring"
+    produces: [scores, justifications]
+    kind: agent
+    required: true
+    summary_role: structured_prelude
+    description: "Agents score the decision on Duke's six dimensions (information, alternatives, values, logic, commitment, outcomes)"
+  - name: "Quality assessment"
+    produces: [overall_score, assessment, reasoning]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Aggregate dimension scores into an overall decision-quality assessment"

@@ -13,3 +13,35 @@ description: Adversarial epistemic hygiene — surfaces catastrophic-but-improba
 when_to_use: Strategic risk assessment, identifying hidden systemic fragilities, pre-mortem for major decisions, challenging consensus assumptions.
 when_not_to_use: Well-understood operational risks, routine planning, situations requiring speed over depth.
 tools_enabled: true
+
+stages:
+  - name: "Layer 1 — Causal graphs"
+    produces: causal_graphs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent maps the causal structure underlying the question"
+  - name: "Layer 2 — Threshold scans"
+    produces: threshold_scans
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Scan for thresholds where small changes could cause non-linear outcomes"
+  - name: "Layer 3 — Confluences"
+    produces: confluences
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Extract where multiple fragilities could compound"
+  - name: "Layer 4 — Historical analogues"
+    produces: historical_analogues
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Mine historical precedents for analogous collapse patterns"
+  - name: "Layer 5 — Adversarial memo"
+    produces: adversarial_memo
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Synthesize an adversarial memo identifying black-swan scenarios the consensus has missed"

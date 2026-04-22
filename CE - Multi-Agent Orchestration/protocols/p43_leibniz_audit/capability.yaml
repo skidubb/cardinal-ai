@@ -12,3 +12,23 @@ description: Systematic decomposition and audit of reasoning chains.
 when_to_use: Auditing complex arguments for logical gaps.
 when_not_to_use: Brainstorming, estimation tasks.
 tools_enabled: true
+
+stages:
+  - name: "Decompose reasoning chain"
+    produces: steps
+    kind: mechanical
+    required: true
+    summary_role: working_notes
+    description: "Break the recommendation's reasoning into atomic claims + inferential steps"
+  - name: "Audit each step"
+    produces: audit_findings
+    kind: agent
+    required: true
+    summary_role: structured_prelude
+    description: "Flag logical gaps, unjustified premises, and overreach in each step"
+  - name: "Render verdict"
+    produces: [verdict, synthesis]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Summarize audit findings and render a verdict on the reasoning chain"
