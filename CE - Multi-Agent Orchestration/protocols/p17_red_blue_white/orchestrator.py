@@ -67,6 +67,92 @@ class RedBlueWhiteResult:
 
 
 # ---------------------------------------------------------------------------
+# Team assignment
+# ---------------------------------------------------------------------------
+
+# Canonical role hints. Extend these sets as new agent archetypes are added.
+_RED_HINTS = {
+    "cmo", "cfo", "cro",
+    "gtm-cro", "gtm-vp-sales",
+    "vc-app-investor", "vc-infra-investor",
+}
+_BLUE_HINTS = {
+    "cto", "coo", "cpo",
+    "cpo-service-designer", "coo-process-builder",
+}
+_WHITE_HINTS = {"ceo", "ceo-board-prep"}
+
+
+def _agent_key(agent: dict[str, Any]) -> str:
+    return str(agent.get("key") or agent.get("name") or "").lower()
+
+
+def _assign_teams(
+    agents: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    """Split a flat agent roster into (red, blue, white).
+
+    Strategy: first pass matches each agent against role-hint sets keyed on
+    agent name. Anything unmatched is distributed positionally — unmatched
+    items go to the smaller of red/blue, and the last unmatched slot fills
+    white if it is still empty. Guarantees all three roles are populated
+    whenever at least three agents are provided; with fewer than three, falls
+    back to cycling the available agents.
+    """
+    if not agents:
+        raise ValueError("p17 team assignment requires at least one agent")
+
+    red: list[dict[str, Any]] = []
+    blue: list[dict[str, Any]] = []
+    white: dict[str, Any] | None = None
+    remaining: list[dict[str, Any]] = []
+
+    for a in agents:
+        key = _agent_key(a)
+        if key in _WHITE_HINTS and white is None:
+            white = a
+        elif key in _RED_HINTS:
+            red.append(a)
+        elif key in _BLUE_HINTS:
+            blue.append(a)
+        else:
+            remaining.append(a)
+
+    # Fill gaps positionally. Reserve the last unmatched item for white if
+    # white is still empty and both other teams already have at least one.
+    while remaining:
+        nxt = remaining.pop(0)
+        if white is None and not remaining and red and blue:
+            white = nxt
+            break
+        if len(red) <= len(blue):
+            red.append(nxt)
+        else:
+            blue.append(nxt)
+
+    # If we still have no white (e.g., all agents matched red/blue hints),
+    # promote from the bigger team.
+    if white is None:
+        donor = red if len(red) > len(blue) else blue
+        if donor:
+            white = donor.pop()
+
+    # If a team is still empty (very small rosters), cycle from whatever
+    # is populated to keep the contract valid.
+    pool = [a for group in ([white] if white else [], red, blue) for a in group]
+    if not pool:
+        raise ValueError("p17 team assignment failed: no agents available")
+    if white is None:
+        white = pool[0]
+    if not red:
+        red = [pool[0]]
+    if not blue:
+        blue = [pool[-1]]
+
+    return red, blue, white
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -78,15 +164,30 @@ class RedBlueWhiteOrchestrator:
 
     def __init__(
         self,
-        red_agents: list[dict[str, str]],
-        blue_agents: list[dict[str, str]],
-        white_agent: dict[str, str],
+        red_agents: list[dict[str, str]] | None = None,
+        blue_agents: list[dict[str, str]] | None = None,
+        white_agent: dict[str, str] | None = None,
         *,
+        agents: list[dict[str, Any]] | None = None,
         thinking_model: str | None = None,
         orchestration_model: str | None = None,
         trace: bool = False,
         trace_path: str | None = None,
     ) -> None:
+        if agents and not (red_agents or blue_agents or white_agent):
+            red_agents, blue_agents, white_agent = _assign_teams(agents)
+            print(
+                f"[p17] Auto-assigned teams from flat roster: "
+                f"red={[_agent_key(a) for a in red_agents]} "
+                f"blue={[_agent_key(a) for a in blue_agents]} "
+                f"white={_agent_key(white_agent)}",
+                flush=True,
+            )
+        if not red_agents or not blue_agents or not white_agent:
+            raise ValueError(
+                "p17 requires either explicit red_agents + blue_agents + white_agent, "
+                "or a flat `agents` list with enough agents to populate all three roles."
+            )
         self.red_agents = red_agents
         self.blue_agents = blue_agents
         self.white_agent = white_agent

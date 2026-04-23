@@ -255,6 +255,61 @@ class TestP17RedBlueWhiteCorrectness:
         assert len(result.resolved_risks) >= 1
         assert len(result.open_risks) == 0
 
+    def test_flat_agents_list_auto_assigns_teams(self):
+        """A flat `agents=` roster must auto-split into red/blue/white by role hint."""
+        from protocols.p17_red_blue_white.orchestrator import (
+            RedBlueWhiteOrchestrator,
+            _assign_teams,
+        )
+
+        roster = [
+            {"name": "ceo", "system_prompt": ""},
+            {"name": "cfo", "system_prompt": ""},
+            {"name": "cto", "system_prompt": ""},
+            {"name": "cmo", "system_prompt": ""},
+            {"name": "coo", "system_prompt": ""},
+        ]
+
+        red, blue, white = _assign_teams(roster)
+        red_keys = {a["name"] for a in red}
+        blue_keys = {a["name"] for a in blue}
+        assert red_keys == {"cmo", "cfo"}
+        assert blue_keys == {"cto", "coo"}
+        assert white["name"] == "ceo"
+
+        orch = RedBlueWhiteOrchestrator(agents=roster)
+        assert {a["name"] for a in orch.red_agents} == {"cmo", "cfo"}
+        assert {a["name"] for a in orch.blue_agents} == {"cto", "coo"}
+        assert orch.white_agent["name"] == "ceo"
+
+    def test_flat_agents_with_unknown_keys_uses_positional_fallback(self):
+        """Agents without role hints must be distributed positionally."""
+        from protocols.p17_red_blue_white.orchestrator import _assign_teams
+
+        roster = [
+            {"name": "analyst-a", "system_prompt": ""},
+            {"name": "analyst-b", "system_prompt": ""},
+            {"name": "analyst-c", "system_prompt": ""},
+        ]
+        red, blue, white = _assign_teams(roster)
+        assert len(red) >= 1 and len(blue) >= 1 and white is not None
+        assignments = {a["name"] for a in red} | {a["name"] for a in blue} | {white["name"]}
+        assert assignments == {"analyst-a", "analyst-b", "analyst-c"}
+
+    def test_explicit_kwargs_still_work(self):
+        """The classic red_agents/blue_agents/white_agent path must stay functional."""
+        from protocols.p17_red_blue_white.orchestrator import RedBlueWhiteOrchestrator
+
+        red = [{"name": "cmo", "system_prompt": ""}]
+        blue = [{"name": "cto", "system_prompt": ""}]
+        white = {"name": "ceo", "system_prompt": ""}
+        orch = RedBlueWhiteOrchestrator(
+            red_agents=red, blue_agents=blue, white_agent=white
+        )
+        assert orch.red_agents == red
+        assert orch.blue_agents == blue
+        assert orch.white_agent == white
+
 
 # ---------------------------------------------------------------------------
 # P19 Vickrey Auction — verify winner selection logic
