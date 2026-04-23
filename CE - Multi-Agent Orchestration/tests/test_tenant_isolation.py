@@ -4,7 +4,10 @@ Uses an in-memory SQLite DB so this runs without Postgres or Railway.
 Proves:
   1. Run rows can be scoped to different tenants
   2. Tenant-filtered queries return only matching tenant's runs
-  3. Default tenant_slug is 'cardinal-element' (CLI/local backward compat)
+  3. resolve_tenant() defaults to 'local-dev' in safe mode, and to
+     'cardinal-element' when CE_ALLOW_PROD=1 (Railway's production setting).
+     SQLModel column default remains 'cardinal-element' (storage-layer
+     backward compat, independent of application logic).
 """
 
 from __future__ import annotations
@@ -53,24 +56,56 @@ def test_tenant_filter_returns_only_matching_runs() -> None:
         assert wrong.tenant_slug == "workload"
 
 
-def test_resolve_tenant_defaults_to_cardinal_element() -> None:
-    import os, asyncio
+def test_resolve_tenant_defaults_to_local_dev_in_safe_mode() -> None:
+    import os, asyncio, importlib
     from unittest.mock import MagicMock
 
-    saved = {k: os.environ.pop(k, None) for k in ("CLERK_JWKS_URL", "CE_DEV_TENANT")}
+    saved = {
+        k: os.environ.pop(k, None)
+        for k in ("CLERK_JWKS_URL", "CE_DEV_TENANT", "CE_ALLOW_PROD")
+    }
     try:
-        from api.middleware.clerk_auth import resolve_tenant, _config
-        _config.cache_clear()
+        from api.middleware import clerk_auth
+        importlib.reload(clerk_auth)  # DEFAULT_TENANT is evaluated at import time
+        clerk_auth._config.cache_clear()
         req = MagicMock()
         req.headers = {}
-        result = asyncio.run(resolve_tenant(req))
-        assert result == "cardinal-element"
+        result = asyncio.run(clerk_auth.resolve_tenant(req))
+        assert result == "local-dev"
     finally:
         for k, v in saved.items():
             if v is not None:
                 os.environ[k] = v
-        from api.middleware.clerk_auth import _config as _c
-        _c.cache_clear()
+        from api.middleware import clerk_auth as _ca
+        importlib.reload(_ca)
+        _ca._config.cache_clear()
+
+
+def test_resolve_tenant_defaults_to_cardinal_element_when_allow_prod_set() -> None:
+    import os, asyncio, importlib
+    from unittest.mock import MagicMock
+
+    saved = {
+        k: os.environ.pop(k, None)
+        for k in ("CLERK_JWKS_URL", "CE_DEV_TENANT", "CE_ALLOW_PROD")
+    }
+    os.environ["CE_ALLOW_PROD"] = "1"
+    try:
+        from api.middleware import clerk_auth
+        importlib.reload(clerk_auth)
+        clerk_auth._config.cache_clear()
+        req = MagicMock()
+        req.headers = {}
+        result = asyncio.run(clerk_auth.resolve_tenant(req))
+        assert result == "cardinal-element"
+    finally:
+        os.environ.pop("CE_ALLOW_PROD", None)
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+        from api.middleware import clerk_auth as _ca
+        importlib.reload(_ca)
+        _ca._config.cache_clear()
 
 
 def test_resolve_tenant_uses_dev_tenant_env_override() -> None:

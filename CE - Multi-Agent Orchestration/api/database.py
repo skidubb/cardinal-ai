@@ -91,6 +91,7 @@ def create_db_and_tables() -> None:
         ("run", "context_files_json", "TEXT DEFAULT '[]'"),
         ("run", "agent_keys_json", "TEXT DEFAULT '[]'"),
         ("run", "steps_json", "TEXT DEFAULT '[]'"),
+        ("run", "tenant_slug", "TEXT DEFAULT 'cardinal-element'"),
         ("runstep", "output_text", "TEXT DEFAULT ''"),
     ]
     for table, col, col_type in _migrate_columns:

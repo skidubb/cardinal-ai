@@ -155,22 +155,23 @@ async def get_auth_with_org(ctx: ClerkAuthContext = Depends(get_auth)) -> ClerkA
 # Backward-compatible tenant resolution
 # ---------------------------------------------------------------------------
 #
-# We can't switch every existing endpoint to required-auth without breaking
-# Scott's local CLI/UI workflows on day one. ``resolve_tenant`` is the bridge:
+# ``resolve_tenant`` is the bridge between the portal (always sends a JWT) and
+# unauth'd callers (local CLI, curl, scripts, buggy clients):
 #
 #   1. If a valid Clerk JWT is present -> use its ``org_slug``.
 #   2. Else if ``CE_DEV_TENANT`` env var is set -> use that.
-#   3. Else fall back to ``cardinal-element`` (CE's own reference tenant).
+#   3. Else fall back to ``DEFAULT_TENANT``.
 #
-# This means today's unauth'd local calls keep writing to/reading from the
-# cardinal-element tenant (i.e. they "just work"), while portal-driven calls
-# carrying a real JWT get scoped to the customer's tenant.
+# ``DEFAULT_TENANT`` is "local-dev" by default, so unauth'd callers write to an
+# isolated tenant and cannot silently pollute CE's production state. To restore
+# the old behavior (fallback to CE's own tenant), set ``CE_ALLOW_PROD=1`` in
+# the environment -- Railway does this, local dev does not.
 #
-# Production: set CLERK_JWKS_URL + remove CE_DEV_TENANT to lock down. Endpoints
-# that should always require auth (admin, billing) use ``get_auth_with_org``
+# Production: set CLERK_JWKS_URL + CE_ALLOW_PROD=1 on Railway. Endpoints that
+# should always require auth (admin, billing) use ``get_auth_with_org``
 # directly instead of ``resolve_tenant``.
 
-DEFAULT_TENANT = "cardinal-element"
+DEFAULT_TENANT = "cardinal-element" if os.environ.get("CE_ALLOW_PROD") == "1" else "local-dev"
 
 # Clerk auto-appends a 16+ digit numeric ID to org slugs when the base slug is
 # already taken in the instance (e.g. "cardinal-element-1776752029963075226").
