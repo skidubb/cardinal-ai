@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader, Network, Repeat, Share2, Workflow } from "lucide-react";
+import { ArrowRight, Check, GitBranch, Loader, Network, Repeat, Share2, User } from "lucide-react";
 import { iconForTool } from "./toolIcon";
 import type { AgentRow, RunTimeline } from "./runTimeline";
 import {
@@ -30,6 +30,7 @@ type StagesResponse = {
   protocol_name: string;
   stages: Stage[];
   source?: "yaml" | "regex" | "fallback";
+  orchestration_pattern?: OrchestrationPattern | null;
 };
 
 type Props = {
@@ -108,7 +109,9 @@ export function ProtocolDiagram({
       ? "Auto-extracted"
       : "Inferred";
 
-  const pattern = inferOrchestrationPattern(stages, Math.max(agentCount, 1));
+  const pattern =
+    data.orchestration_pattern ??
+    inferOrchestrationPattern(stages, Math.max(agentCount, 1));
   const fanOutAgents = Math.max(agentCount, 0);
 
   let prevState: StageState = "idle";
@@ -179,11 +182,12 @@ export function ProtocolDiagram({
 type StageState = "idle" | "pending" | "active" | "done";
 
 const PATTERN_ICON: Record<OrchestrationPattern, typeof Network> = {
+  single_agent: User,
+  sequence: ArrowRight,
   parallel: Share2,
   hub_and_spoke: Network,
   hybrid_matrix: Repeat,
-  decentralized: Network,
-  pipeline: Workflow,
+  decentralized: GitBranch,
 };
 
 function PatternBadge({

@@ -232,7 +232,10 @@ def _stages_from_yaml(key: str) -> list[dict] | None:
         stages.append({
             "key": s.get("key") or _slugify(name),
             "name": name,
-            "stage_type": s.get("stage_type") or _classify_stage(name),
+            # `kind` is the canonical YAML field (used by P53-P57 Decentralized
+            # Coordination protocols); `stage_type` kept as an alias for older
+            # manifests; _classify_stage is a last-resort name heuristic.
+            "stage_type": s.get("stage_type") or s.get("kind") or _classify_stage(name),
             "depends_on": s.get("depends_on") or [],
             "agents_filter": s.get("agents_filter"),
             "description": s.get("description") or "",
@@ -265,6 +268,7 @@ def get_protocol_stages(key: str):
             "protocol_name": proto["name"],
             "stages": yaml_stages,
             "source": "yaml",
+            "orchestration_pattern": proto.get("orchestration_pattern"),
         }
 
     # Try to import the orchestrator module
@@ -306,7 +310,12 @@ def get_protocol_stages(key: str):
         # bare "run_round + synthesize" extraction. Prefer fallback when extraction is thin.
         supports_rounds = proto.get("supports_rounds", False)
         if stages and (len(stages) > 2 or not supports_rounds):
-            return {"protocol_id": protocol_id, "protocol_name": proto["name"], "stages": stages}
+            return {
+                "protocol_id": protocol_id,
+                "protocol_name": proto["name"],
+                "stages": stages,
+                "orchestration_pattern": proto.get("orchestration_pattern"),
+            }
     except (OSError, TypeError):
         pass
 
@@ -377,4 +386,9 @@ def _fallback_stages(proto: dict) -> dict:
 
     stages.append({"name": "Output", "stage_type": "mechanical", "depends_on": ["Synthesis"], "agents_filter": None})
 
-    return {"protocol_id": proto.get("protocol_id", ""), "protocol_name": proto.get("name", ""), "stages": stages}
+    return {
+        "protocol_id": proto.get("protocol_id", ""),
+        "protocol_name": proto.get("name", ""),
+        "stages": stages,
+        "orchestration_pattern": proto.get("orchestration_pattern"),
+    }
