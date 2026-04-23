@@ -210,7 +210,7 @@ async def llm_complete(
     *,
     agent_name: str | None = None,
     **kwargs,
-) -> Any:
+) -> str:
     """Wrapper around client.messages.create with automatic usage tracking.
 
     Forwards all kwargs to client.messages.create(), adds retry logic,
@@ -218,6 +218,11 @@ async def llm_complete(
 
     Use for orchestration-level calls (dedup, ranking, synthesis) that
     don't go through agent_complete().
+
+    Returns the extracted text content as a string — the raw Message object
+    is only useful for the internal usage-tracking call, which happens here.
+    Callers that still wrap the result in `extract_text()` are fine:
+    `extract_text()` is idempotent on strings.
 
     Args:
         client: Anthropic async client instance.
@@ -227,7 +232,7 @@ async def llm_complete(
     response = await _retry_api_call(client.messages.create, **kwargs)
     model = kwargs.get("model", "unknown")
     _record_usage(model, response, agent_name=agent_name, input_messages=kwargs.get("messages"))
-    return response
+    return extract_text(response)
 
 
 def _is_anthropic_model(model: str) -> bool:
