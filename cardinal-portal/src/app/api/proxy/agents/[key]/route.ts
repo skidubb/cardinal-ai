@@ -35,3 +35,8 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ key: string
   const { key } = await ctx.params;
   return proxy(req, "PUT", key);
 }
+
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ key: string }> }) {
+  const { key } = await ctx.params;
+  return proxy(req, "DELETE", key);
+}

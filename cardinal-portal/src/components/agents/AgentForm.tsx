@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight, Info, Trash2 } from "lucide-react";
 import type {
   AgentDetail,
   KnowledgeNamespace,
@@ -46,6 +46,8 @@ type Props = {
 export function AgentForm({ mode, catalog, namespaces, initial }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -155,6 +157,26 @@ export function AgentForm({ mode, catalog, namespaces, initial }: Props) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    setError(null);
+    setShowDeleteConfirm(false);
+    setDeleting(true);
+    try {
+      const resp = await fetch(`/api/proxy/agents/${encodeURIComponent(key)}`, {
+        method: "DELETE",
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => "");
+        throw new Error(`${resp.status}: ${text.slice(0, 300)}`);
+      }
+      router.push("/agents");
+      router.refresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+      setDeleting(false);
     }
   }
 
@@ -419,16 +441,64 @@ export function AgentForm({ mode, catalog, namespaces, initial }: Props) {
           {error ? <span className="text-destructive">{error}</span> : null}
           {saved ? <span className="text-[rgb(var(--ce-green-500))]">Saved ✓</span> : null}
         </div>
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy || !key.trim() || !name.trim()}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-[var(--shadow-indigo)] transition-colors hover:bg-[rgb(var(--ce-indigo-500))] disabled:opacity-40 disabled:hover:bg-primary"
-        >
-          {busy ? "Saving…" : mode === "create" ? "Create agent" : "Save changes"}
-          {!busy ? <ArrowRight size={14} /> : null}
-        </button>
+        <div className="flex items-center gap-2">
+          {mode === "edit" && !isBuiltin ? (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={busy || deleting}
+              className="inline-flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-40"
+            >
+              <Trash2 size={14} />
+              {deleting ? "Deleting…" : "Delete agent"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy || deleting || !key.trim() || !name.trim()}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-[var(--shadow-indigo)] transition-colors hover:bg-[rgb(var(--ce-indigo-500))] disabled:opacity-40 disabled:hover:bg-primary"
+          >
+            {busy ? "Saving…" : mode === "create" ? "Create agent" : "Save changes"}
+            {!busy ? <ArrowRight size={14} /> : null}
+          </button>
+        </div>
       </div>
+
+      {showDeleteConfirm ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-agent-title"
+        >
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+            <h2 id="delete-agent-title" className="text-lg font-semibold">
+              Delete agent &ldquo;{name || key}&rdquo;?
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This permanently removes the agent. Teams and pipelines that reference{" "}
+              <span className="font-mono text-xs">{key}</span> will lose this member. This cannot be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="rounded-md bg-destructive px-3 py-1.5 text-sm font-medium text-destructive-foreground transition-colors hover:opacity-90"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

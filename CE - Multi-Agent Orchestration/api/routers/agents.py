@@ -199,8 +199,28 @@ def update_agent(key: str, body: dict, session: Session = Depends(get_session)) 
     return _db_agent_to_dict(agent)
 
 
+@router.delete("/{key}")
+def delete_agent(key: str, session: Session = Depends(get_session)) -> dict:
+    if key in BUILTIN_AGENTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Agent '{key}' is a builtin and cannot be deleted. Use PUT to override it.",
+        )
+    agent = session.exec(select(Agent).where(Agent.key == key)).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent '{key}' not found")
+    if agent.is_builtin:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Agent '{key}' is flagged as builtin and cannot be deleted.",
+        )
+    session.delete(agent)
+    session.commit()
+    return {"deleted": key}
+
+
 @router.post("/import-rich")
-def import_rich(session: Session = Depends(get_session)):
+def import_rich_endpoint(session: Session = Depends(get_session)):
     from api.import_rich_agents import import_rich_agents
     stats = import_rich_agents()
     return {"status": "ok", **stats}
