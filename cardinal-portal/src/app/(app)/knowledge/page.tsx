@@ -34,12 +34,14 @@ export default async function KnowledgePage() {
           ) : null}
         </div>
         {graphError ? (
-          <div className="text-sm text-destructive">
-            <strong>ce-graph unreachable:</strong>{" "}
-            <span className="font-mono text-xs">{graphError}</span>
-            <div className="mt-1 text-xs text-destructive/70">
-              Start FalkorDB: <code className="rounded bg-secondary px-1 font-mono">docker compose up -d</code> in{" "}
-              <code className="font-mono">ce-graph/</code>
+          <div className="text-sm text-muted-foreground">
+            Graph not yet provisioned for this tenant.
+            <div className="mt-1">
+              Connect your first data source in{" "}
+              <Link href="/integrations" className="text-primary underline-offset-4 hover:underline">
+                Integrations
+              </Link>{" "}
+              to begin populating it.
             </div>
           </div>
         ) : graph ? (
