@@ -101,8 +101,9 @@ app.include_router(discover_router.router)
 
 
 @app.get("/api/health")
-def health():
+def health(request: Request):
     from api.database import DATABASE_URL
+
     db_type = "postgres" if "postgresql" in DATABASE_URL else "sqlite"
     return {"status": "ok", "db": db_type}
 
