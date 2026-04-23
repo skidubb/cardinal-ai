@@ -73,10 +73,15 @@ def list_runs(
     limit: int = 20,
     offset: int = 0,
     session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
 ) -> list[dict]:
     runs = list(
         session.exec(
-            select(Run).order_by(col(Run.started_at).desc()).offset(offset).limit(limit)
+            select(Run)
+            .where(col(Run.tenant_slug) == tenant_slug)
+            .order_by(col(Run.started_at).desc())
+            .offset(offset)
+            .limit(limit)
         ).all()
     )
     return [
