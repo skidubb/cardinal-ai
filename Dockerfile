@@ -40,6 +40,17 @@ COPY ["CE - Agent Builder/", "/app/CE-Agent-Builder/"]
 RUN sed -i '/ce-shared @ file:/d' /app/CE-Agent-Builder/pyproject.toml \
     && pip install --no-cache-dir -e "/app/CE-Agent-Builder[sdk]"
 
+# ce-graph (strip file:// ref to ce-shared — already installed above)
+# Installed editable (-e) because ce_graph/tenancy.py walks parent dirs at
+# import time looking for the monorepo root (a dir containing "ce-graph/").
+# A non-editable install puts the module under site-packages where no parent
+# satisfies that check and import SystemExits. Editable keeps it at
+# /app/ce-graph/src/ce_graph/... so /app resolves as repo root and
+# TENANTS_DIR = /app/ce-graph/tenants works.
+COPY ce-graph/ /app/ce-graph/
+RUN sed -i '/ce-shared @ file:/d' /app/ce-graph/pyproject.toml \
+    && pip install --no-cache-dir -e /app/ce-graph
+
 # --- Orchestration project ---
 
 COPY ["CE - Multi-Agent Orchestration/requirements.txt", "/app/orchestration-requirements.txt"]
@@ -47,7 +58,8 @@ COPY ["CE - Multi-Agent Orchestration/api/requirements.txt", "/app/api-requireme
 
 # Rewrite file:// refs to absolute paths inside the container
 RUN sed -i 's|ce-db @ file:../ce-db|# ce-db (already installed)|' /app/orchestration-requirements.txt \
-    && sed -i 's|ce-shared @ file:../ce-shared|# ce-shared (already installed)|' /app/orchestration-requirements.txt
+    && sed -i 's|ce-shared @ file:../ce-shared|# ce-shared (already installed)|' /app/orchestration-requirements.txt \
+    && sed -i 's|ce-graph @ file:../ce-graph|# ce-graph (already installed)|' /app/orchestration-requirements.txt
 
 RUN pip install --no-cache-dir -r /app/orchestration-requirements.txt -r /app/api-requirements.txt
 

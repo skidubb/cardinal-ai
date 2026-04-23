@@ -15,6 +15,10 @@ ce-db @ file:../ce-db
 # Shared pricing and utilities (local package)
 ce-shared @ file:../ce-shared
 
+# Knowledge graph layer (local package) -- used by protocols/context_assembler.py
+# for the /api/proxy/context-preview memory brief and /api/graph/* endpoints.
+ce-graph @ file:../ce-graph
+
 # Only needed for scripts/ingest_papers.py:
 PyMuPDF>=1.25.0
 pinecone>=5.0.0
