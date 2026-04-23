@@ -44,20 +44,32 @@ from protocols.learning.hooks import pre_run_hook, post_run_hook
 def _discover_orchestrators() -> dict[str, tuple[str, str]]:
     """Map protocol keys to (module_path, class_name) tuples.
 
-    Scans protocols/p*/orchestrator.py for class definitions.
-    Returns e.g. {"p03_parallel_synthesis": ("protocols.p03_parallel_synthesis.orchestrator", "SynthesisOrchestrator")}
+    Scans protocols/p*/orchestrator.py for class definitions. Prefers classes
+    named ``*Orchestrator``; falls back to the class containing an
+    ``async def run`` method (the canonical entrypoint signature).
     """
     from pathlib import Path
     mapping: dict[str, tuple[str, str]] = {}
     protocols_dir = Path(__file__).resolve().parent.parent / "protocols"
     for orch_file in protocols_dir.glob("p*/orchestrator.py"):
         protocol_key = orch_file.parent.name
-        text = orch_file.read_text()
-        match = re.search(r"class (\w+Orchestrator)", text)
-        if match:
+        class_name = _find_entrypoint_class(orch_file.read_text())
+        if class_name:
             module = f"protocols.{protocol_key}.orchestrator"
-            mapping[protocol_key] = (module, match.group(1))
+            mapping[protocol_key] = (module, class_name)
     return mapping
+
+
+def _find_entrypoint_class(text: str) -> str | None:
+    match = re.search(r"^class (\w+Orchestrator)\b", text, re.MULTILINE)
+    if match:
+        return match.group(1)
+    classes = [(m.start(), m.group(1)) for m in re.finditer(r"^class (\w+)\b", text, re.MULTILINE)]
+    for run in re.finditer(r"^    async def run\s*\(", text, re.MULTILINE):
+        preceding = [name for pos, name in classes if pos < run.start()]
+        if preceding:
+            return preceding[-1]
+    return None
 
 
 _ORCHESTRATOR_MAP: dict[str, tuple[str, str]] | None = None
@@ -690,6 +702,7 @@ async def run_pipeline_stream(
             if i < start_from_step:
                 continue  # Skip already-completed steps (resume)
             step_question = step["question_template"]
+            step_question = step_question.replace("{question}", question)
             if "{prev_output}" in step_question and prev_output:
                 step_question = step_question.replace("{prev_output}", prev_output)
 
