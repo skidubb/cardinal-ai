@@ -177,7 +177,7 @@ class BlackSwanOrchestrator:
             }],
             agent_name="confluence_extraction",
         )
-        return parse_json_array(response)
+        return parse_json_array(extract_text(response))
 
     async def _synthesize(
         self,
@@ -205,7 +205,7 @@ class BlackSwanOrchestrator:
             }],
             agent_name="adversarial_memo",
         )
-        return response
+        return extract_text(response)
 
     def _combine(self, responses: list[str]) -> str:
         """Combine per-agent responses with agent name headers.

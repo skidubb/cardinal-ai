@@ -209,7 +209,7 @@ class WickedQuestionsOrchestrator:
             }],
             agent_name="ranking",
         )
-        return parse_json_array(response)
+        return parse_json_array(extract_text(response))
 
     async def _synthesize(self, topic: str, ranked: list[dict]) -> str:
         """Stage 4: Produce final strategic briefing."""
@@ -226,7 +226,7 @@ class WickedQuestionsOrchestrator:
             }],
             agent_name="synthesis",
         )
-        return response
+        return extract_text(response)
 
 
 
