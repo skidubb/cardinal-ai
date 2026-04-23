@@ -2,45 +2,35 @@ import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { fetchProtocols, type Protocol } from "@/lib/api";
 import { PatternIcon } from "@/components/run/PatternIcon";
-import type { OrchestrationPattern } from "@/components/run/orchestrationPattern";
+import {
+  PATTERN_DESC,
+  PATTERN_LABEL,
+  type OrchestrationPattern,
+} from "@/components/run/orchestrationPattern";
 import { PatternFilter } from "./PatternFilter";
-import { patternsFromSearchParams } from "./patternParams";
+import { PATTERN_ORDER, patternsFromSearchParams } from "./patternParams";
 
 const ROUTER_CATEGORY = "Meta-Protocols";
 
-const PROBLEM_TYPE_DESCRIPTIONS: Record<string, string> = {
-  Diagnostic: "Figure out what's actually going on — root causes, mechanisms, evidence.",
-  Adversarial: "Stress-test a plan — red-team, falsify, find what could kill it.",
-  Exploration: "Open up the solution space — ideation, combinatorial search, divergent thinking.",
-  "Multi-Stakeholder": "Reconcile competing interests — negotiation, voting, coalition-building.",
-  Prioritization: "Rank and choose — score options, allocate scarce attention.",
-  "Systems Analysis": "Map structure — feedback loops, archetypes, cause-effect chains.",
-  "Constraint Definition": "Define the envelope — must-haves vs. nice-to-haves.",
-  Estimation: "Forecast and quantify — calibrated probabilities, ranges, confidence.",
-  "Divergent Ideation": "Generate many candidates fast — creativity-first patterns.",
-  "General Analysis": "Generalist baselines that adapt to most problem types.",
-  "Factual Lookup": "Retrieve known facts — no reasoning needed.",
-  Mechanical: "Deterministic transformations — no LLM reasoning.",
-  "Role Expertise": "Leverage a specific professional viewpoint.",
-  Research: "Deep investigation across sources.",
-  "Portfolio Management": "Cross-initiative coordination and allocation.",
-};
-
-function groupByProblemType(
+function groupByPattern(
   protocols: Protocol[],
-): { name: string; protocols: Protocol[] }[] {
-  const buckets = new Map<string, Protocol[]>();
+): { pattern: OrchestrationPattern; protocols: Protocol[] }[] {
+  const buckets = new Map<OrchestrationPattern, Protocol[]>();
   for (const p of protocols) {
-    const types = p.problem_types && p.problem_types.length > 0 ? p.problem_types : ["Uncategorized"];
-    for (const t of types) {
-      if (!buckets.has(t)) buckets.set(t, []);
-      buckets.get(t)!.push(p);
-    }
+    const pat = p.orchestration_pattern as OrchestrationPattern | undefined;
+    if (!pat) continue;
+    if (!buckets.has(pat)) buckets.set(pat, []);
+    buckets.get(pat)!.push(p);
   }
-  // Sort buckets by size desc (popular problem types surface first), name asc for ties.
-  return Array.from(buckets.entries())
-    .map(([name, protocols]) => ({ name, protocols: protocols.sort((a, b) => a.name.localeCompare(b.name)) }))
-    .sort((a, b) => b.protocols.length - a.protocols.length || a.name.localeCompare(b.name));
+  // Fixed order (simplest → most coordinated); each bucket sorted by protocol_id.
+  return PATTERN_ORDER.filter((pat) => buckets.has(pat)).map((pat) => ({
+    pattern: pat,
+    protocols: buckets
+      .get(pat)!
+      .sort((a, b) =>
+        (a.protocol_id ?? a.key).localeCompare(b.protocol_id ?? b.key),
+      ),
+  }));
 }
 
 export default async function ProtocolsPage({
@@ -87,7 +77,7 @@ export default async function ProtocolsPage({
   // Routers (pinned at top) — the 4 meta-protocols that dispatch to others.
   const routers = filtered.filter((p) => p.category === ROUTER_CATEGORY);
   const nonRouters = filtered.filter((p) => p.category !== ROUTER_CATEGORY);
-  const problemGroups = groupByProblemType(nonRouters);
+  const patternGroups = groupByPattern(nonRouters);
 
   return (
     <div className="mx-auto max-w-6xl px-8 py-10 space-y-6">
@@ -101,7 +91,7 @@ export default async function ProtocolsPage({
             </span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Organized by problem type — {orgSlug ? <span className="font-mono">{orgSlug}</span> : "(no org)"}
+            Organized by orchestration pattern — {orgSlug ? <span className="font-mono">{orgSlug}</span> : "(no org)"}
           </p>
         </div>
         <Link
@@ -154,27 +144,23 @@ export default async function ProtocolsPage({
         </section>
       ) : null}
 
-      {problemGroups.map(({ name, protocols: bucket }) => {
-        const desc = PROBLEM_TYPE_DESCRIPTIONS[name];
-        return (
-          <section key={name} className="space-y-3">
-            <div className="border-b border-border pb-2">
-              <h2 className="text-base font-bold tracking-tight flex items-center gap-2">
-                {name}
-                <span className="text-xs text-muted-foreground">{bucket.length}</span>
-              </h2>
-              {desc ? (
-                <p className="text-xs text-muted-foreground mt-1">{desc}</p>
-              ) : null}
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {bucket.map((p) => (
-                <ProtocolCard key={`${name}-${p.key}`} protocol={p} />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      {patternGroups.map(({ pattern, protocols: bucket }) => (
+        <section key={pattern} className="space-y-3">
+          <div className="border-b border-border pb-2">
+            <h2 className="text-base font-bold tracking-tight flex items-center gap-2">
+              <PatternIcon pattern={pattern} size={16} />
+              {PATTERN_LABEL[pattern]}
+              <span className="text-xs text-muted-foreground">{bucket.length}</span>
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">{PATTERN_DESC[pattern]}</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {bucket.map((p) => (
+              <ProtocolCard key={p.key} protocol={p} />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
@@ -182,7 +168,6 @@ export default async function ProtocolsPage({
 function ProtocolCard({ protocol, isRouter = false }: { protocol: Protocol; isRouter?: boolean }) {
   const code = protocol.protocol_id ?? protocol.code ?? protocol.key.split("_")[0].toUpperCase();
   const tier = protocol.cost_tier;
-  const pattern = protocol.orchestration_pattern as OrchestrationPattern | undefined;
   const href = isRouter ? "/run?mode=smart" : `/protocols/${protocol.key}`;
   return (
     <Link
@@ -195,11 +180,14 @@ function ProtocolCard({ protocol, isRouter = false }: { protocol: Protocol; isRo
     >
       <div className="flex items-baseline justify-between mb-1 gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          {pattern ? <PatternIcon pattern={pattern} size={14} /> : null}
           <span className="font-mono text-xs text-primary">{code}</span>
           {isRouter ? (
             <span className="text-[8px] uppercase tracking-wider px-1 py-0.5 rounded bg-primary/20 text-primary font-mono shrink-0">
               Router
+            </span>
+          ) : protocol.category ? (
+            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-border bg-background/60 text-muted-foreground font-mono shrink-0">
+              {protocol.category}
             </span>
           ) : null}
         </div>
@@ -228,9 +216,9 @@ function ProtocolCard({ protocol, isRouter = false }: { protocol: Protocol; isRo
             {protocol.supports_rounds ? " · multi-round" : ""}
           </span>
         ) : <span />}
-        {!isRouter && protocol.category ? (
-          <span className="font-mono uppercase tracking-wider text-[9px] text-muted-foreground/70">
-            {protocol.category}
+        {protocol.problem_types && protocol.problem_types.length > 0 ? (
+          <span className="font-mono uppercase tracking-wider text-[9px] text-muted-foreground/70 truncate ml-2">
+            {protocol.problem_types.slice(0, 2).join(" · ")}
           </span>
         ) : null}
       </div>

@@ -20,11 +20,12 @@
 import type { Stage } from "./ProtocolDiagram";
 
 export type OrchestrationPattern =
+  | "single_agent"
+  | "sequence"
   | "parallel"
   | "hub_and_spoke"
   | "hybrid_matrix"
-  | "decentralized"
-  | "pipeline";
+  | "decentralized";
 
 export type StageFunction =
   | "agent"
@@ -35,19 +36,21 @@ export type StageFunction =
   | "mechanical";
 
 export const PATTERN_LABEL: Record<OrchestrationPattern, string> = {
+  single_agent: "Single agent",
+  sequence: "Sequence",
   parallel: "Parallel",
   hub_and_spoke: "Hub-and-spoke",
-  hybrid_matrix: "Hybrid / matrix",
+  hybrid_matrix: "Hybrid-matrix",
   decentralized: "Decentralized",
-  pipeline: "Pipeline",
 };
 
 export const PATTERN_DESC: Record<OrchestrationPattern, string> = {
+  single_agent: "One agent, one call — a direct response with no coordination.",
+  sequence: "Stages run in order; each feeds the next. Agent count varies.",
   parallel: "All agents answer at once, one synthesizer merges.",
   hub_and_spoke: "An orchestrator coordinates each step; agents fan out and back in.",
   hybrid_matrix: "Same agents revisit across multiple rounds; positions evolve.",
   decentralized: "Agents talk peer-to-peer; no central synthesizer.",
-  pipeline: "Sequential transformation, one stage feeds the next.",
 };
 
 /**
@@ -128,56 +131,53 @@ export function inferStageFunction(stage: Stage): StageFunction {
 /**
  * Classify the protocol's overall orchestration pattern.
  *
- * Heuristics:
- *  - All agent stages share the same upstream and there's exactly one (or
- *    zero) agent stage with `agents_filter: all` followed by a synthesis →
- *    "parallel".
- *  - Multiple agent stages where the same agents revisit (each agent stage
- *    depends on the previous agent stage) → "hybrid_matrix" (debate, etc).
- *  - Sequential mix of mechanical + agent stages culminating in synthesis,
- *    with agents fanning out within stages → "hub_and_spoke".
+ * Heuristics (same as Python classifier in api/manifest.py):
+ *  - agentCount ≤ 1 and at most one agent stage → "single_agent".
  *  - Agent stages but no synthesis stage → "decentralized" (peer-to-peer).
- *  - Single linear chain with no agent fan-out → "pipeline".
+ *  - Agent stage depends on a *prior agent* stage (revisit) → "hybrid_matrix".
+ *  - One agent stage + synthesis (with multi-agent) → "parallel".
+ *  - Multiple non-chained agent stages + synthesis → "hub_and_spoke".
+ *  - Everything else (linear chain, mechanical-only) → "sequence".
  */
 export function inferOrchestrationPattern(
   stages: Stage[],
   agentCount: number,
 ): OrchestrationPattern {
-  if (stages.length === 0) return "pipeline";
-
   const agentStages = stages.filter((s) => s.stage_type === "agent");
   const synthesisStages = stages.filter((s) => s.stage_type === "synthesis");
 
-  if (agentStages.length === 0) return "pipeline";
+  // Single agent: one agent and no fan-out shape.
+  if (agentCount <= 1 && agentStages.length <= 1) {
+    return "single_agent";
+  }
 
-  const fansOut = (s: Stage) => s.agents_filter === "all" && agentCount > 1;
-  const anyFanOut = agentStages.some(fansOut);
+  if (agentStages.length === 0) return "sequence";
 
   // Decentralized: agents but no central synthesizer.
   if (synthesisStages.length === 0 && agentStages.length > 1) {
     return "decentralized";
   }
 
-  // Hybrid / matrix: same agents revisit (each agent stage depends on a
-  // prior agent stage). Detect by chained agent→agent depends_on edges.
+  // Hybrid / matrix: an agent stage depends on a *prior agent stage*.
   if (agentStages.length >= 2) {
-    const agentKeys = new Set(agentStages.map((s) => s.key ?? s.name));
+    const agentKeys = new Set(
+      agentStages.flatMap((s) => [s.key, s.name].filter(Boolean) as string[]),
+    );
     const chained = agentStages.some((s) =>
       (s.depends_on ?? []).some((d) => agentKeys.has(d)),
     );
     if (chained) return "hybrid_matrix";
   }
 
-  // Parallel: one agent fan-out stage + one synthesis (the canonical P3 shape).
-  if (agentStages.length === 1 && fansOut(agentStages[0]) && synthesisStages.length >= 1) {
+  // Parallel: one agent stage + synthesis, multi-agent.
+  if (agentStages.length === 1 && synthesisStages.length >= 1 && agentCount > 1) {
     return "parallel";
   }
 
-  // Hub-and-spoke: orchestrator runs N stages in sequence, agent stages
-  // fan out within them. Most "Liberating Structures" protocols look like
-  // this (P6 TRIZ: invert → failure_modes (fan-out) → dedupe → solutions
-  // (fan-out) → synthesis).
-  if (anyFanOut) return "hub_and_spoke";
+  // Hub-and-spoke: multiple non-chained agent stages + synthesis.
+  if (agentStages.length >= 2 && synthesisStages.length >= 1) {
+    return "hub_and_spoke";
+  }
 
-  return "pipeline";
+  return "sequence";
 }
