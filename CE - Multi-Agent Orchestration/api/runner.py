@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import inspect
 import json
 import re
 import time
@@ -280,14 +281,34 @@ async def run_protocol_stream(
             "agents": [{"key": k, "name": a["name"]} for k, a in zip(agent_keys, agents)]
         })
 
-        # Build orchestrator kwargs
-        kwargs: dict[str, Any] = {
+        # Build orchestrator kwargs, then filter to what the orchestrator's
+        # __init__ actually accepts. Older orchestrators (e.g. P04 Debate) don't
+        # take `orchestration_model`; this avoids a TypeError that otherwise
+        # crashes the run at construction time with a misleading traceback.
+        candidate_kwargs: dict[str, Any] = {
             "agents": agents,
             "thinking_model": thinking_model,
             "orchestration_model": orchestration_model,
         }
         if rounds is not None:
-            kwargs["rounds"] = rounds
+            candidate_kwargs["rounds"] = rounds
+
+        _accepted = inspect.signature(OrchestratorClass.__init__).parameters
+        # If __init__ uses **kwargs, pass everything; otherwise drop keys it doesn't name.
+        accepts_var_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in _accepted.values())
+        kwargs = (
+            candidate_kwargs
+            if accepts_var_kwargs
+            else {k: v for k, v in candidate_kwargs.items() if k in _accepted}
+        )
+        dropped = set(candidate_kwargs) - set(kwargs)
+        if dropped:
+            print(
+                f"[runner] {protocol_key}: {OrchestratorClass.__name__} does not "
+                f"accept {sorted(dropped)}; passing "
+                f"{sorted(kwargs)} instead.",
+                flush=True,
+            )
 
         orchestrator = OrchestratorClass(**kwargs)
 
