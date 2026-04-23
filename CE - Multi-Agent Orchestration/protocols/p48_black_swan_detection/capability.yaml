@@ -1,6 +1,6 @@
 protocol_id: P48
 name: Black Swan Detection
-category: Wave 2 Research
+category: Reasoning Methods
 problem_types:
 - Estimation
 - Diagnostic

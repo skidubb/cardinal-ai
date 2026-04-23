@@ -1,6 +1,6 @@
 protocol_id: P32
 name: Tetlock Superforecasting
-category: Wave 2 Research
+category: Intelligence Analysis
 problem_types:
 - Estimation
 cost_tier: medium

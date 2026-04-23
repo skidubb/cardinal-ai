@@ -1,6 +1,6 @@
 protocol_id: P38
 name: Klein Premortem
-category: Wave 2 Research
+category: Intelligence Analysis
 problem_types:
 - Adversarial
 - Exploration

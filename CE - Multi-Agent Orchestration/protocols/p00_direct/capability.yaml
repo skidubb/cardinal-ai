@@ -1,6 +1,6 @@
 protocol_id: P00
 name: Direct LLM Response
-category: Meta-Protocols
+category: Baselines
 problem_types:
 - Factual Lookup
 - Mechanical

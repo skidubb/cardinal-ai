@@ -1,6 +1,6 @@
 protocol_id: P44
 name: Kant Pre-Router
-category: Wave 2 Research
+category: Meta-Protocols
 problem_types:
 - General Analysis
 cost_tier: low

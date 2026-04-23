@@ -1,6 +1,6 @@
 protocol_id: P22
 name: Sequential Pipeline
-category: Org Theory
+category: Baselines
 problem_types:
 - General Analysis
 cost_tier: low
