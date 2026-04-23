@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ArrowRight, Paperclip, X } from "lucide-react";
 import type {
   Agent,
@@ -76,7 +77,11 @@ export default function RunForm({
   const [synthesis, setSynthesis] = useState<string>("");
   const [runId, setRunId] = useState<number | null>(null);
   const [completedRunId, setCompletedRunId] = useState<number | null>(null);
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileMessage, setReconcileMessage] = useState<string>("");
   const abortRef = useRef<AbortController | null>(null);
+  const reconcileAbortRef = useRef<AbortController | null>(null);
+  const runIdRef = useRef<number | null>(null);
 
   const { data: stagesData } = useProtocolStages(
     mode === "protocol" ? protocolKey : null,
@@ -155,13 +160,18 @@ export default function RunForm({
 
   async function startRun() {
     if (!question.trim() || running) return;
+    reconcileAbortRef.current?.abort();
+    reconcileAbortRef.current = null;
     setRunning(true);
     setError(null);
     setEvents([]);
     setTraces({});
     setSynthesis("");
     setRunId(null);
+    runIdRef.current = null;
     setCompletedRunId(null);
+    setReconciling(false);
+    setReconcileMessage("");
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -275,11 +285,67 @@ export default function RunForm({
       }
     } catch (e: unknown) {
       if ((e as { name?: string })?.name === "AbortError") return;
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      const ridForPoll = runIdRef.current;
+      if (ridForPoll != null) {
+        // SSE stream dropped but the backend run was created — reconcile against
+        // /api/runs/{id} rather than declaring failure from stream state alone.
+        reconcileRunStatus(ridForPoll, message);
+      } else {
+        setError(message);
+      }
     } finally {
       setRunning(false);
       abortRef.current = null;
     }
+  }
+
+  async function reconcileRunStatus(rid: number, initialReason: string) {
+    const ctrl = new AbortController();
+    reconcileAbortRef.current?.abort();
+    reconcileAbortRef.current = ctrl;
+    setReconciling(true);
+    setReconcileMessage(
+      `Connection lost (${initialReason.slice(0, 80)}) — checking run status…`,
+    );
+
+    const deadline = Date.now() + 10 * 60 * 1000; // 10 min ceiling
+    while (!ctrl.signal.aborted && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 3000));
+      if (ctrl.signal.aborted) return;
+      try {
+        const resp = await fetch(`/api/proxy/runs/${rid}`, { signal: ctrl.signal });
+        if (!resp.ok) continue;
+        const run = (await resp.json()) as {
+          status?: string;
+          error_message?: string | null;
+        };
+        if (run.status === "completed") {
+          setCompletedRunId(rid);
+          setReconciling(false);
+          setReconcileMessage("");
+          reconcileAbortRef.current = null;
+          return;
+        }
+        if (run.status === "failed" || run.status === "cancelled") {
+          setReconciling(false);
+          setReconcileMessage("");
+          setError(run.error_message || `Run ${run.status}`);
+          reconcileAbortRef.current = null;
+          return;
+        }
+      } catch {
+        // transient network blip during reconcile — keep polling
+      }
+    }
+    if (!ctrl.signal.aborted) {
+      setReconciling(false);
+      setReconcileMessage("");
+      setError(
+        `Run is still executing — open Runs to see the final result (run #${rid}).`,
+      );
+    }
+    reconcileAbortRef.current = null;
   }
 
   function handleEvent(ev: SseEvent) {
@@ -288,10 +354,16 @@ export default function RunForm({
     switch (ev.event) {
       case "router_decision":
         setDecision(d as unknown as RouterDecision);
-        if (typeof d.run_id === "number") setRunId(d.run_id);
+        if (typeof d.run_id === "number") {
+          setRunId(d.run_id);
+          runIdRef.current = d.run_id;
+        }
         break;
       case "run_start":
-        if (typeof d.run_id === "number") setRunId(d.run_id);
+        if (typeof d.run_id === "number") {
+          setRunId(d.run_id);
+          runIdRef.current = d.run_id;
+        }
         break;
       case "agent_output": {
         const key = String(d.agent_key ?? "unknown");
@@ -323,7 +395,11 @@ export default function RunForm({
 
   function cancel() {
     abortRef.current?.abort();
+    reconcileAbortRef.current?.abort();
+    reconcileAbortRef.current = null;
     setRunning(false);
+    setReconciling(false);
+    setReconcileMessage("");
   }
 
   const agentsByCategory: Record<string, Agent[]> = {};
@@ -396,7 +472,7 @@ export default function RunForm({
             type="file"
             multiple
             hidden
-            accept=".pdf,.txt,.md,.markdown"
+            accept=".pdf,.txt,.md,.markdown,.csv,text/csv"
             onChange={(e) => {
               const chosen = Array.from(e.target.files ?? []);
               if (chosen.length) setAttachedFiles((curr) => [...curr, ...chosen]);
@@ -454,6 +530,14 @@ export default function RunForm({
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground text-pretty">
                 {selectedProtocol.description}
               </p>
+            ) : null}
+            {selectedProtocol ? (
+              <Link
+                href={`/protocols/${selectedProtocol.key}`}
+                className="mt-2 inline-block text-xs text-primary hover:underline"
+              >
+                View protocol details →
+              </Link>
             ) : null}
             {selectedProtocol && (selectedProtocol.max_agents ?? 0) > 1 ? (
               <div className="mt-3">
@@ -631,7 +715,11 @@ export default function RunForm({
         </div>
       </div>
 
-      {error ? (
+      {reconciling ? (
+        <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
+          <strong className="text-foreground">Connection lost.</strong> {reconcileMessage}
+        </div>
+      ) : error ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
           <strong>Run failed:</strong> {error}
         </div>
