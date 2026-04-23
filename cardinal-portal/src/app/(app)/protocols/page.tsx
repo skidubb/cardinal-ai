@@ -3,7 +3,8 @@ import Link from "next/link";
 import { fetchProtocols, type Protocol } from "@/lib/api";
 import { PatternIcon } from "@/components/run/PatternIcon";
 import type { OrchestrationPattern } from "@/components/run/orchestrationPattern";
-import { PatternFilter, patternsFromSearchParams } from "./PatternFilter";
+import { PatternFilter } from "./PatternFilter";
+import { patternsFromSearchParams } from "./patternParams";
 
 const ROUTER_CATEGORY = "Meta-Protocols";
 

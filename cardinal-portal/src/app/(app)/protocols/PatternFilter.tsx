@@ -8,28 +8,11 @@ import {
   PATTERN_LABEL,
   type OrchestrationPattern,
 } from "@/components/run/orchestrationPattern";
-
-const ORDER: OrchestrationPattern[] = [
-  "single_agent",
-  "sequence",
-  "parallel",
-  "hub_and_spoke",
-  "hybrid_matrix",
-  "decentralized",
-];
-
-const PARAM = "patterns";
-
-export function patternsFromSearchParams(
-  raw: string | string[] | undefined,
-): Set<OrchestrationPattern> {
-  const value = Array.isArray(raw) ? raw.join(",") : raw ?? "";
-  const tokens = value
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean) as OrchestrationPattern[];
-  return new Set(tokens.filter((t) => ORDER.includes(t)));
-}
+import {
+  PATTERN_ORDER as ORDER,
+  PATTERN_PARAM as PARAM,
+  patternsFromSearchParams,
+} from "./patternParams";
 
 export function PatternFilter({ counts }: { counts: Record<OrchestrationPattern, number> }) {
   const router = useRouter();
