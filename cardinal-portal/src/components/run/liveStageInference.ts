@@ -45,8 +45,9 @@ export function inferLiveStage(
   }, 0);
 
   const hasSynthesis = events.some((e) => e.event === "synthesis");
-  const hasRunComplete = events.some(
-    (e) => e.event === "run_complete" || e.event === "error" || e.event === "router_error",
+  const hasRunComplete = events.some((e) => e.event === "run_complete");
+  const hasRunError = events.some(
+    (e) => e.event === "error" || e.event === "router_error",
   );
 
   const visitedAgentStageIdxs = agentStageIdxs.filter((_, ord) => ord <= maxRound);
@@ -54,7 +55,21 @@ export function inferLiveStage(
     .slice(0, agentStageIdxs[0] ?? stages.length)
     .map((_, i) => i);
 
+  // Successful run ⇒ every required stage ran by definition. The SSE payload
+  // only carries `round` (0 for linear non-rounds protocols), so rounds-based
+  // inference undercounts agent stages for protocols like P39, P48, P52.
   if (hasRunComplete) {
+    const completed = new Set<string>();
+    for (let i = 0; i < stages.length; i++) {
+      const s = stages[i];
+      if (s.stage_type === "synthesis" && !hasSynthesis) continue;
+      completed.add(keyOf(s, i));
+    }
+    return { activeStageKey: null, completedStageKeys: Array.from(completed) };
+  }
+
+  // Errored run ⇒ best-effort partial progress from whatever we did observe.
+  if (hasRunError) {
     const completed = new Set<string>();
     for (const i of leadingMechanicalIdxs) completed.add(keyOf(stages[i], i));
     if (agentEvents.length > 0) {
