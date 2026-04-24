@@ -182,12 +182,30 @@ export default function RunForm({
     let body: Record<string, unknown> | FormData = {};
 
     if (mode === "smart") {
-      endpoint = "/api/proxy/router/run";
-      body = { question };
+      if (hasFiles) {
+        // Smart route + context — classify question only, then run chosen
+        // protocol with uploaded files as grounding context.
+        endpoint = "/api/proxy/router/run-with-context";
+        const fd = new FormData();
+        fd.append("question", question);
+        if (agentKeys.length > 0) fd.append("agents", JSON.stringify(agentKeys));
+        for (const f of attachedFiles) fd.append("files", f);
+        body = fd;
+      } else {
+        endpoint = "/api/proxy/router/run";
+        body = { question };
+      }
     } else if (mode === "pipeline") {
       const selectedPipeline = pipelines.find((p) => String(p.id) === pipelineKey);
       if (!selectedPipeline) {
         setError("Pick a pipeline first.");
+        setRunning(false);
+        return;
+      }
+      if (hasFiles) {
+        setError(
+          "Pipelines don't accept context files yet — switch to Pick protocol or Smart route to attach files.",
+        );
         setRunning(false);
         return;
       }
@@ -457,13 +475,9 @@ export default function RunForm({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={running || mode !== "protocol"}
+            disabled={running}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-40"
-            title={
-              mode === "protocol"
-                ? "Attach PDF/TXT/MD context for this single run (non-persistent)"
-                : "File attachment is available only in Pick protocol mode"
-            }
+            title="Attach PDF/TXT/MD/CSV context for this run (non-persistent)"
           >
             <Paperclip size={12} /> Attach context
           </button>
