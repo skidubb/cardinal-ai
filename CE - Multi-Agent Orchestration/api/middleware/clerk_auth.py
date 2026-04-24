@@ -110,6 +110,10 @@ def _bearer_token(request: Request) -> str | None:
 
 async def get_auth(request: Request) -> ClerkAuthContext:
     """FastAPI dependency: validate Clerk JWT, return context. 401 if missing/invalid."""
+    existing = getattr(request.state, "auth", None)
+    if isinstance(existing, ClerkAuthContext):
+        return existing
+
     jwks_url, audience = _config()
     if not jwks_url:
         raise HTTPException(
@@ -155,12 +159,12 @@ async def get_auth_with_org(ctx: ClerkAuthContext = Depends(get_auth)) -> ClerkA
 # Backward-compatible tenant resolution
 # ---------------------------------------------------------------------------
 #
-# ``resolve_tenant`` is the bridge between the portal (always sends a JWT) and
-# unauth'd callers (local CLI, curl, scripts, buggy clients):
+# ``resolve_tenant`` is the bridge between authenticated portal requests and
+# explicitly trusted non-portal callers (local CLI, curl, scripts with API key):
 #
-#   1. If a valid Clerk JWT is present -> use its ``org_slug``.
+#   1. If a Bearer token is present -> validate it and require ``org_slug``.
 #   2. Else if ``CE_DEV_TENANT`` env var is set -> use that.
-#   3. Else fall back to ``DEFAULT_TENANT``.
+#   3. Else fall back to ``DEFAULT_TENANT`` for trusted non-portal calls.
 #
 # ``DEFAULT_TENANT`` is "local-dev" by default, so unauth'd callers write to an
 # isolated tenant and cannot silently pollute CE's production state. To restore
@@ -190,21 +194,18 @@ def _canonicalize_slug(slug: str) -> str:
 
 
 async def resolve_tenant(request: Request) -> str:
-    """Best-effort tenant resolution. Returns a slug, never raises.
+    """Resolve the tenant slug for a request.
 
-    Use as a FastAPI dependency on existing endpoints to add tenant scoping
-    without breaking unauth'd callers.
+    A present Bearer token is authoritative: invalid tokens or sessions without
+    an active organization fail instead of silently falling back to a default
+    tenant. Requests without a Bearer token keep the API-key/local-script
+    fallback path.
     """
-    # 1. Try the JWT path. Swallow auth errors -- we're being lenient here.
-    if _config()[0]:  # CLERK_JWKS_URL is set
-        token = _bearer_token(request)
-        if token:
-            try:
-                ctx = await get_auth(request)
-                if ctx.org_slug:
-                    return _canonicalize_slug(ctx.org_slug)
-            except HTTPException:
-                pass  # fall through to env/default
+    # 1. If the caller supplies a JWT, it must be valid and organization-scoped.
+    token = _bearer_token(request)
+    if token:
+        ctx = await get_auth(request)
+        return _canonicalize_slug(ctx.require_org())
 
     # 2. Env override (local dev convenience)
     env_slug = os.environ.get("CE_DEV_TENANT")

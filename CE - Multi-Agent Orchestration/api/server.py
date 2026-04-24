@@ -15,12 +15,13 @@ import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.database import create_db_and_tables
+from api.middleware.clerk_auth import get_auth
 from api.routers import agents, auth as auth_router, connectors as connectors_router, context_preview, corrections as corrections_router, discover as discover_router, graph as graph_router, integrations, knowledge, pipelines, protocols, reports, router as adaptive_router, runs, teams, usage as usage_router, webhooks_clerk
 from api.routers.agents import tools_router
 
@@ -62,14 +63,25 @@ app.add_middleware(
 
 API_KEY = os.getenv("API_KEY", "")
 SKIP_AUTH = os.getenv("SKIP_AUTH", "false").lower() in ("1", "true", "yes")
+PUBLIC_PATHS = ("/api/health", "/api/webhooks/clerk", "/api/webhooks/clerk/health")
+PUBLIC_PREFIXES = ("/share/",)
 
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     if SKIP_AUTH or request.method == "OPTIONS":
         return await call_next(request)
-    if request.url.path == "/api/health" or request.url.path.startswith("/share/"):
+    if request.url.path in PUBLIC_PATHS or request.url.path.startswith(PUBLIC_PREFIXES):
         return await call_next(request)
+
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        try:
+            await get_auth(request)
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return await call_next(request)
+
     key = request.headers.get("X-API-Key", "")
     if not API_KEY:
         return JSONResponse(status_code=500, content={"detail": "API_KEY not configured but auth is enabled. Set API_KEY or SKIP_AUTH=true."})
