@@ -114,8 +114,13 @@ async def start_protocol_run_with_context(
     rounds: int | None = Form(None),
     no_tools: bool = Form(False),
     files: list[UploadFile] = File(default=[]),
+    tenant_slug: str = Depends(resolve_tenant),
 ) -> StreamingResponse:
-    """Start a protocol run with uploaded context files and stream SSE events."""
+    """Start a protocol run with uploaded context files and stream SSE events.
+
+    The run row is stamped with ``tenant_slug`` derived from the caller's Clerk
+    JWT so the resulting run is visible to the caller's list-by-tenant query.
+    """
     # Parse agent_keys from JSON string
     try:
         parsed_agent_keys: list[str] = _json.loads(agent_keys)
@@ -147,6 +152,7 @@ async def start_protocol_run_with_context(
             protocol_key=protocol_key,
             question=question,
             status="pending",
+            tenant_slug=tenant_slug,
         )
         session.add(run)
         session.commit()
@@ -180,6 +186,7 @@ async def start_protocol_run_with_context(
                 rounds=rounds,
                 no_tools=no_tools,
                 context=run_context,
+                tenant_slug=tenant_slug,
             ):
                 await event_queue_ctx.put(chunk)
         finally:

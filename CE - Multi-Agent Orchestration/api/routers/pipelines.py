@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, col, select
 
 from api.database import engine, get_session
+from api.middleware.clerk_auth import resolve_tenant
 from api.models import Pipeline, PipelineStep, Run, RunStep
 from api.pipeline_presets import PIPELINE_PRESETS
 from api.routers.runs import PipelineRunRequest
@@ -21,11 +22,18 @@ router = APIRouter(prefix="/api/pipelines", tags=["pipelines"])
 # ── POST /run — start a pipeline run with SSE streaming ──────────────────────
 
 @router.post("/run")
-async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> StreamingResponse:
+async def start_pipeline_run(
+    payload: PipelineRunRequest,
+    request: Request,
+    tenant_slug: str = Depends(resolve_tenant),
+) -> StreamingResponse:
     """Start a pipeline run and stream SSE events.
 
     Runs complete server-side regardless of client disconnect. Close the
     browser tab and the run keeps going — check Run History for results.
+
+    The run row is stamped with ``tenant_slug`` from the caller's Clerk JWT
+    so the resulting run is visible to the caller's list-by-tenant query.
     """
     steps = [
         {
@@ -47,6 +55,7 @@ async def start_pipeline_run(payload: PipelineRunRequest, request: Request) -> S
             status="pending",
             agent_keys_json=_json.dumps(payload.agent_keys),
             steps_json=_json.dumps(steps),
+            tenant_slug=tenant_slug,
         )
         session.add(run)
         session.commit()
@@ -171,12 +180,15 @@ def create_pipeline(
 
 
 @router.delete("/{pipeline_id}", status_code=204)
-def delete_pipeline(pipeline_id: int, session: Session = Depends(get_session)):
-    pipeline = session.get(Pipeline, pipeline_id)
+def delete_pipeline(pipeline_id: str, session: Session = Depends(get_session)):
+    if not pipeline_id.isdigit():
+        raise HTTPException(status_code=400, detail="Presets cannot be deleted")
+    pid = int(pipeline_id)
+    pipeline = session.get(Pipeline, pid)
     if not pipeline:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     steps = session.exec(
-        select(PipelineStep).where(PipelineStep.pipeline_id == pipeline_id)
+        select(PipelineStep).where(PipelineStep.pipeline_id == pid)
     ).all()
     for step in steps:
         session.delete(step)
@@ -185,8 +197,13 @@ def delete_pipeline(pipeline_id: int, session: Session = Depends(get_session)):
 
 
 @router.get("/{pipeline_id}")
-def get_pipeline(pipeline_id: int, session: Session = Depends(get_session)) -> dict:
-    pipeline = session.get(Pipeline, pipeline_id)
+def get_pipeline(pipeline_id: str, session: Session = Depends(get_session)) -> dict:
+    if not pipeline_id.isdigit():
+        for preset in PIPELINE_PRESETS:
+            if preset["id"] == pipeline_id:
+                return preset
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline = session.get(Pipeline, int(pipeline_id))
     if not pipeline:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     return _pipeline_with_steps(pipeline, session)

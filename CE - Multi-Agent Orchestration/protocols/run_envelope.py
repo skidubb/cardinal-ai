@@ -62,6 +62,11 @@ class AgentOutputEnvelope:
     text: str
     agent_name: str = ""
     round_number: int = 0
+    # Slugified stage name (matches `key` in /api/protocols/{key}/stages).
+    # Linear protocols with 2+ agent stages (P38, P39, P48, P52) set this so
+    # the UI's ProtocolDiagram can advance the active-step cursor mid-run.
+    # Other protocols leave it blank and the frontend falls back to round_number.
+    stage_key: str = ""
     model: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
@@ -77,6 +82,7 @@ class AgentOutputEnvelope:
             "agent_name": self.agent_name,
             "text": self.text,
             "round_number": self.round_number,
+            "stage_key": self.stage_key,
             "model": self.model,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
@@ -95,6 +101,8 @@ class AgentOutputEnvelope:
         }
         if self.round_number:
             payload["round"] = self.round_number
+        if self.stage_key:
+            payload["stage_key"] = self.stage_key
         if self.cost_usd:
             payload["cost_usd"] = self.cost_usd
         return payload
