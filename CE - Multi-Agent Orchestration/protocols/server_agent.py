@@ -13,6 +13,7 @@ Reuses:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -286,10 +287,24 @@ class ServerAgent:
 
         messages: list[dict[str, Any]] = [{"role": "user", "content": message}]
 
+        # Convert system prompt to list-of-blocks with cache_control on the last
+        # block. This enables Anthropic prompt caching: the tools + system prefix
+        # is cached for 5 min and charged at 0.1× on re-use (writes cost 1.25×).
+        # The tool loop re-sends create_kwargs on every iteration, so the cache
+        # pays off from the second tool iteration onward and across protocol stages
+        # that call the same agent within the 5-min TTL.
+        system_blocks: list[dict] = [
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
+
         create_kwargs: dict[str, Any] = {
             "model": self.model,
             "max_tokens": 16_384,
-            "system": system_prompt,
+            "system": system_blocks,
             "messages": messages,
         }
         # Claude 4.x deprecated the temperature parameter entirely and rejects
@@ -328,21 +343,33 @@ class ServerAgent:
             return self._extract_text(response)
 
         # Agentic tool loop
+        from protocols.llm import get_event_queue
+        eq = get_event_queue()
+
         for iteration in range(MAX_TOOL_ITERATIONS):
             messages.append({"role": "assistant", "content": response.content})
 
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use":
-                    self.tool_calls.append({
-                        "tool": block.name,
-                        "input_summary": str(block.input)[:300],
-                        "id": block.id,
-                    })
+                    try:
+                        input_summary = json.dumps(block.input)[:500] if block.input else "{}"
+                    except (TypeError, ValueError):
+                        input_summary = str(block.input)[:500]
+
                     logger.info(
                         "[%s] tool_call #%d: %s",
                         self.role, iteration, block.name,
                     )
+
+                    if eq is not None:
+                        await eq.put({
+                            "event": "tool_call",
+                            "agent_name": self.name,
+                            "tool_name": block.name,
+                            "tool_input": input_summary,
+                            "iteration": iteration,
+                        })
 
                     result, elapsed_ms = await _execute_tool(block.name, block.input)
 
@@ -350,6 +377,26 @@ class ServerAgent:
                         "[%s] tool_result: %s (%.0fms)",
                         self.role, block.name, elapsed_ms,
                     )
+
+                    result_text = str(result)
+                    self.tool_calls.append({
+                        "tool": block.name,
+                        "input_summary": input_summary,
+                        "result_summary": result_text[:1000],
+                        "elapsed_ms": round(elapsed_ms, 1),
+                        "iteration": iteration,
+                        "id": block.id,
+                    })
+
+                    if eq is not None:
+                        await eq.put({
+                            "event": "tool_result",
+                            "agent_name": self.name,
+                            "tool_name": block.name,
+                            "tool_result_summary": result_text[:500],
+                            "elapsed_ms": round(elapsed_ms, 1),
+                            "iteration": iteration,
+                        })
 
                     tool_results.append({
                         "type": "tool_result",
@@ -373,18 +420,30 @@ class ServerAgent:
         return self._extract_text(response)
 
     def _accumulate_usage(self, response: Any) -> None:
-        """Accumulate token usage and cost from an API response."""
+        """Accumulate token usage and cost from an API response.
+
+        Reads both ``cache_read_input_tokens`` (0.1× cost) and
+        ``cache_creation_input_tokens`` (1.25× cost) from the usage object so
+        that prompt-cache economics are accurately reflected.
+        """
         usage = getattr(response, "usage", None)
         if usage is None:
             return
         inp = getattr(usage, "input_tokens", 0) or 0
         out = getattr(usage, "output_tokens", 0) or 0
         cached = getattr(usage, "cache_read_input_tokens", 0) or 0
+        cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
         self.input_tokens += inp
         self.output_tokens += out
         self.cached_tokens += cached
         from ce_shared.pricing import cost_for_model
-        self.cost += cost_for_model(self.model, input_tokens=inp, output_tokens=out, cache_read_tokens=cached)
+        self.cost += cost_for_model(
+            self.model,
+            input_tokens=inp,
+            output_tokens=out,
+            cache_read_tokens=cached,
+            cache_write_tokens=cache_write,
+        )
 
     @staticmethod
     def _extract_text(response: Any) -> str:

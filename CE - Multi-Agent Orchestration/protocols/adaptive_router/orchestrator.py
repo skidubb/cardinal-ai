@@ -7,6 +7,9 @@ notebook, or a future scheduler without coupling to the FastAPI runner.
 
 from __future__ import annotations
 
+import hashlib
+import json
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -18,6 +21,51 @@ from .resolver import Resolver, ResolveResult
 # Confidence thresholds — tunable via constructor
 DEFAULT_HIGH = 80
 DEFAULT_MID = 50
+
+# ---------------------------------------------------------------------------
+# In-process router decision cache
+# ---------------------------------------------------------------------------
+
+_ROUTER_CACHE_TTL = 15 * 60  # 15 minutes in seconds
+_ROUTER_CACHE_MAX = 256  # max entries; evict oldest on overflow
+
+# {cache_key: (RouterDecision, inserted_at_monotonic)}
+_router_cache: dict[str, tuple["RouterDecision", float]] = {}
+
+
+def _router_cache_key(question: str, agents: list[str] | None, mode: str) -> str:
+    """Stable SHA-256 key for a router decide() call."""
+    payload = json.dumps(
+        {
+            "q": question.strip().lower(),
+            "agents": sorted(agents) if agents else [],
+            "mode": mode,
+        },
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _router_cache_get(key: str) -> "RouterDecision | None":
+    """Return a cached decision if it exists and hasn't expired."""
+    entry = _router_cache.get(key)
+    if entry is None:
+        return None
+    decision, inserted_at = entry
+    if time.monotonic() - inserted_at > _ROUTER_CACHE_TTL:
+        del _router_cache[key]
+        return None
+    return decision
+
+
+def _router_cache_put(key: str, decision: "RouterDecision") -> None:
+    """Store a decision, evicting the oldest entry when the cache is full."""
+    global _router_cache
+    if len(_router_cache) >= _ROUTER_CACHE_MAX:
+        # Evict the entry with the smallest insertion timestamp
+        oldest_key = min(_router_cache, key=lambda k: _router_cache[k][1])
+        del _router_cache[oldest_key]
+    _router_cache[key] = (decision, time.monotonic())
 
 
 class ConfidenceGateError(Exception):
@@ -93,13 +141,24 @@ class AdaptiveRouterOrchestrator:
         question: str,
         *,
         requested_agents: list[str] | None = None,
+        mode: str = "default",
     ) -> RouterDecision:
         """Classify the question and return a decision.
+
+        Results are memoized in-process for ``_ROUTER_CACHE_TTL`` (15 min) keyed
+        by sha256(question + sorted agents + mode).  Cache hits skip the LLM
+        classifier call entirely — useful when the UI polls decide() before
+        committing to a full run.
 
         Does not raise on low confidence — returns a decision with
         auto_executable=False. Callers choose whether to prompt the user
         or abort.
         """
+        cache_key = _router_cache_key(question, requested_agents, mode)
+        cached = _router_cache_get(cache_key)
+        if cached is not None:
+            return cached
+
         classifier_result: RouterResult = await self.classifier.run(question)
 
         tier = self._tier(classifier_result.problem_type_confidence)
@@ -130,7 +189,7 @@ class AdaptiveRouterOrchestrator:
             or (low_tier_short_circuit and tier == "mid")
         )
 
-        return RouterDecision(
+        decision = RouterDecision(
             question=question,
             problem_type=classifier_result.problem_type,
             confidence=classifier_result.problem_type_confidence,
@@ -151,6 +210,8 @@ class AdaptiveRouterOrchestrator:
                 "timings": classifier_result.timings,
             },
         )
+        _router_cache_put(cache_key, decision)
+        return decision
 
     def _tier(self, confidence: int) -> str:
         if confidence >= self.high_threshold:

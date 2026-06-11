@@ -12,6 +12,28 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 
+# ---------------------------------------------------------------------------
+# Router cache isolation — clear module-level in-process cache before each
+# test so memoized decisions from one test don't contaminate the next.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _clear_router_decision_cache():
+    """Reset the adaptive router's in-process decision cache before/after each test."""
+    try:
+        from protocols.adaptive_router import orchestrator as _om
+        _om._router_cache.clear()
+    except Exception:
+        pass
+    yield
+    try:
+        from protocols.adaptive_router import orchestrator as _om
+        _om._router_cache.clear()
+    except Exception:
+        pass
+
+
 # ── In-memory SQLite engine ───────────────────────────────────────────────────
 
 @pytest.fixture(name="engine")

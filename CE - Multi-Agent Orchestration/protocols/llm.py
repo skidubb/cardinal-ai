@@ -146,6 +146,7 @@ def _record_usage(
         input_tokens = estimated_tokens.get("input_tokens", 0)
         output_tokens = estimated_tokens.get("output_tokens", 0)
         cached_tokens = 0
+        cache_write_tokens = 0
         token_source = "estimated_from_cost"
     else:
         usage = getattr(response, "usage", None)
@@ -153,8 +154,10 @@ def _record_usage(
             return
         input_tokens = getattr(usage, "input_tokens", 0) or 0
         output_tokens = getattr(usage, "output_tokens", 0) or 0
-        # cache_read_input_tokens is Anthropic SDK's attribute name for prompt-cache hits
+        # cache_read_input_tokens — prompt-cache hits (charged at 0.1×)
         cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+        # cache_creation_input_tokens — cache writes (charged at 1.25×); track separately
+        cache_write_tokens = getattr(usage, "cache_creation_input_tokens", 0) or 0
         token_source = "sdk_response"
 
     tracker = _cost_tracker.get()
@@ -174,6 +177,7 @@ def _record_usage(
                 output_tokens,
                 cached_tokens,
                 agent_name=agent_name,
+                cache_write_tokens=cache_write_tokens if token_source == "sdk_response" else 0,
             )
         except TypeError:
             # Backward compatibility for custom trackers.
@@ -191,8 +195,9 @@ def _record_usage(
     try:
         from protocols.langfuse_tracing import record_generation
         from protocols.cost_tracker import _compute_cost
+        _cw = cache_write_tokens if token_source == "sdk_response" else 0
         call_cost = cost_usd if cost_usd is not None else _compute_cost(
-            model, input_tokens, output_tokens, cached_tokens
+            model, input_tokens, output_tokens, cached_tokens, _cw
         )
         record_generation(
             model, input_tokens, output_tokens, cached_tokens, agent_name,
@@ -203,6 +208,45 @@ def _record_usage(
         )
     except ImportError:
         pass
+
+
+def _apply_cache_control(kwargs: dict) -> dict:
+    """Convert a string ``system`` prompt to a list-of-blocks with cache_control.
+
+    Anthropic prompt caching requires the system prompt to be a list of text
+    blocks. Adding ``cache_control: {"type": "ephemeral"}`` to the **last**
+    block marks that prefix (tools + system) as cacheable for 5 minutes.
+    Writes cost 1.25×; reads cost 0.1× — profitable after 1 re-use.
+
+    Rules:
+    - If ``system`` is already a list, ensure the last block has cache_control.
+    - If ``system`` is a string, convert it to a single-element list.
+    - If ``system`` is absent or empty, return kwargs unchanged.
+    """
+    system = kwargs.get("system")
+    if not system:
+        return kwargs
+
+    if isinstance(system, list):
+        if not system:
+            return kwargs
+        blocks = list(system)
+        last = dict(blocks[-1])
+        last["cache_control"] = {"type": "ephemeral"}
+        blocks[-1] = last
+        return {**kwargs, "system": blocks}
+
+    # Plain string → single block
+    return {
+        **kwargs,
+        "system": [
+            {
+                "type": "text",
+                "text": str(system),
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+    }
 
 
 async def llm_complete(
@@ -224,11 +268,16 @@ async def llm_complete(
     Callers that still wrap the result in `extract_text()` are fine:
     `extract_text()` is idempotent on strings.
 
+    Prompt caching: the system prompt (if present) is automatically converted
+    to a list-of-blocks with cache_control on the last block. Reads are 0.1×
+    the normal input cost; profitable after a single cache hit within 5 min.
+
     Args:
         client: Anthropic async client instance.
         agent_name: Label for cost/trace attribution (e.g. "dedup", "synthesis").
         **kwargs: Passed directly to client.messages.create().
     """
+    kwargs = _apply_cache_control(kwargs)
     response = await _retry_api_call(client.messages.create, **kwargs)
     model = kwargs.get("model", "unknown")
     _record_usage(model, response, agent_name=agent_name, input_messages=kwargs.get("messages"))
@@ -453,6 +502,11 @@ async def _agent_complete_inner(
         create_kwargs["temperature"] = float(agent_temperature)
     if effective_tools:
         create_kwargs["tools"] = effective_tools
+
+    # Apply prompt caching — converts system string to list-of-blocks so the
+    # last block carries cache_control. The tool loop re-sends create_kwargs
+    # on every iteration, so caching amortises across all tool iterations.
+    create_kwargs = _apply_cache_control(create_kwargs)
 
     response = await _retry_api_call(anthropic_client.messages.create, **create_kwargs)
     _record_usage(fallback_model, response, agent_name=agent.get("name"), input_messages=messages)
