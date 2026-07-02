@@ -8,10 +8,9 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+from ce_shared.env import find_and_load_dotenv
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from ce_shared.env import find_and_load_dotenv
 
 HAIKU_MODEL = os.getenv("HAIKU_MODEL", "claude-haiku-4-5-20251001")
 

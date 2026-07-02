@@ -24,17 +24,12 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from ce_shared.pricing import (
     BATCH_DISCOUNT,
     CACHE_READ_MULTIPLIER,
-    CACHE_WRITE_MULTIPLIER,
-    MODEL_PRICING,
-    ModelTier,
     get_pricing,
 )
-
+from pydantic import BaseModel, Field
 
 # =============================================================================
 # Task Type Classification

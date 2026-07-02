@@ -18,7 +18,7 @@ Monorepo for Cardinal Element's agentic AI work. Consolidates three previously s
 
 Each project has its own venv. Always activate the project-specific venv before running commands.
 
-**Fresh machine / drifted local dev?** Run `bash scripts/dev-bootstrap.sh` — idempotent setup script. Handles Postgres port selection, editable `ce-shared`/`ce-db`/`ce-graph` installs in the right order, Alembic migrations, and a sanity round-trip. See [`docs/local-dev.md`](docs/local-dev.md) for options + scenarios.
+**Fresh machine / drifted local dev?** Run `bash Scripts/dev-bootstrap.sh` — idempotent setup script. Handles Postgres port selection, editable `ce-shared`/`ce-db`/`ce-graph` installs in the right order, Alembic migrations, and a sanity round-trip. See [`docs/local-dev.md`](docs/local-dev.md) for options + scenarios.
 
 ## Quick Reference Commands
 
