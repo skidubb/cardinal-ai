@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A multi-agent AI platform for Cardinal Element's growth architecture consulting. 52 coordination protocols orchestrate 56+ AI agents (executives, specialists, external perspectives) to produce structured strategic analysis for client engagements. This milestone wires the existing CLI, protocols, API, and UI into a single deployable product that Scott can use on real client work.
+A multi-agent AI platform for Cardinal Element's growth architecture consulting. 60 coordination protocols orchestrate 62 AI agents (executives, specialists, external perspectives) to produce structured strategic analysis for client engagements. This milestone wires the existing CLI, protocols, API, and UI into a single deployable product that Scott can use on real client work.
 
 ## Core Value
 
@@ -22,7 +22,7 @@ A client question goes in, a structured multi-agent analysis comes out — viewa
 - ✓ Budget guardrails (cost ceiling warnings) — Phase 3
 - ✓ bypassPermissions design decision documented — Phase 3
 - ✓ 7 executive agents with tools, MCP servers, memory (Agent Builder) — existing
-- ✓ 52 coordination protocols with CLI entry points — existing
+- ✓ 60 coordination protocols with CLI entry points — existing
 - ✓ 56-agent registry with @category group syntax — existing
 - ✓ Dual agent mode (production/research) with AgentBridge adapter — existing
 - ✓ Langfuse tracing on all protocols — existing
@@ -87,7 +87,7 @@ A client question goes in, a structured multi-agent analysis comes out — viewa
 | Cloud deploy target | Clients need URL access, not screen-share of localhost | — Pending |
 | Simple auth over no auth | URL sharing with clients requires basic access control | — Pending |
 | PDF/doc export over slides | Client deliverables are reports, not presentations | — Pending |
-| All 52 protocols available | Curated set for quick access, full library for flexibility | — Pending |
+| All 60 protocols available | Curated set for quick access, full library for flexibility | — Pending |
 
 ---
 *Last updated: 2026-03-10 after initialization*

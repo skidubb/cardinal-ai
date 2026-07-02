@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Full-Stack Integration
 status: planning
-stopped_at: Phases 4-6 complete — Phase 7 (Frontend and Auth) next
-last_updated: "2026-04-08"
-last_activity: 2026-03-11 — Completed Phase 6 (Structured Output and Reports)
+stopped_at: Phases 4-6 complete; Phases 7-8 superseded by the Clerk + cardinal-portal + Railway productization track — v1.2 (Phases 9-12) next
+last_updated: "2026-07-01"
+last_activity: 2026-07-01 — State refreshed during repo audit; roadmap v1.2 recorded
 progress:
   total_phases: 8
   completed_phases: 6
@@ -28,9 +28,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 Phase: 7 of 8 (Frontend and Auth)
 Plan: 0 of 3 in current phase
 Status: Ready to plan
-Last activity: 2026-03-11 — Completed Phase 6 (Structured Output and Reports)
+Last activity: 2026-07-01 — State refreshed during repo audit
 
-Progress: [██████░░░░] 60% (v1.1 milestone — phases 4-6 complete, 7-8 remaining)
+Progress: [██████░░░░] 60% (v1.1 milestone — phases 4-6 complete; 7-8 outcomes shipped via the Clerk/cardinal-portal/Railway track outside this roadmap; v1.2 phases 9-12 pending)
+
+> **2026-07-01 note:** frontend auth and deployment (Phases 7-8) were ultimately delivered as `cardinal-portal` (Next.js + Clerk on Vercel) + the Railway FastAPI deployment rather than the plans written here — see root `CLAUDE.md` "Productization stack". Deployment decision below ("Vercel not Railway") is superseded: the API engine runs on Railway, the portal on Vercel.
 
 ## Performance Metrics
 

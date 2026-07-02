@@ -114,7 +114,7 @@ src/csuite/
 The following capabilities are implemented as protocols in `CE - Multi-Agent Orchestration/protocols/`:
 - Multi-agent synthesis, debate, constraint negotiation (P3-P5)
 - Growth Strategy Audit pipeline (via protocol runs)
-- 57 coordination protocols across 9+ categories
+- 60 coordination protocols across 9+ categories
 - Evaluation harness (`scripts/evaluate.py`)
 
 ### Demo App

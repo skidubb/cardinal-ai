@@ -11,7 +11,7 @@ Monorepo for Cardinal Element's agentic AI work. Consolidates three previously s
 | Directory | What it is | Setup |
 |-----------|-----------|-------|
 | `CE - Agent Builder/` | C-Suite CLI app — 7 executive AI agents with synthesis, debate, audit | `pip install -e ".[dev]"` (hatchling) |
-| `CE - Multi-Agent Orchestration/` | 57 coordination protocols + 62-agent registry + FastAPI web UI | `pip install -r requirements.txt` |
+| `CE - Multi-Agent Orchestration/` | 60 coordination protocols + 62-agent registry + FastAPI web UI | `pip install -r requirements.txt` |
 | `CE - Evals/` | LLM-as-judge evaluation framework (Claude, GPT-4, Gemini backends) | `pip install -e .` (setuptools) |
 | `n8n Workflows/` | n8n automation workflow JSON exports | N/A (imported into n8n) |
 | `cardinal-portal/` | Customer-facing web portal — Next.js 16 + Clerk + shadcn (Vercel) | `cd cardinal-portal && npm install && npm run dev` |
@@ -74,7 +74,7 @@ python scripts/evaluate.py --protocol p16_ach --question Q4.1 --agents ceo cfo c
 
 ### CE - Multi-Agent Orchestration — Protocol Engine + Web UI
 
-Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async class with `run(question)`), `prompts.py` (string constants), `run.py` (CLI). Two model tiers: `thinking_model` (Opus) for reasoning, `orchestration_model` (Haiku) for mechanical steps. 57 protocols across 9+ categories, including **Decentralized Coordination** (P53–P57: Contract Net, Blackboard, Gossip Consensus, Stigmergic Exploration, Liquid Democracy). See project-level `CLAUDE.md` for the full taxonomy.
+Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async class with `run(question)`), `prompts.py` (string constants), `run.py` (CLI). Two model tiers: `thinking_model` (Opus) for reasoning, `orchestration_model` (Haiku) for mechanical steps. 60 protocols across 9+ categories, including **Decentralized Coordination** (P53–P57: Contract Net, Blackboard, Gossip Consensus, Stigmergic Exploration, Liquid Democracy). See project-level `CLAUDE.md` for the full taxonomy.
 
 **ServerAgent** (`protocols/server_agent.py`): The production agent class for server deployment. Uses direct `anthropic.AsyncAnthropic().messages.create()` with native tool-use loop (max 15 iterations). Imports role prompts and tool schemas from Agent Builder. No subprocess spawning — works in Docker/Railway. `build_production_agents()` in `protocols/agent_provider.py` creates these.
 
@@ -94,7 +94,7 @@ Library-only (no CLI). Core in `src/ce_evals/core/` — `judge.py` + `judge_back
 
 - **`ce-shared/`**: Pricing (`MODEL_PRICING`, `cost_for_model()`), env registry (`KEY_REGISTRY`, `find_and_load_dotenv()`). Used by all projects. Single source of truth for model pricing and env var names.
 - **`ce-db/`**: Async SQLAlchemy + asyncpg + Alembic migrations. Postgres schema for runs, traces, costs. Used by Orchestration and optionally Evals.
-- **`ce-graph/`**: Knowledge graph layer (Graphiti + FalkorDB) for shared institutional memory across the C-Suite agents. Provides `Client`, `Engagement`, `Protocol`, `Decision`, `Correction`, `Lesson` entity types with temporal facts and provenance. Cypher query helpers in `queries.py`, semantic search via `GraphClient.search()`. Local FalkorDB via `docker compose up -d` from `ce-graph/`. **Multi-tenant**: each customer = own FalkorDB graph. Six canonical tenants provisioned: `cardinal-element`, `imagine-wireless`, `workload`, `silver-lake-auto`, `public-safety-wireless`, `on3`. Additional tenants are auto-provisioned from Clerk Organizations (slug pattern: `<base>-<numeric-clerk-id>`). CLI: `cegraph list/status/init/create/drop`. See `ce-graph/SETUP.md` and `ce-graph/ONBOARDING.md`. Used by Agent Builder + Orchestration for cross-agent shared memory.
+- **`ce-graph/`**: Multi-tenant knowledge graph layer (Graphiti + FalkorDB) — shared institutional memory across the C-Suite agents; each customer = its own graph, tenant identity flows from Clerk `org.slug`. CLI: `cegraph list/status/init/create/drop`. Full details (entity types, canonical tenants, auto-provisioning): `ce-graph/CLAUDE.md`, `ce-graph/SETUP.md`, `ce-graph/ONBOARDING.md`.
 
 ### Productization stack (Clerk + Railway split)
 
@@ -106,7 +106,7 @@ The customer-facing platform is split into two halves:
 
 The two communicate via Clerk-issued JWTs in `Authorization: Bearer <jwt>`. Tenant identity flows: Clerk Organization → `org.slug` → ce-graph tenant slug.
 
-See `/Users/scottewalt/.claude/plans/are-you-currently-relying-imperative-token.md` for the 6-milestone roadmap to first paying customer.
+See [`.planning/ROADMAP.md`](.planning/ROADMAP.md) for the milestone roadmap to first paying customer.
 
 ### Deployment
 
@@ -132,4 +132,6 @@ Each project requires `.env` with at minimum `ANTHROPIC_API_KEY`. Copy from `.en
 
 Each project has its own detailed CLAUDE.md with full architecture docs:
 - `CE - Agent Builder/.claude/CLAUDE.md` — CLI commands, agent system architecture, all patterns
-- `CE - Multi-Agent Orchestration/CLAUDE.md` — Protocol architecture, taxonomy, diagram conventions
+- `CE - Multi-Agent Orchestration/CLAUDE.md` — Protocol architecture, **the canonical protocol taxonomy**, diagram conventions
+- `cardinal-portal/CLAUDE.md` → `AGENTS.md` — Next.js 16 / Clerk conventions and watch-outs
+- `CE - Evals/CLAUDE.md`, `ce-shared/CLAUDE.md`, `ce-db/CLAUDE.md`, `ce-graph/CLAUDE.md` — per-package pointers and rules

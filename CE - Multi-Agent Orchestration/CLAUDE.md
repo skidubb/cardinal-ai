@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-The **Coordination Lab** is Cardinal Element's multi-agent research program and production platform. It contains 57 implemented coordination protocols (P0a-c, P3-P57) plus a shared 62-agent registry, 34 benchmark questions across 8 problem types, a FastAPI web UI with React frontend, and PDF report generation. Deployed on Railway at `cardinal-ai-production.up.railway.app`. The goal is to empirically validate these protocols across problem types, then build an adaptive router that selects the optimal protocol for any strategic question.
+The **Coordination Lab** is Cardinal Element's multi-agent research program and production platform. It contains 60 implemented coordination protocols (P00–P01 baselines, meta-routers P0a–P0c, and P3–P57; P02 was retired) plus a shared 62-agent registry, 34 benchmark questions across 8 problem types, a FastAPI web UI with React frontend, and PDF report generation. Deployed on Railway at `cardinal-ai-production.up.railway.app`. The goal is to empirically validate these protocols across problem types, then build an adaptive router that selects the optimal protocol for any strategic question.
 
 **Multi-tenancy**: the API is tenant-scoped. Clerk-issued JWTs are validated by `api/middleware/clerk_auth.py`, the `org_slug` claim is extracted, and every run / ce-graph query / Pinecone lookup is scoped to that tenant. Runs persist with a `tenant_id` column so a single Postgres instance cleanly partitions multi-customer data.
 
@@ -76,7 +76,8 @@ Each protocol lives in `protocols/p{NN}_{name}/` with these files:
 ## Protocol Taxonomy
 
 - **P0a-P0c**: Meta-Protocols — Reasoning Router, Skip Gate, Tiered Escalation
-- **P3-P5**: Baselines — Parallel Synthesis, Multi-Round Debate, Constraint Negotiation
+- **P00-P01**: Single-Agent Baselines — Direct, Single Agent (control conditions)
+- **P3-P5**: Multi-Agent Baselines — Parallel Synthesis, Multi-Round Debate, Constraint Negotiation
 - **P6-P15**: Liberating Structures — TRIZ, Wicked Questions, Min Specs, Troika, HSR, DAD, 25/10, Ecocycle, 1-2-4-All, What/So What/Now What
 - **P16-P18**: Intelligence Analysis — ACH, Red/Blue/White Team, Delphi Method
 - **P19-P21**: Game Theory — Vickrey Auction, Borda Count, Interests-Based Negotiation
@@ -87,7 +88,7 @@ Each protocol lives in `protocols/p{NN}_{name}/` with these files:
 - **P49-P52**: Walk Protocols — Walk Base, Tournament Walk, Wildcard Walk, Drift Return Walk (multi-protocol composition)
 - **P53-P57**: Decentralized Coordination — Contract Net, Blackboard, Gossip Consensus, Stigmergic Exploration, Liquid Democracy (distributed AI / multi-agent systems)
 
-P1 (Single Agent) and P2 (Single + Context) are trivial single-call patterns with no orchestrator — they live in the C-Suite codebase only.
+P00 (Direct) and P01 (Single Agent) are baseline single-call protocols — full packages in this repo, used as control conditions. P02 (Single + Context) was retired; it survives only in the C-Suite codebase.
 
 ## Web UI & API
 
@@ -118,7 +119,7 @@ When creating or editing Mermaid diagrams in `protocol-diagrams/`:
 
 ## Observability
 
-All 57 protocols have built-in observability via two layers:
+All 60 protocols have built-in observability via two layers:
 
 **Langfuse tracing** (`protocols/langfuse_tracing.py`): Every orchestrator's `run()` method is decorated with `@trace_protocol("p{NN}_name")`, which creates a root span in Langfuse Cloud. LLM calls within a trace are recorded as child spans via `record_generation()`. Requires `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_BASE_URL` in `.env`. Uses `start_observation(as_type="span")` (Langfuse v4+ — `start_span()` was removed). Wrapped in try/except so tracing failures never block protocol execution.
 

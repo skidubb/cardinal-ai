@@ -63,7 +63,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: Fix agent provider absolute path and add startup production assertion
+- [x] 04-01: Fix agent provider absolute path and add startup production assertion
 
 ### Phase 5: API Wiring
 **Goal**: Every protocol is executable from a single HTTP call; run history, agent list, and cost data are retrievable; SSE streams live progress; client disconnect cancels the run
@@ -78,8 +78,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Canonical URL routing, SSE headers, trace_id, stream replay, and test infrastructure
-- [ ] 05-02: Client disconnect cancellation, context var isolation, and pipeline presets
+- [x] 05-01: Canonical URL routing, SSE headers, trace_id, stream replay, and test infrastructure
+- [x] 05-02: Client disconnect cancellation, context var isolation, and pipeline presets
 
 ### Phase 6: Structured Output and Reports
 **Goal**: Protocol results display as executive-readable ProtocolReports with scannable sections, disagreement highlighting, and confidence indicators; PDF export produces a client-deliverable document
@@ -94,8 +94,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — ProtocolReport dataclass, from_envelope transform, judge_verdict persistence, DB helpers
-- [ ] 06-02-PLAN.md — Jinja2 template, PDF endpoint, shareable HTML route, React report component
+- [x] 06-01-PLAN.md — ProtocolReport dataclass, from_envelope transform, judge_verdict persistence, DB helpers
+- [x] 06-02-PLAN.md — Jinja2 template, PDF endpoint, shareable HTML route, React report component
 
 ### Phase 7: Frontend and Auth
 **Goal**: The React UI is fully connected to the live API with no mock data; login gate protects all routes; SSE streaming works through auth; CORS is environment-configured

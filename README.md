@@ -9,16 +9,14 @@ See [CLAUDE.md](./CLAUDE.md) for architecture, commands, and conventions. See [d
 ```
 CE - AGENTS/
 ├── CE - Agent Builder/              # C-Suite CLI: 7 executive agents, tools, memory
-├── CE - Multi-Agent Orchestration/  # 57 coordination protocols + FastAPI/React web UI
+├── CE - Multi-Agent Orchestration/  # 60 coordination protocols + FastAPI/React web UI
 ├── CE - Evals/                      # LLM-as-judge evaluation framework
-├── CE - Recursive Loops/            # Recursive loop patterns
 ├── cardinal-portal/                 # Next.js 16 customer portal (Clerk + Vercel)
 ├── ce-shared/                       # Shared pricing + env registry (Python package)
 ├── ce-db/                           # Shared Postgres schema + Alembic migrations
 ├── ce-graph/                        # Multi-tenant knowledge graph (Graphiti + FalkorDB)
 ├── n8n Workflows/                   # n8n automation workflows
-├── Scripts/                         # Utility scripts
-└── Shared/                          # Cross-project shared resources
+└── Scripts/                         # Utility scripts (dev-bootstrap, Notion sync)
 ```
 
 ## Projects
@@ -27,7 +25,7 @@ CE - AGENTS/
 C-Suite CLI app — 7 executive AI agents (CEO, CFO, CTO, CMO, COO, CPO, CRO) with per-role tools, MCP integrations, and Pinecone memory. The agent factory: prompts + tools + memory live here; orchestration consumes them via `ServerAgent`.
 
 ### CE - Multi-Agent Orchestration
-57 multi-agent coordination protocols + 62-agent registry + FastAPI engine. Protocols span Liberating Structures, intelligence tradecraft, game theory, systems thinking, philosophical reasoning, and decentralized coordination. Each protocol is a self-contained module (orchestrator, prompts, CLI). Includes the production web UI deployed on Railway.
+60 multi-agent coordination protocols + 62-agent registry + FastAPI engine. Protocols span Liberating Structures, intelligence tradecraft, game theory, systems thinking, philosophical reasoning, and decentralized coordination. Each protocol is a self-contained module (orchestrator, prompts, CLI). Includes the production web UI deployed on Railway.
 
 ### CE - Evals
 Library (no CLI) for LLM-as-judge evaluation — Claude, GPT-4, and Gemini judge backends with shared rubric and cost tracking.
@@ -35,14 +33,11 @@ Library (no CLI) for LLM-as-judge evaluation — Claude, GPT-4, and Gemini judge
 ### cardinal-portal
 Customer + admin web portal. Next.js 16 (App Router) + Clerk (auth, Organizations, Billing) + shadcn + Tailwind 4, deployed to Vercel. Talks to Railway backend via Clerk-issued JWTs; `org.slug` scopes every operation to the right tenant.
 
-### CE - Recursive Loops
-Recursive loop patterns for iterative agent workflows.
-
 ### n8n Workflows
 n8n workflow definitions (JSON exports) for automation.
 
-### Scripts / Shared
-Utility scripts and cross-project shared resources.
+### Scripts
+Utility scripts — `dev-bootstrap.sh` (one-command local dev setup) and Notion sync tooling.
 
 ## Shared Packages
 
