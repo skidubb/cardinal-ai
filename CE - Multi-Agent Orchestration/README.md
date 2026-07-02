@@ -1,6 +1,6 @@
 # The Coordination Lab
 
-**53 multi-agent coordination protocols, 55 AI agents, and an adaptive router — a research platform and production engine for strategic decision-making.**
+**57 multi-agent coordination protocols, 62 AI agents, and an adaptive router — a research platform and production engine for strategic decision-making.**
 
 Scott Ewalt | [Cardinal Element](https://cardinalelement.com) | 2026
 
@@ -10,7 +10,7 @@ Scott Ewalt | [Cardinal Element](https://cardinalelement.com) | 2026
 
 A systematic research program and production platform that answers: *which coordination architecture works best for which kind of strategic problem?*
 
-53 protocols drawn from seven coordination traditions are tested against 34 benchmark questions across 8 problem types. The platform includes a full web UI, PDF report generation, pipeline chaining, and an adaptive router (Cynefin-based) that selects the optimal protocol based on problem characteristics. Deployed on Railway with Postgres persistence and Langfuse observability.
+57 protocols drawn from eight coordination traditions are tested against 34 benchmark questions across 8 problem types. The platform includes a full web UI, PDF report generation, pipeline chaining, and an adaptive router (Cynefin-based) that selects the optimal protocol based on problem characteristics. Deployed on Railway with Postgres persistence and Langfuse observability.
 
 ## Quick Start
 
@@ -45,7 +45,7 @@ python scripts/evaluate.py --protocol p16_ach --question Q4.1 --agents ceo cfo c
 | 7 | **Paradox/Wicked** | Sharpen irresolvable tensions for management |
 | 8 | **Risk/Pre-Mortem** | Identify failure modes in an accepted plan |
 
-## 53 Protocols
+## 57 Protocols
 
 | Category | Protocols | Source Tradition |
 |----------|-----------|-----------------|
@@ -59,14 +59,15 @@ python scripts/evaluate.py --protocol p16_ach --question Q4.1 --agents ceo cfo c
 | **Design Thinking** (P26–P27) | Crazy Eights, Affinity Mapping | IDEO, d.school |
 | **Wave 2 Research** (P28–P48) | Six Hats, PMI, Llull Combinatorial, Wittgenstein Language Game, Tetlock Forecast, Evaporation Cloud, Current Reality Tree, Satisficing, Peirce Abduction, Hegel Sublation, Klein Pre-Mortem, Popper Falsification, Boyd OODA, Duke Decision Quality, Aristotle Square, Leibniz Audit, Kant Pre-Router, Whitehead Weights, Incubation, Polya Lookback, Black Swan Detection | Philosophy, military strategy, cognitive science |
 | **Walk Protocols** (P49–P52) | Walk Base, Tournament Walk, Wildcard Walk, Drift Return Walk | Multi-protocol composition |
+| **Decentralized Coordination** (P53–P57) | Contract Net, Blackboard, Gossip Consensus, Stigmergic Exploration, Liquid Democracy | Distributed AI / multi-agent systems |
 
 ## Architecture
 
 ```
 CE - Multi-Agent Orchestration/
-├── protocols/                    # 53 protocol implementations
+├── protocols/                    # 57 protocol implementations
 │   ├── p{NN}_{name}/            #   Each: orchestrator.py, prompts.py, run.py
-│   ├── agents.py                #   55-agent registry across 14 categories
+│   ├── agents.py                #   62-agent registry across 14 categories
 │   ├── server_agent.py          #   Production agent (direct Anthropic API + tools)
 │   ├── agent_provider.py        #   Builds agents per mode (production/research)
 │   ├── llm.py                   #   LLM dispatch (ServerAgent → LiteLLM → SDK fallback)
@@ -96,11 +97,11 @@ CE - Multi-Agent Orchestration/
 
 ### Key Components
 
-**ServerAgent** — The production agent class. Direct `anthropic.AsyncAnthropic()` calls with native tool-use loop (max 15 iterations). Imports role prompts and 26 tool schemas from CE - Agent Builder. No subprocess spawning — works in Docker/Railway.
+**ServerAgent** — The production agent class. Direct `anthropic.AsyncAnthropic()` calls with native tool-use loop (max 15 iterations). Imports role prompts and 27 tool schemas from CE - Agent Builder. No subprocess spawning — works in Docker/Railway.
 
 **Two model tiers** — `thinking_model` (Claude Opus) for agent reasoning and synthesis; `orchestration_model` (Claude Haiku) for mechanical steps like dedup, ranking, and classification.
 
-**Agent registry** — 55 agents across 14 categories: C-Suite executives, GTM leadership, revenue operations, customer success, finance, product, operations, technology, VC/investor personas, and behavioral coaches. Supports `@category` group syntax (e.g., `@executive`, `@gtm`).
+**Agent registry** — 62 agents across 14 categories: C-Suite executives, GTM leadership, revenue operations, customer success, finance, product, operations, technology, VC/investor personas, and behavioral coaches. Supports `@category` group syntax (e.g., `@executive`, `@gtm`).
 
 **Pipeline chaining** — Multi-step protocol pipelines where each protocol's output feeds into the next. Checkpoint-based with resume support.
 

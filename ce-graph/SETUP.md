@@ -45,7 +45,7 @@ For Railway prod (Phase 2): set `FALKORDB_URL` to the Railway FalkorDB service U
 
 ```bash
 python -m ce_graph.scripts.seed_protocols
-# OK -- 53 Protocol nodes in graph 'cardinal_element'
+# OK -- 57 Protocol nodes in graph 'cardinal_element'
 ```
 
 ## Backfill institutional knowledge
@@ -82,7 +82,7 @@ Quick interactive check:
 ```python
 from ce_graph.queries import GraphQueries
 q = GraphQueries()
-print(q.graph_stats())                       # {'Client': N, 'Protocol': 53, ...}
+print(q.graph_stats())                       # {'Client': N, 'Protocol': 57, ...}
 print(q.all_clients())
 print(q.decisions_using_protocol('P16'))
 ```
@@ -156,7 +156,7 @@ ce-graph/
 │   ├── graphiti_client.py            Graphiti integration
 │   └── queries.py                    Cypher query helpers
 ├── scripts/
-│   ├── seed_protocols.py             ingest 55 Protocol nodes
+│   ├── seed_protocols.py             ingest 57 Protocol nodes
 │   ├── backfill_notion.py            ingest Notion workspace
 │   └── backfill_granola.py           ingest Granola transcripts (6mo)
 └── tests/
