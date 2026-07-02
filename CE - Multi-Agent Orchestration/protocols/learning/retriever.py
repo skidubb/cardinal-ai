@@ -39,7 +39,6 @@ async def retrieve_insights(
     """Retrieve relevant learning before a protocol run. Returns empty on failure."""
     try:
         from ce_db.session import get_session
-        from ce_db.models.insights import ProtocolInsight
 
         async with get_session() as session:
             scores = await _get_protocol_scores(session, question_categories)

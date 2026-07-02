@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete
+from protocols.llm import agent_complete, filter_exceptions, llm_complete
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
 from protocols.tracing import make_client

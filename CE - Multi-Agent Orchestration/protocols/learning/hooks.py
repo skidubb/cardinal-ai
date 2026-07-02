@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import logging
-import uuid as uuid_mod
 from typing import Any
 
 from anthropic import AsyncAnthropic
 
 from protocols.learning.classifier import classify_question
 from protocols.learning.recorder import record_learning
-from protocols.learning.retriever import RunInsights, retrieve_insights
+from protocols.learning.retriever import retrieve_insights
 
 logger = logging.getLogger(__name__)
 

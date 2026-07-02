@@ -374,7 +374,6 @@ async def _agent_complete_inner(
         # ServerAgent provides real token counts; legacy SdkAgent only has cost
         real_input = getattr(agent, "input_tokens", 0)
         real_output = getattr(agent, "output_tokens", 0)
-        real_cached = getattr(agent, "cached_tokens", 0)
         cost_usd = getattr(agent, "cost", 0.0)
 
         if real_input > 0 or real_output > 0:

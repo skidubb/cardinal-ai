@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, emit_stage, extract_text, filter_exceptions_aligned
+from protocols.llm import agent_complete, emit_stage, filter_exceptions_aligned
 from protocols.synthesis import SynthesisEngine
 from protocols.tracing import make_client
 from .prompts import SYNTHESIS_SYSTEM_PROMPT

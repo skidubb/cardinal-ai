@@ -181,7 +181,7 @@ class ContractNetOrchestrator(TickOrchestrator):
             stage="assemble",
         )
 
-        audit_path = self.dump_audit_log(run_id)
+        self.dump_audit_log(run_id)
 
         return ContractNetResult(
             question=question,

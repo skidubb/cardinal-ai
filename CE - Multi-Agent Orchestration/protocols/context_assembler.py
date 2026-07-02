@@ -61,9 +61,9 @@ def _format_brief(
 
     if lessons:
         sections.append("### Lessons we've learned")
-        for l in lessons[:8]:
-            statement = (l.get("statement") or "").strip()
-            conf = l.get("confidence")
+        for lesson in lessons[:8]:
+            statement = (lesson.get("statement") or "").strip()
+            conf = lesson.get("confidence")
             conf_tag = f" (conf {conf:.2f})" if conf else ""
             sections.append(f"- {statement[:240]}{conf_tag}")
 
@@ -123,7 +123,7 @@ async def assemble_context(
         # Corrections query matches any agent in the set:
         agent_scopes: dict[str, Any] = {}
         for i, a in enumerate(agent_keys or []):
-            agent_scopes[f"agent"] = a  # last wins; we'll do a union below
+            agent_scopes["agent"] = a  # last wins; we'll do a union below
 
         corrections = q.active_corrections(scope_targets=scope_targets, limit=25)
         # Agent-scoped corrections: fetch per agent and dedupe

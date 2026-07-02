@@ -37,7 +37,7 @@ from protocols.decentralized_actions import (
     top_k_by_pheromone,
 )
 from protocols.langfuse_tracing import create_span, end_span, trace_protocol
-from protocols.llm import agent_complete, extract_text, parse_json_object
+from protocols.llm import agent_complete, parse_json_object
 from protocols.tick_scheduler import TickOrchestrator
 
 from .prompts import SEED_PROMPT, TICK_PROMPT

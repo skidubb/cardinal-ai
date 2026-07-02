@@ -6,24 +6,14 @@ Skips Stage 4 (cross-exam) and defaults to fewer promoted agents (3).
 
 from __future__ import annotations
 
-import json
 import logging
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
-from protocols.langfuse_tracing import create_span, end_span, trace_protocol
-from protocols.synthesis import SynthesisEngine
-from protocols.walk_shared.prompts import SYNTHESIS_PROMPT
+from protocols.langfuse_tracing import trace_protocol
 from protocols.walk_shared.schemas import (
-    DeepWalkOutput,
-    FrameArtifact,
-    SalienceArtifact,
-    ShallowWalkOutput,
     WalkResult,
-    WalkSynthesis,
 )
-from protocols.walk_shared.selection import select_promoted
 from protocols.p49_walk_base.orchestrator import WalkBaseOrchestrator
-from protocols.llm import parse_json_object
 
 _log = logging.getLogger(__name__)
 

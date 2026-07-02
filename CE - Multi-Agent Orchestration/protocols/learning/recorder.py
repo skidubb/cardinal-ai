@@ -24,7 +24,7 @@ async def record_learning(
     """Store run outcome for future learning. Non-blocking."""
     try:
         from ce_db.session import get_session
-        from ce_db.models.insights import ProtocolInsight, RunLearning
+        from ce_db.models.insights import RunLearning
 
         async with get_session() as session:
             learning = RunLearning(
@@ -134,7 +134,7 @@ async def _recompute_insights(
     session: Any, protocol_key: str, categories: list[str],
 ) -> None:
     """Recompute protocol_comparison and config_tuning insights."""
-    from ce_db.models.insights import ProtocolInsight, RunLearning
+    from ce_db.models.insights import RunLearning
 
     now = datetime.now(timezone.utc)
 

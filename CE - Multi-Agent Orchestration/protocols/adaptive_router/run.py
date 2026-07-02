@@ -28,7 +28,7 @@ from .resolver import Resolver, DEFAULT_AGENTS
 def _print_decision(d: RouterDecision) -> None:
     bar = "─" * 60
     print(f"\n╭{bar}╮")
-    print(f"│ ROUTER DECISION")
+    print("│ ROUTER DECISION")
     print(f"├{bar}┤")
     print(f"│ Question:       {d.question}")
     print(f"│ Problem type:   {d.problem_type}")
@@ -39,16 +39,16 @@ def _print_decision(d: RouterDecision) -> None:
         print(f"│ Cost tier:      {d.plan.cost_tier}")
         print(f"│ Agents:         {', '.join(d.plan.agent_keys)}")
     else:
-        print(f"│ Plan:           NONE (no routable candidate)")
+        print("│ Plan:           NONE (no routable candidate)")
     print(f"│ Auto-execute:   {d.auto_executable}")
     print(f"│ Reasoning:      {d.reasoning}")
     if d.adjustments:
-        print(f"│ Adjustments:")
+        print("│ Adjustments:")
         for a in d.adjustments:
             print(f"│   • {a}")
     alts = d.raw_router.get("alternatives", [])
     if alts:
-        print(f"│ Alternatives considered:")
+        print("│ Alternatives considered:")
         for alt in alts[:3]:
             print(f"│   • {alt['protocol']} — {alt['name']}")
     print(f"╰{bar}╯\n")

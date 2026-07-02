@@ -53,8 +53,12 @@ def print_result(result: RedBlueWhiteResult) -> None:
     print("WHITE TEAM ADJUDICATION")
     print("-" * 40)
     for adj in result.adjudication:
-        icon = {"Resolved": "[OK]", "Partially Resolved": "[~~]", "Open": "[!!]"}.get(adj.verdict, "[??]")
-        print(f"  {icon} {adj.vulnerability_id}: {adj.vulnerability_title} ({adj.severity})")
+        icon = {"Resolved": "[OK]", "Partially Resolved": "[~~]", "Open": "[!!]"}.get(
+            adj.verdict, "[??]"
+        )
+        print(
+            f"  {icon} {adj.vulnerability_id}: {adj.vulnerability_title} ({adj.severity})"
+        )
         print(f"      Verdict: {adj.verdict}")
         print(f"      {adj.reasoning[:150]}...")
 
@@ -67,13 +71,17 @@ def print_result(result: RedBlueWhiteResult) -> None:
     if result.resolved_risks:
         print(f"\n  Resolved Risks ({len(result.resolved_risks)}):")
         for r in result.resolved_risks:
-            print(f"    - {r.get('vulnerability_id', '?')}: {r.get('title', '')} — {r.get('summary', '')}")
+            print(
+                f"    - {r.get('vulnerability_id', '?')}: {r.get('title', '')} — {r.get('summary', '')}"
+            )
 
     if result.open_risks:
         print(f"\n  Open Risks ({len(result.open_risks)}):")
         for r in result.open_risks:
             sev = r.get("severity", "?")
-            print(f"    - {r.get('vulnerability_id', '?')} ({sev}): {r.get('title', '')} — {r.get('summary', '')}")
+            print(
+                f"    - {r.get('vulnerability_id', '?')} ({sev}): {r.get('title', '')} — {r.get('summary', '')}"
+            )
 
     # Recommendations
     if result.recommendations:
@@ -100,29 +108,34 @@ def main() -> None:
         description="P17: Red/Blue/White Team — Adversarial Stress-Testing",
     )
     parser.add_argument(
-        "--question", "-q",
+        "--question",
+        "-q",
         required=True,
         help="The strategic question being addressed.",
     )
     parser.add_argument(
-        "--plan", "-p",
+        "--plan",
+        "-p",
         required=True,
         help="The plan or strategy to stress-test.",
     )
     parser.add_argument(
-        "--red", "-r",
+        "--red",
+        "-r",
         nargs="+",
         default=["cmo", "cfo"],
         help=f"Red team agent keys (attackers). Available: {', '.join(BUILTIN_AGENTS)}",
     )
     parser.add_argument(
-        "--blue", "-b",
+        "--blue",
+        "-b",
         nargs="+",
         default=["cto", "coo"],
         help=f"Blue team agent keys (defenders). Available: {', '.join(BUILTIN_AGENTS)}",
     )
     parser.add_argument(
-        "--white", "-w",
+        "--white",
+        "-w",
         default="ceo",
         help=f"White team agent key (arbiter). Available: {', '.join(BUILTIN_AGENTS)}",
     )
@@ -152,16 +165,30 @@ def main() -> None:
         help="Explicit trace file path.",
     )
 
-    parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode: research (lightweight) or production (real SDK agents)")
+    parser.add_argument(
+        "--mode",
+        choices=["research", "production"],
+        default="production",
+        help="Agent mode: research (lightweight) or production (real SDK agents)",
+    )
     parser.add_argument(
         "--agent-model",
         default=None,
         help="Override the LLM model for all agents (e.g., 'gemini/gemini-3.1-pro-preview'). "
-             "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
+        "When set, agent calls route through LiteLLM instead of Anthropic SDK.",
     )
-    parser.add_argument("--blackboard", action="store_true", help="Use blackboard-driven orchestrator")
-    parser.add_argument("--dry-run", action="store_true", help="Print config and exit (no LLM calls)")
-    parser.add_argument("--thinking-budget", type=int, default=10000, help="Token budget for extended thinking")
+    parser.add_argument(
+        "--blackboard", action="store_true", help="Use blackboard-driven orchestrator"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print config and exit (no LLM calls)"
+    )
+    parser.add_argument(
+        "--thinking-budget",
+        type=int,
+        default=10000,
+        help="Token budget for extended thinking",
+    )
     args = parser.parse_args()
 
     red_agents = build_agents(args.red)
@@ -172,6 +199,7 @@ def main() -> None:
         print(f"Unknown agent: {white_key}. Available: {', '.join(BUILTIN_AGENTS)}")
         sys.exit(1)
     white_agent = BUILTIN_AGENTS[white_key]
+    agents = [*red_agents, *blue_agents, white_agent]
 
     if args.agent_model:
         for agent in red_agents:
@@ -180,7 +208,6 @@ def main() -> None:
             agent["model"] = args.agent_model
         white_agent["model"] = args.agent_model
 
-
     if args.blackboard:
         from protocols.orchestrator_loop import Orchestrator
         from pathlib import Path
@@ -188,15 +215,25 @@ def main() -> None:
         from .protocol_def import P17_DEF
 
         if args.dry_run:
-            print(f"[dry-run] Protocol: {P17_DEF.protocol_id}, stages: {[s.name for s in P17_DEF.stages]}")
+            print(
+                f"[dry-run] Protocol: {P17_DEF.protocol_id}, stages: {[s.name for s in P17_DEF.stages]}"
+            )
             return
 
-        client = make_client(protocol_id="p17_red_blue_white", trace=getattr(args, 'trace', False), trace_path=Path(args.trace_path) if getattr(args, 'trace_path', None) else None)
+        client = make_client(
+            protocol_id="p17_red_blue_white",
+            trace=getattr(args, "trace", False),
+            trace_path=Path(args.trace_path)
+            if getattr(args, "trace_path", None)
+            else None,
+        )
         config = {
             "client": client,
-            "thinking_model": getattr(args, 'thinking_model', None),
-            "orchestration_model": getattr(args, 'orchestration_model', getattr(args, 'thinking_model', None)),
-            "thinking_budget": getattr(args, 'thinking_budget', 10000),
+            "thinking_model": getattr(args, "thinking_model", None),
+            "orchestration_model": getattr(
+                args, "orchestration_model", getattr(args, "thinking_model", None)
+            ),
+            "thinking_budget": getattr(args, "thinking_budget", 10000),
         }
         orch = Orchestrator()
         bb = asyncio.run(orch.run(P17_DEF, args.question, agents, **config))
@@ -259,15 +296,18 @@ def main() -> None:
     # Persist to Postgres (no-op if unavailable)
     try:
         from protocols.persistence import persist_run
-        asyncio.run(persist_run(
-            protocol_key="p17_red_blue_white",
-            question=args.question,
-            agent_keys=[a['name'] for a in agents],
-            result=result,
-            trace_id=getattr(result, '_langfuse_trace_id', None) or get_trace_id(),
-            source="cli",
-            started_at=started_at,
-        ))
+
+        asyncio.run(
+            persist_run(
+                protocol_key="p17_red_blue_white",
+                question=args.question,
+                agent_keys=[a["name"] for a in agents],
+                result=result,
+                trace_id=getattr(result, "_langfuse_trace_id", None) or get_trace_id(),
+                source="cli",
+                started_at=started_at,
+            )
+        )
     except Exception:
         pass  # persistence is best-effort for CLI
 
