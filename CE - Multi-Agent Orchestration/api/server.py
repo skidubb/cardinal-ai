@@ -115,9 +115,13 @@ app.include_router(discover_router.router)
 @app.get("/api/health")
 def health(request: Request):
     from api.database import DATABASE_URL
+    from protocols.server_agent import agent_builder_status
 
     db_type = "postgres" if "postgresql" in DATABASE_URL else "sqlite"
-    return {"status": "ok", "db": db_type}
+    ab = agent_builder_status()
+    status = "ok" if ab["ok"] else "degraded"
+    body = {"status": status, "db": db_type, "agent_builder": "ok" if ab["ok"] else ab}
+    return body
 
 
 # ── Serve built frontend (production) ─────────────────────────────────────────

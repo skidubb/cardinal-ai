@@ -25,7 +25,8 @@ import anthropic
 logger = logging.getLogger(__name__)
 
 # Ensure CE Agent Builder is importable
-_AGENT_BUILDER_SRC = Path(__file__).resolve().parents[1] / "CE - Agent Builder" / "src"
+# parents[2] = the monorepo root ("CE - AGENTS"); Agent Builder is a sibling of this project
+_AGENT_BUILDER_SRC = Path(__file__).resolve().parents[2] / "CE - Agent Builder" / "src"
 _env_path = os.environ.get("CE_AGENT_BUILDER_PATH")
 if _env_path:
     _AGENT_BUILDER_SRC = Path(_env_path).resolve()
@@ -34,9 +35,25 @@ if str(_AGENT_BUILDER_SRC) not in sys.path:
 
 # ── Lazy imports from Agent Builder (may not be installed) ───────────────────
 
+# A failed import means agents run WITHOUT tools/prompts — never degrade silently.
+# Failures are recorded here and surfaced via /api/health (agent_builder_status()).
+AGENT_BUILDER_IMPORT_ERRORS: dict[str, str] = {}
+
 _role_prompts: dict[str, str] | None = None
 _role_tool_map: dict[str, list[str]] | None = None
 _all_tool_schemas: dict[str, dict] | None = None
+
+
+def agent_builder_status() -> dict:
+    """Report whether Agent Builder imports work. Attempts all three imports."""
+    _get_role_prompts()
+    _get_role_tool_map()
+    _get_all_tool_schemas()
+    return {
+        "ok": not AGENT_BUILDER_IMPORT_ERRORS,
+        "path": str(_AGENT_BUILDER_SRC),
+        "errors": dict(AGENT_BUILDER_IMPORT_ERRORS),
+    }
 
 
 def _get_role_prompts() -> dict[str, str]:
@@ -44,9 +61,16 @@ def _get_role_prompts() -> dict[str, str]:
     if _role_prompts is None:
         try:
             from csuite.agents.sdk_agent import _ROLE_PROMPTS
+
             _role_prompts = _ROLE_PROMPTS
-        except ImportError:
-            logger.warning("Cannot import _ROLE_PROMPTS from Agent Builder")
+        except ImportError as exc:
+            logger.error(
+                "DEGRADED: cannot import _ROLE_PROMPTS from Agent Builder at %s — "
+                "agents will run with generic prompts: %s",
+                _AGENT_BUILDER_SRC,
+                exc,
+            )
+            AGENT_BUILDER_IMPORT_ERRORS["_ROLE_PROMPTS"] = str(exc)
             _role_prompts = {}
     return _role_prompts
 
@@ -56,9 +80,16 @@ def _get_role_tool_map() -> dict[str, list[str]]:
     if _role_tool_map is None:
         try:
             from csuite.tools.registry import ROLE_TOOL_MAP
+
             _role_tool_map = ROLE_TOOL_MAP
-        except ImportError:
-            logger.warning("Cannot import ROLE_TOOL_MAP from Agent Builder")
+        except ImportError as exc:
+            logger.error(
+                "DEGRADED: cannot import ROLE_TOOL_MAP from Agent Builder at %s — "
+                "agents will run with NO tools: %s",
+                _AGENT_BUILDER_SRC,
+                exc,
+            )
+            AGENT_BUILDER_IMPORT_ERRORS["ROLE_TOOL_MAP"] = str(exc)
             _role_tool_map = {}
     return _role_tool_map
 
@@ -68,19 +99,28 @@ def _get_all_tool_schemas() -> dict[str, dict]:
     if _all_tool_schemas is None:
         try:
             from csuite.tools.schemas import ALL_TOOL_SCHEMAS
+
             _all_tool_schemas = ALL_TOOL_SCHEMAS
-        except ImportError:
-            logger.warning("Cannot import ALL_TOOL_SCHEMAS from Agent Builder")
+        except ImportError as exc:
+            logger.error(
+                "DEGRADED: cannot import ALL_TOOL_SCHEMAS from Agent Builder at %s — "
+                "agents will run with NO tools: %s",
+                _AGENT_BUILDER_SRC,
+                exc,
+            )
+            AGENT_BUILDER_IMPORT_ERRORS["ALL_TOOL_SCHEMAS"] = str(exc)
             _all_tool_schemas = {}
     return _all_tool_schemas
 
 
 # ── Agent name mapping (from protocols/agents.py BUILTIN_AGENTS) ─────────────
 
+
 def _get_agent_name(role: str) -> str:
     """Get human-readable agent name for a role key."""
     try:
         from protocols.agents import BUILTIN_AGENTS
+
         agent = BUILTIN_AGENTS.get(role, {})
         return agent.get("name", role.replace("-", " ").title())
     except ImportError:
@@ -88,6 +128,7 @@ def _get_agent_name(role: str) -> str:
 
 
 # ── Business context loader ──────────────────────────────────────────────────
+
 
 def _load_business_context() -> str:
     """Load business context from Agent Builder's CLAUDE.md."""
@@ -106,17 +147,22 @@ def _load_business_context() -> str:
 
 # ── Memory/learning helpers (graceful degradation) ───────────────────────────
 
+
 def _get_memory_context(role: str, query: str) -> str:
     """Retrieve semantic memories from Pinecone. Returns empty string on failure."""
     try:
         from csuite.memory.store import MemoryStore
+
         store = MemoryStore()
         if not store.enabled:
             return ""
         memories = store.retrieve(role, query, top_k=5)
         if memories:
             lines = [f"- [{m['memory_type']}] {m['summary']}" for m in memories]
-            return "## Institutional Memory\n\nRelevant past analyses and decisions:\n\n" + "\n".join(lines)
+            return (
+                "## Institutional Memory\n\nRelevant past analyses and decisions:\n\n"
+                + "\n".join(lines)
+            )
     except Exception:
         logger.debug("Memory retrieval failed for %s", role, exc_info=True)
     return ""
@@ -126,6 +172,7 @@ def _get_lessons(role: str) -> str:
     """Retrieve experience log lessons from DuckDB. Returns empty string on failure."""
     try:
         from csuite.learning.experience_log import ExperienceLog
+
         log = ExperienceLog()
         lessons = log.get_lessons(role, limit=20)
         if lessons:
@@ -139,6 +186,7 @@ def _get_preferences(role: str) -> str:
     """Retrieve user preferences. Returns empty string on failure."""
     try:
         from csuite.learning.preferences import PreferenceTracker
+
         tracker = PreferenceTracker()
         ctx = tracker.get_preference_context(role)
         if ctx:
@@ -150,15 +198,19 @@ def _get_preferences(role: str) -> str:
 
 # ── Tool executor ────────────────────────────────────────────────────────────
 
+
 async def _execute_tool(tool_name: str, tool_input: dict) -> tuple[str, float]:
     """Execute a tool call. Delegates to api/tool_executor.py."""
     try:
         from api.tool_executor import execute_tool
+
         return await execute_tool(tool_name, tool_input)
     except ImportError:
         import json
-        import time
-        return json.dumps({"error": f"Tool executor unavailable for '{tool_name}'"}), 0.0
+
+        return json.dumps(
+            {"error": f"Tool executor unavailable for '{tool_name}'"}
+        ), 0.0
 
 
 # ── ServerAgent ──────────────────────────────────────────────────────────────
@@ -175,9 +227,7 @@ def _model_accepts_temperature(model: str) -> bool:
         return True
     low = model.lower()
     return not (
-        "claude-opus-4" in low
-        or "claude-sonnet-4" in low
-        or "claude-haiku-4" in low
+        "claude-opus-4" in low or "claude-sonnet-4" in low or "claude-haiku-4" in low
     )
 
 
@@ -228,6 +278,7 @@ class ServerAgent:
         if not base:
             try:
                 from protocols.agents import BUILTIN_AGENTS
+
                 agent = BUILTIN_AGENTS.get(self.role, {})
                 base = agent.get("system_prompt", f"You are {self.role}.")
             except ImportError:
@@ -324,7 +375,8 @@ class ServerAgent:
             if self.temperature is not None and float(self.temperature) != 1.0:
                 logger.warning(
                     "temperature=%s ignored: model %s does not accept temperature",
-                    self.temperature, self.model,
+                    self.temperature,
+                    self.model,
                 )
         if tools:
             create_kwargs["tools"] = tools
@@ -344,6 +396,7 @@ class ServerAgent:
 
         # Agentic tool loop
         from protocols.llm import get_event_queue
+
         eq = get_event_queue()
 
         for iteration in range(MAX_TOOL_ITERATIONS):
@@ -353,56 +406,70 @@ class ServerAgent:
             for block in response.content:
                 if block.type == "tool_use":
                     try:
-                        input_summary = json.dumps(block.input)[:500] if block.input else "{}"
+                        input_summary = (
+                            json.dumps(block.input)[:500] if block.input else "{}"
+                        )
                     except (TypeError, ValueError):
                         input_summary = str(block.input)[:500]
 
                     logger.info(
                         "[%s] tool_call #%d: %s",
-                        self.role, iteration, block.name,
+                        self.role,
+                        iteration,
+                        block.name,
                     )
 
                     if eq is not None:
-                        await eq.put({
-                            "event": "tool_call",
-                            "agent_name": self.name,
-                            "tool_name": block.name,
-                            "tool_input": input_summary,
-                            "iteration": iteration,
-                        })
+                        await eq.put(
+                            {
+                                "event": "tool_call",
+                                "agent_name": self.name,
+                                "tool_name": block.name,
+                                "tool_input": input_summary,
+                                "iteration": iteration,
+                            }
+                        )
 
                     result, elapsed_ms = await _execute_tool(block.name, block.input)
 
                     logger.info(
                         "[%s] tool_result: %s (%.0fms)",
-                        self.role, block.name, elapsed_ms,
+                        self.role,
+                        block.name,
+                        elapsed_ms,
                     )
 
                     result_text = str(result)
-                    self.tool_calls.append({
-                        "tool": block.name,
-                        "input_summary": input_summary,
-                        "result_summary": result_text[:1000],
-                        "elapsed_ms": round(elapsed_ms, 1),
-                        "iteration": iteration,
-                        "id": block.id,
-                    })
-
-                    if eq is not None:
-                        await eq.put({
-                            "event": "tool_result",
-                            "agent_name": self.name,
-                            "tool_name": block.name,
-                            "tool_result_summary": result_text[:500],
+                    self.tool_calls.append(
+                        {
+                            "tool": block.name,
+                            "input_summary": input_summary,
+                            "result_summary": result_text[:1000],
                             "elapsed_ms": round(elapsed_ms, 1),
                             "iteration": iteration,
-                        })
+                            "id": block.id,
+                        }
+                    )
 
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result,
-                    })
+                    if eq is not None:
+                        await eq.put(
+                            {
+                                "event": "tool_result",
+                                "agent_name": self.name,
+                                "tool_name": block.name,
+                                "tool_result_summary": result_text[:500],
+                                "elapsed_ms": round(elapsed_ms, 1),
+                                "iteration": iteration,
+                            }
+                        )
+
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result,
+                        }
+                    )
 
             if not tool_results:
                 break
@@ -437,6 +504,7 @@ class ServerAgent:
         self.output_tokens += out
         self.cached_tokens += cached
         from ce_shared.pricing import cost_for_model
+
         self.cost += cost_for_model(
             self.model,
             input_tokens=inp,

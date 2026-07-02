@@ -1,11 +1,44 @@
 name: CE AGENTS CI
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
   pull_request:
     branches: [main]
 
 jobs:
+  doc-drift:
+    name: Doc Drift Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install anthropic pyyaml httpx || true
+      - run: python scripts/check-doc-drift.py
+
+  shared-packages:
+    name: Shared Packages — Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11', cache: pip }
+      - run: pip install -e ./ce-shared -e ./ce-db -e ./ce-graph pytest
+      - run: pytest ce-shared/tests ce-db/tests ce-graph/tests -v --tb=short -m "not integration"
+
+  portal-typecheck:
+    name: Portal — Typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cardinal-portal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm, cache-dependency-path: 'cardinal-portal/package-lock.json' }
+      - run: npm ci
+      - run: npx tsc --noEmit
+
   agent-builder-lint:
     name: Agent Builder — Lint
     runs-on: ubuntu-latest

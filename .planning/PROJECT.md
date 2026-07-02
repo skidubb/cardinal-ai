@@ -23,7 +23,7 @@ A client question goes in, a structured multi-agent analysis comes out — viewa
 - ✓ bypassPermissions design decision documented — Phase 3
 - ✓ 7 executive agents with tools, MCP servers, memory (Agent Builder) — existing
 - ✓ 60 coordination protocols with CLI entry points — existing
-- ✓ 56-agent registry with @category group syntax — existing
+- ✓ 74-agent registry with @category group syntax — existing
 - ✓ Dual agent mode (production/research) with AgentBridge adapter — existing
 - ✓ Langfuse tracing on all protocols — existing
 - ✓ Postgres persistence via ce-db — existing

@@ -11,7 +11,7 @@ Monorepo for Cardinal Element's agentic AI work. Consolidates three previously s
 | Directory | What it is | Setup |
 |-----------|-----------|-------|
 | `CE - Agent Builder/` | C-Suite CLI app — 7 executive AI agents with synthesis, debate, audit | `pip install -e ".[dev]"` (hatchling) |
-| `CE - Multi-Agent Orchestration/` | 60 coordination protocols + 62-agent registry + FastAPI web UI | `pip install -r requirements.txt` |
+| `CE - Multi-Agent Orchestration/` | 60 coordination protocols + 74-agent registry + FastAPI web UI | `pip install -r requirements.txt` |
 | `CE - Evals/` | LLM-as-judge evaluation framework (Claude, GPT-4, Gemini backends) | `pip install -e .` (setuptools) |
 | `n8n Workflows/` | n8n automation workflow JSON exports | N/A (imported into n8n) |
 | `cardinal-portal/` | Customer-facing web portal — Next.js 16 + Clerk + shadcn (Vercel) | `cd cardinal-portal && npm install && npm run dev` |
@@ -82,7 +82,7 @@ Every protocol lives in `protocols/p{NN}_{name}/` with: `orchestrator.py` (async
 
 **Web UI**: FastAPI backend (`api/`) + React frontend (`ui/`). SSE streaming for live run progress. PDF reports via WeasyPrint. Deployed on Railway.
 
-**Agent registry**: `protocols/agents.py` — 62 agents across 14 categories, supports `@category` group syntax.
+**Agent registry**: `protocols/agents.py` — 74 agents (60 core + 14 walk-protocol perspectives) across 15 categories, supports `@category` group syntax.
 
 **Observability**: All protocols have Langfuse tracing (`@trace_protocol` decorator) and Postgres persistence. Both degrade gracefully if unavailable.
 

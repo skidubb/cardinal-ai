@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-The **Coordination Lab** is Cardinal Element's multi-agent research program and production platform. It contains 60 implemented coordination protocols (P00–P01 baselines, meta-routers P0a–P0c, and P3–P57; P02 was retired) plus a shared 62-agent registry, 34 benchmark questions across 8 problem types, a FastAPI web UI with React frontend, and PDF report generation. Deployed on Railway at `cardinal-ai-production.up.railway.app`. The goal is to empirically validate these protocols across problem types, then build an adaptive router that selects the optimal protocol for any strategic question.
+The **Coordination Lab** is Cardinal Element's multi-agent research program and production platform. It contains 60 implemented coordination protocols (P00–P01 baselines, meta-routers P0a–P0c, and P3–P57; P02 retired) plus a shared 74-agent registry, 34 benchmark questions across 8 problem types, a FastAPI web UI with React frontend, and PDF report generation. Deployed on Railway at `cardinal-ai-production.up.railway.app`. The goal is to empirically validate these protocols across problem types, then build an adaptive router that selects the optimal protocol for any strategic question.
 
 **Multi-tenancy**: the API is tenant-scoped. Clerk-issued JWTs are validated by `api/middleware/clerk_auth.py`, the `org_slug` claim is extracted, and every run / ce-graph query / Pinecone lookup is scoped to that tenant. Runs persist with a `tenant_id` column so a single Postgres instance cleanly partitions multi-customer data.
 
@@ -52,6 +52,8 @@ Each protocol lives in `protocols/p{NN}_{name}/` with these files:
 
 **ServerAgent** (`protocols/server_agent.py`): Production agent class. Uses `anthropic.AsyncAnthropic().messages.create()` with tool schemas resolved from Agent Builder. No subprocess spawning — works in Docker/Railway. Imports: `_ROLE_PROMPTS` (80 roles), `ALL_TOOL_SCHEMAS` (27 tools), `ROLE_TOOL_MAP` (66 roles). Tool execution via `api/tool_executor.py`. Memory (Pinecone) and learning (DuckDB) degrade gracefully.
 
+> **Agent Builder dependency**: `csuite` is imported from the sibling checkout `../CE - Agent Builder/src` via `sys.path` (override with `CE_AGENT_BUILDER_PATH`); it is NOT in `requirements.txt`. Import failures are loud: `DEGRADED:` error logs, recorded in `server_agent.AGENT_BUILDER_IMPORT_ERRORS`, and surfaced by `/api/health` as `"agent_builder": "ok" | {errors}` with top-level `"status": "degraded"`. A degraded server runs agents with NO tools — never ship it.
+
 **Agent modes**: Production mode (default) builds `ServerAgent` instances via `build_production_agents()` in `protocols/agent_provider.py`. Research mode (`--mode research` or `AGENT_MODE=research` env var) uses lightweight dicts without tools.
 
 **LLM dispatch** (`protocols/llm.py:agent_complete()`): Three paths — (1) `agent.chat()` exists → ServerAgent direct API, (2) `agent["model"]` set → LiteLLM, (3) plain dict → Anthropic SDK fallback with tool loop. Path 1 is production; Path 3 is the fallback.
@@ -69,7 +71,7 @@ Each protocol lives in `protocols/p{NN}_{name}/` with these files:
 
 - `The Coordination Lab *.md` — Master research spec: problem type taxonomy, protocols, evaluation rubrics, benchmark questions
 - `benchmark-questions.json` — 34 structured benchmark questions across 8 problem types (referenced by `scripts/evaluate.py`)
-- `protocols/agents.py` — Shared registry of 62 agents across 14 categories (supports `@category` group syntax)
+- `protocols/agents.py` — Shared registry of 74 agents (60 core + 14 walk perspectives) across 15 categories (supports `@category` group syntax)
 - `protocol-diagrams/` — Mermaid diagrams for protocols (summary flows + detailed mechanics)
 - `smoke-tests/` — Saved outputs from protocol runs for regression reference
 

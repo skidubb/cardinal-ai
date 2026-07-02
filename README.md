@@ -25,7 +25,7 @@ CE - AGENTS/
 C-Suite CLI app — 7 executive AI agents (CEO, CFO, CTO, CMO, COO, CPO, CRO) with per-role tools, MCP integrations, and Pinecone memory. The agent factory: prompts + tools + memory live here; orchestration consumes them via `ServerAgent`.
 
 ### CE - Multi-Agent Orchestration
-60 multi-agent coordination protocols + 62-agent registry + FastAPI engine. Protocols span Liberating Structures, intelligence tradecraft, game theory, systems thinking, philosophical reasoning, and decentralized coordination. Each protocol is a self-contained module (orchestrator, prompts, CLI). Includes the production web UI deployed on Railway.
+60 multi-agent coordination protocols + 74-agent registry + FastAPI engine. Protocols span Liberating Structures, intelligence tradecraft, game theory, systems thinking, philosophical reasoning, and decentralized coordination. Each protocol is a self-contained module (orchestrator, prompts, CLI). Includes the production web UI deployed on Railway.
 
 ### CE - Evals
 Library (no CLI) for LLM-as-judge evaluation — Claude, GPT-4, and Gemini judge backends with shared rubric and cost tracking.

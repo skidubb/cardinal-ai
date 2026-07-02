@@ -33,7 +33,9 @@ def test_protocols_include_problem_types():
 def test_meta_protocols_tools_disabled_via_api():
     resp = client.get("/api/protocols")
     data = resp.json()
-    meta = [p for p in data if p["key"].startswith("p0") and not p["key"][2:3].isdigit()]
+    meta = [
+        p for p in data if p["key"].startswith("p0") and not p["key"][2:3].isdigit()
+    ]
     assert len(meta) == 3
     for p in meta:
         assert p["tools_enabled"] is False
@@ -42,4 +44,10 @@ def test_meta_protocols_tools_disabled_via_api():
 def test_health_endpoint():
     resp = client.get("/api/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    body = resp.json()
+    # "degraded" means Agent Builder imports failed — agents would run tool-less
+    assert body["status"] in ("ok", "degraded")
+    assert "db" in body
+    assert "agent_builder" in body
+    if body["status"] == "ok":
+        assert body["agent_builder"] == "ok"

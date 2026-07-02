@@ -1,6 +1,6 @@
 # The Coordination Lab
 
-**60 multi-agent coordination protocols, 62 AI agents, and an adaptive router — a research platform and production engine for strategic decision-making.**
+**60 multi-agent coordination protocols, 74 AI agents, and an adaptive router — a research platform and production engine for strategic decision-making.**
 
 Scott Ewalt | [Cardinal Element](https://cardinalelement.com) | 2026
 
@@ -57,7 +57,7 @@ The canonical per-protocol taxonomy lives in [CLAUDE.md → Protocol Taxonomy](C
 CE - Multi-Agent Orchestration/
 ├── protocols/                    # 60 protocol implementations
 │   ├── p{NN}_{name}/            #   Each: orchestrator.py, prompts.py, run.py
-│   ├── agents.py                #   62-agent registry across 14 categories
+│   ├── agents.py                #   74-agent registry across 15 categories
 │   ├── server_agent.py          #   Production agent (direct Anthropic API + tools)
 │   ├── agent_provider.py        #   Builds agents per mode (production/research)
 │   ├── llm.py                   #   LLM dispatch (ServerAgent → LiteLLM → SDK fallback)
@@ -91,7 +91,7 @@ CE - Multi-Agent Orchestration/
 
 **Two model tiers** — `thinking_model` (Claude Opus) for agent reasoning and synthesis; `orchestration_model` (Claude Haiku) for mechanical steps like dedup, ranking, and classification.
 
-**Agent registry** — 62 agents across 14 categories: C-Suite executives, GTM leadership, revenue operations, customer success, finance, product, operations, technology, VC/investor personas, and behavioral coaches. Supports `@category` group syntax (e.g., `@executive`, `@gtm`).
+**Agent registry** — 74 agents (60 core + 14 walk perspectives) across 15 categories: C-Suite executives, GTM leadership, revenue operations, customer success, finance, product, operations, technology, VC/investor personas, and behavioral coaches. Supports `@category` group syntax (e.g., `@executive`, `@gtm`).
 
 **Pipeline chaining** — Multi-step protocol pipelines where each protocol's output feeds into the next. Checkpoint-based with resume support.
 
