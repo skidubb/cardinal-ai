@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CE - AGENTS — Folder Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0f17;
+    --panel: #121826;
+    --panel-2: #1a2236;
+    --border: #243049;
+    --text: #e6ecf5;
+    --muted: #8b97b1;
+    --accent: #6aa8ff;
+    --accent-2: #8a7dff;
+    --accent-3: #38d6a3;
+    --warn: #ffb454;
+    --danger: #ff6b8b;
+    --shadow: 0 6px 24px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif; }
+  body { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  aside {
+    width: 260px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+  }
+  aside h1 {
+    font-size: 16px; margin: 0 0 4px 0; letter-spacing: 0.5px;
+  }
+  aside .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 24px; }
+  aside nav { display: flex; flex-direction: column; gap: 4px; }
+  aside nav a {
+    color: var(--muted); text-decoration: none;
+    padding: 8px 12px; border-radius: 8px; font-size: 14px;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  aside nav a:hover { background: var(--panel-2); color: var(--text); }
+  aside nav a.active { background: var(--panel-2); color: var(--accent); border-left-color: var(--accent); }
+  aside .meta { margin-top: 24px; font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+  /* Main */
+  main { flex: 1; padding: 32px 48px; max-width: 1200px; }
+  section { margin-bottom: 56px; scroll-margin-top: 16px; }
+  h2 { font-size: 28px; margin: 0 0 8px 0; }
+  h2 .num { color: var(--accent); font-size: 14px; margin-right: 12px; font-weight: 400; letter-spacing: 0.05em; }
+  h3 { font-size: 18px; margin: 24px 0 8px 0; color: var(--text); }
+  p, li { line-height: 1.65; color: var(--text); }
+  p.lead { color: var(--muted); font-size: 16px; margin: 0 0 24px 0; max-width: 720px; }
+  code { background: var(--panel-2); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #c8d3e6; }
+  pre { background: var(--panel-2); padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; border: 1px solid var(--border); }
+
+  /* Header card */
+  .hero {
+    background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow);
+  }
+  .hero h2 { font-size: 32px; margin-bottom: 8px; }
+  .hero .tag { display: inline-block; background: rgba(106,168,255,0.15); color: var(--accent); padding: 4px 10px; border-radius: 999px; font-size: 12px; margin-bottom: 16px; }
+
+  /* Stat grid */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 24px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; cursor: default; transition: transform 0.15s, border-color 0.15s;
+  }
+  .stat:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .stat .num {
+    font-size: 28px; font-weight: 600; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+
+  /* Project cards */
+  .projects { display: grid; gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-header {
+    padding: 16px 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    user-select: none;
+  }
+  .card-header h3 { margin: 0; font-size: 16px; }
+  .card-header .badge {
+    background: var(--panel-2); color: var(--muted);
+    padding: 2px 8px; border-radius: 999px; font-size: 11px; margin-left: 8px;
+  }
+  .card-header .chev { color: var(--muted); transition: transform 0.2s; }
+  .card.open .card-header .chev { transform: rotate(180deg); }
+  .card-body {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.3s ease;
+    border-top: 1px solid transparent;
+  }
+  .card.open .card-body {
+    max-height: 1400px;
+    border-top-color: var(--border);
+  }
+  .card-body-inner { padding: 20px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tab {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    padding: 10px 16px; font-size: 13px; border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  tbody tr:hover { background: var(--panel-2); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--accent); }
+
+  /* Architecture diagram */
+  .arch {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin: 16px 0;
+  }
+  .arch-row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .arch-row:last-child { margin-bottom: 0; }
+  .arch-box {
+    flex: 1; padding: 14px; border-radius: 8px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    font-size: 13px; line-height: 1.5;
+  }
+  .arch-box.accent { border-color: var(--accent); background: rgba(106,168,255,0.07); }
+  .arch-box.accent-2 { border-color: var(--accent-2); background: rgba(138,125,255,0.07); }
+  .arch-box.accent-3 { border-color: var(--accent-3); background: rgba(56,214,163,0.07); }
+  .arch-box strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 14px; }
+  .arch-box span { color: var(--muted); }
+  .arrow { text-align: center; color: var(--muted); font-size: 18px; padding: 4px 0; }
+
+  /* Tags */
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pill {
+    background: var(--panel-2); color: var(--muted);
+    padding: 3px 10px; border-radius: 999px; font-size: 11px; border: 1px solid var(--border);
+  }
+  .pill.accent { background: rgba(106,168,255,0.12); color: var(--accent); border-color: rgba(106,168,255,0.3); }
+  .pill.accent-2 { background: rgba(138,125,255,0.12); color: var(--accent-2); border-color: rgba(138,125,255,0.3); }
+  .pill.accent-3 { background: rgba(56,214,163,0.12); color: var(--accent-3); border-color: rgba(56,214,163,0.3); }
+
+  /* Search */
+  .search-bar {
+    width: 100%; max-width: 400px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; color: var(--text); font-size: 14px; margin-bottom: 16px;
+    outline: none;
+  }
+  .search-bar:focus { border-color: var(--accent); }
+
+  /* Chart container */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+  @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px;
+  }
+  .chart-card h3 { margin-top: 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* TL;DR */
+  .tldr {
+    background: linear-gradient(135deg, rgba(106,168,255,0.08), rgba(138,125,255,0.08));
+    border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    border-radius: 12px; padding: 20px 24px; margin-top: 24px;
+  }
+  .tldr strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<aside>
+  <h1>CE - AGENTS</h1>
+  <div class="subtitle">Interactive Folder Report</div>
+  <nav id="nav">
+    <a href="#overview" class="active">Overview</a>
+    <a href="#layout">Folder Layout</a>
+    <a href="#projects">Core Projects</a>
+    <a href="#packages">Shared Packages</a>
+    <a href="#architecture">Productization Arch</a>
+    <a href="#protocols">Protocols Explorer</a>
+    <a href="#numbers">By the Numbers</a>
+    <a href="#conventions">Conventions</a>
+    <a href="#docs">Documentation Map</a>
+  </nav>
+  <div class="meta">
+    <strong style="color: var(--text)">Owner</strong><br />
+    Scott Ewalt / Cardinal Element<br /><br />
+    <strong style="color: var(--text)">Repo</strong><br />
+    cardinal-ai<br /><br />
+    <strong style="color: var(--text)">Reported</strong><br />
+    May 14, 2026<br /><br />
+    <strong style="color: var(--text)">Size</strong><br />
+    ~7.8 GB on disk
+  </div>
+</aside>
+
+<main>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="hero">
+      <span class="tag">Monorepo · Cardinal Element</span>
+      <h2>CE - AGENTS</h2>
+      <p class="lead">Cardinal Element's agentic AI workspace — agent definitions, 57 coordination protocols, a customer-facing portal, an LLM-as-judge evals framework, and shared multi-tenant infrastructure. Consolidates three previously separate repos plus the Next.js portal and automation workflows.</p>
+      <div class="stats">
+        <div class="stat"><div class="num">7</div><div class="label">Executive Agents</div></div>
+        <div class="stat"><div class="num">57</div><div class="label">Protocols</div></div>
+        <div class="stat"><div class="num">62</div><div class="label">Agent Registry</div></div>
+        <div class="stat"><div class="num">80</div><div class="label">Role Prompts</div></div>
+        <div class="stat"><div class="num">27</div><div class="label">Tool Schemas</div></div>
+        <div class="stat"><div class="num">6</div><div class="label">Tenants Provisioned</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAYOUT -->
+  <section id="layout">
+    <h2><span class="num">01</span>Folder Layout</h2>
+    <p class="lead">23 top-level directories, 25 top-level files. Click any directory below to see what it contains.</p>
+    <input type="text" id="layoutSearch" class="search-bar" placeholder="Filter directories... (e.g. agent, ce-, portal)" />
+    <div class="projects" id="layoutList">
+      <!-- populated by JS -->
+    </div>
+  </section>
+
+  <!-- PROJECTS -->
+  <section id="projects">
+    <h2><span class="num">02</span>Core Projects</h2>
+    <p class="lead">Four production-grade applications plus supporting research and recursive-loop scaffolding.</p>
+    <div class="projects">
+
+      <div class="card open" data-card>
+        <div class="card-header">
+          <div>
+            <h3>CE - Agent Builder<span class="badge">Python CLI</span></h3>
+          </div>
+          <div class="chev">▾</div>
+        </div>
+        <div class="card-body"><div class="card-body-inner">
+          <p>The agent factory. A Python CLI app (<code>csuite</code>) hosting 7 executive AI agents — CEO, CFO, CTO, CMO, COO, CPO, CRO — with role-specific tools, MCP integrations, and Pinecone memory. Prompts + tools + memory live here; orchestration consumes them via <code>ServerAgent</code>.</p>
+          <ul>
+            <li>80 role system prompts in <code>agents/sdk_agent.py:_ROLE_PROMPTS</code></li>
+            <li>27 tool schemas in <code>tools/schemas.py:ALL_TOOL_SCHEMAS</code></li>
+            <li>Per-role tool mappings for 66 roles in <code>tools/registry.py</code></li>
+            <li>Two backends: <code>BaseAgent</code> (direct Anthropic) and <code>SdkAgent</code> (Claude Agent SDK)</li>
+            <li>DuckDB learning store + session persistence + evaluation reports</li>
+          </ul>
+          <h3>Sample Commands</h3>
+          <pre>csuite ceo "should we raise a Series B?"
+csuite synthesize "Q4 strategy" -a cfo cto
+csuite debate "build vs buy" -a cfo cto cmo -r 3
+csuite audit --revenue "$12M" --employees 45</pre>
+          <div class="tag-list">
+            <span class="pill accent">Anthropic SDK</span>
+            <span class="pill accent">Pinecone</span>
+            <span class="pill accent">DuckDB</span>
+            <span class="pill">Hatchling</span>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="card" data-card>
+        <div class="card-header">
+          <div>
+            <h3>CE - Multi-Agent Orchestration<span class="badge">FastAPI + React</span></h3>
+          </div>
+          <div class="chev">▾</div>
+        </div>
+        <div class="card-body"><div class="card-body-inner">
+          <p>The protocol engine. 57 coordination protocols and a 62-agent registry exposed through a FastAPI engine with a React frontend, deployed on Railway. Each protocol is self-contained: <code>orchestrator.py</code>, <code>prompts.py</code>, <code>run.py</code>.</p>
+          <h3>Categories</h3>
+          <div class="tag-list">
+            <span class="pill accent-2">Liberating Structures</span>
+            <span class="pill accent-2">Intelligence Tradecraft</span>
+            <span class="pill accent-2">TRIZ</span>
+            <span class="pill accent-2">Game Theory</span>
+            <span class="pill accent-2">Systems Thinking</span>
+            <span class="pill accent-2">Philosophical Reasoning</span>
+            <span class="pill accent-2">Multi-Round Debate</span>
+            <span class="pill accent-2">Decentralized Coordination</span>
+          </div>
+          <h3>Production Notes</h3>
+          <ul>
+            <li><code>ServerAgent</code> — Docker-safe agent class, direct <code>AsyncAnthropic</code> + native tool loop, max 15 iterations</li>
+            <li>Two model tiers: Opus for reasoning, Haiku for orchestration</li>
+            <li><code>--mode research</code> falls back to lightweight dicts; production is default</li>
+            <li>SSE streaming for live run progress, WeasyPrint PDF reports</li>
+            <li>Langfuse tracing + Postgres persistence (both degrade gracefully)</li>
+          </ul>
+        </div></div>
+      </div>
+
+      <div class="card" data-card>
+        <div class="card-header">
+          <div>
+            <h3>CE - Evals<span class="badge">Python library</span></h3>
+          </div>
+          <div class="chev">▾</div>
+        </div>
+        <div class="card-body"><div class="card-body-inner">
+          <p>Library-only LLM-as-judge evaluation framework. No CLI — imported programmatically. Lives in <code>src/ce_evals/core/</code>: <code>judge.py</code> + <code>judge_backends.py</code> (Claude / GPT-4 / Gemini), <code>rubric.py</code>, <code>runner.py</code>, <code>cost.py</code>.</p>
+          <div class="tag-list">
+            <span class="pill accent-3">Claude judge</span>
+            <span class="pill accent-3">GPT-4 judge</span>
+            <span class="pill accent-3">Gemini judge</span>
+            <span class="pill">Shared rubric</span>
+            <span class="pill">Cost tracking</span>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="card" data-card>
+        <div class="card-header">
+          <div>
+            <h3>cardinal-portal<span class="badge">Next.js 16</span></h3>
+          </div>
+          <div class="chev">▾</div>
+        </div>
+        <div class="card-body"><div class="card-body-inner">
+          <p>The customer surface. Next.js 16 (App Router) + Clerk (auth, Organizations, Billing) + shadcn + Tailwind 4, deployed to Vercel. Owns sign-in/MFA, member management, Stripe subscriptions, dashboards, connector setup wizard, query UI, and the CE admin console.</p>
+          <p>Communicates with the Railway backend via Clerk-issued JWTs. The <code>org.slug</code> claim flows through to <code>api/middleware/clerk_auth.py</code>, which scopes every operation to that tenant's FalkorDB graph + Pinecone namespace.</p>
+          <div class="tag-list">
+            <span class="pill accent">Next.js 16</span>
+            <span class="pill accent">Clerk</span>
+            <span class="pill accent">shadcn</span>
+            <span class="pill accent">Tailwind 4</span>
+            <span class="pill">Vercel</span>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="card" data-card>
+        <div class="card-header">
+          <div>
+            <h3>CE - Recursive Loops & Multi-Agent Research<span class="badge">R&D</span></h3>
+          </div>
+          <div class="chev">▾</div>
+        </div>
+        <div class="card-body"><div class="card-body-inner">
+          <p><strong>CE - Recursive Loops</strong> — recursive loop patterns for iterative agent workflows. Scaffold for upcoming protocols.</p>
+          <p><strong>Multi-Agent Research</strong> — research notes, experiments, and reference materials supporting protocol design.</p>
+        </div></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PACKAGES -->
+  <section id="packages">
+    <h2><span class="num">03</span>Shared Packages</h2>
+    <p class="lead">Three Python packages that every project consumes.</p>
+    <table>
+      <thead><tr><th>Package</th><th>Purpose</th><th>Consumed by</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>ce-shared</strong></td>
+          <td>Single source of truth for <code>MODEL_PRICING</code>, <code>cost_for_model()</code>, <code>KEY_REGISTRY</code>, <code>find_and_load_dotenv()</code></td>
+          <td>All Python projects</td>
+        </tr>
+        <tr>
+          <td><strong>ce-db</strong></td>
+          <td>Async SQLAlchemy + asyncpg + Alembic. Postgres schema for runs, traces, costs.</td>
+          <td>Orchestration, optionally Evals</td>
+        </tr>
+        <tr>
+          <td><strong>ce-graph</strong></td>
+          <td>Multi-tenant knowledge graph (Graphiti + FalkorDB). Entities: <code>Client, Engagement, Protocol, Decision, Correction, Lesson</code>. Each customer = own FalkorDB graph.</td>
+          <td>Agent Builder + Orchestration</td>
+        </tr>
+      </tbody>
+    </table>
+    <h3>Canonical Tenants</h3>
+    <div class="tag-list">
+      <span class="pill accent">cardinal-element</span>
+      <span class="pill accent">imagine-wireless</span>
+      <span class="pill accent">workload</span>
+      <span class="pill accent">silver-lake-auto</span>
+      <span class="pill accent">public-safety-wireless</span>
+      <span class="pill accent">on3</span>
+      <span class="pill">+ Clerk auto-provisioned</span>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <h2><span class="num">04</span>Productization Architecture</h2>
+    <p class="lead">The product splits into two halves communicating via Clerk JWTs.</p>
+    <div class="arch">
+      <div class="arch-row">
+        <div class="arch-box accent">
+          <strong>cardinal-portal (Vercel)</strong>
+          <span>Next.js 16 + Clerk + shadcn. Owns auth, MFA, Organizations, Stripe Billing, dashboards, connector setup, admin console.</span>
+        </div>
+        <div class="arch-box accent-2">
+          <strong>Railway backend (FastAPI)</strong>
+          <span>Protocol execution, ce-graph queries, ingest workers, per-tenant cost tracking. Validates Clerk JWT via <code>api/middleware/clerk_auth.py</code>.</span>
+        </div>
+      </div>
+      <div class="arrow">↓ Clerk JWT (<code>org.slug</code> claim)</div>
+      <div class="arch-row">
+        <div class="arch-box accent-3">
+          <strong>Tenant scoping</strong>
+          <span>Clerk Organization → <code>org.slug</code> → ce-graph tenant slug. Runs persisted with <code>tenant_id</code> column. Per-tenant FalkorDB graph + Pinecone namespace.</span>
+        </div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box">
+          <strong>Agent Builder</strong>
+          <span>Prompts, tools, memory</span>
+        </div>
+        <div class="arch-box">
+          <strong>Orchestration</strong>
+          <span>57 protocols, 62 agents</span>
+        </div>
+        <div class="arch-box">
+          <strong>ce-graph</strong>
+          <span>Per-tenant memory</span>
+        </div>
+        <div class="arch-box">
+          <strong>Evals</strong>
+          <span>LLM-as-judge QA</span>
+        </div>
+      </div>
+    </div>
+    <h3>Deployment</h3>
+    <p>Railway.app from branch <code>claude/add-rc-config-support-W9iw7</code>. Multi-stage Dockerfile (Node build for React UI → Python runtime with cairo/pango for WeasyPrint). Railway Postgres addon. Healthcheck at <code>/api/health</code>.</p>
+  </section>
+
+  <!-- PROTOCOLS -->
+  <section id="protocols">
+    <h2><span class="num">05</span>Protocols Explorer</h2>
+    <p class="lead">57 coordination protocols spanning 9+ categories. Click a category tab to explore.</p>
+    <div class="tabs" id="protoTabs">
+      <button class="tab active" data-cat="all">All</button>
+      <button class="tab" data-cat="liberating">Liberating Structures</button>
+      <button class="tab" data-cat="intel">Intel Tradecraft</button>
+      <button class="tab" data-cat="reasoning">Reasoning / TRIZ</button>
+      <button class="tab" data-cat="debate">Debate</button>
+      <button class="tab" data-cat="decentralized">Decentralized</button>
+    </div>
+    <div id="protoList" class="projects"></div>
+  </section>
+
+  <!-- NUMBERS -->
+  <section id="numbers">
+    <h2><span class="num">06</span>By the Numbers</h2>
+    <p class="lead">Quick visual reference for the headline metrics.</p>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>System Composition</h3>
+        <canvas id="chart1" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Headline Counts</h3>
+        <canvas id="chart2" height="220"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONVENTIONS -->
+  <section id="conventions">
+    <h2><span class="num">07</span>Conventions</h2>
+    <table>
+      <thead><tr><th>Concern</th><th>Standard</th></tr></thead>
+      <tbody>
+        <tr><td>Language</td><td>Python 3.11+, async everywhere</td></tr>
+        <tr><td>Lint</td><td>Ruff (E, F, I, N, W, UP; line length 100)</td></tr>
+        <tr><td>Type check</td><td>mypy with <code>check_untyped_defs</code> (not strict)</td></tr>
+        <tr><td>Models</td><td>Pydantic v2</td></tr>
+        <tr><td>Tests</td><td><code>@pytest.mark.integration</code> for real APIs; CI runs <code>-m "not integration"</code></td></tr>
+        <tr><td>Model policy</td><td><code>claude-opus-4-7</code> for executives, <code>claude-haiku-4-5-20251001</code> for orchestration</td></tr>
+        <tr><td>Protocol naming</td><td><code>p{NN}_{descriptor}</code> (e.g. <code>p06_triz</code>, <code>p16_ach</code>)</td></tr>
+        <tr><td>Agent keys</td><td>kebab-case (e.g. <code>ceo-board-prep</code>, <code>gtm-vp-sales</code>)</td></tr>
+        <tr><td>Environment</td><td>Per-project <code>.env</code> with <code>ANTHROPIC_API_KEY</code> minimum; integrations degrade gracefully</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- DOCS -->
+  <section id="docs">
+    <h2><span class="num">08</span>Documentation Map</h2>
+    <p class="lead">Each project ships its own detailed CLAUDE.md.</p>
+    <table>
+      <thead><tr><th>Document</th><th>Covers</th></tr></thead>
+      <tbody>
+        <tr><td><code>CLAUDE.md</code> (root)</td><td>Architecture, commands, conventions, productization stack</td></tr>
+        <tr><td><code>CE - Agent Builder/.claude/CLAUDE.md</code></td><td>CLI, agent system architecture, patterns</td></tr>
+        <tr><td><code>CE - Multi-Agent Orchestration/CLAUDE.md</code></td><td>Protocol architecture, taxonomy, diagram conventions</td></tr>
+        <tr><td><code>cardinal-portal/CLAUDE.md</code> + <code>AGENTS.md</code></td><td>Portal architecture and agent integration</td></tr>
+        <tr><td><code>ce-graph/SETUP.md</code>, <code>ONBOARDING.md</code></td><td>Graph setup + tenant provisioning</td></tr>
+        <tr><td><code>docs/local-dev.md</code></td><td>Local dev options and scenarios</td></tr>
+        <tr><td><code>scripts/dev-bootstrap.sh</code></td><td>Idempotent fresh-machine setup</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tldr">
+      <strong>TL;DR —</strong> A production-grade multi-agent AI consultancy platform. Agent definitions and tools live in <em>Agent Builder</em>; <em>Multi-Agent Orchestration</em> runs them through 57 coordination protocols and exposes a web UI; <em>Evals</em> QAs the outputs; <em>ce-shared/ce-db/ce-graph</em> provide shared infrastructure and per-tenant memory; <em>cardinal-portal</em> is the Clerk-authenticated customer surface that fronts it all.
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ---------- Folder layout data ----------
+const layoutData = [
+  { name: "CE - Agent Builder", desc: "C-Suite CLI — 7 executive agents, tools, memory", tag: "Python" },
+  { name: "CE - Multi-Agent Orchestration", desc: "57 protocols + FastAPI/React web UI", tag: "Python/React" },
+  { name: "CE - Evals", desc: "LLM-as-judge evaluation framework", tag: "Python library" },
+  { name: "CE - Recursive Loops", desc: "Recursive loop patterns", tag: "R&D" },
+  { name: "Multi-Agent Research", desc: "Research notes and experiments", tag: "Notes" },
+  { name: "cardinal-portal", desc: "Next.js 16 customer portal (Clerk + Vercel)", tag: "Next.js" },
+  { name: "ce-shared", desc: "Shared pricing + env registry", tag: "Python pkg" },
+  { name: "ce-db", desc: "Shared Postgres schema + Alembic migrations", tag: "Python pkg" },
+  { name: "ce-graph", desc: "Multi-tenant knowledge graph (Graphiti + FalkorDB)", tag: "Python pkg" },
+  { name: "n8n Workflows", desc: "Automation workflow JSON exports", tag: "n8n" },
+  { name: "Scripts", desc: "Utility scripts (incl. dev-bootstrap.sh)", tag: "Bash/Python" },
+  { name: "content", desc: "Marketing / content assets", tag: "Assets" },
+  { name: "docs", desc: "Documentation", tag: "Markdown" },
+  { name: "db-init", desc: "Database initialization scripts", tag: "SQL" },
+  { name: "presentations", desc: "Decks and pitch material", tag: "Assets" },
+  { name: "Shared", desc: "Cross-project shared resources", tag: "Misc" },
+];
+function renderLayout(filter = "") {
+  const f = filter.toLowerCase();
+  const list = layoutData.filter(d => d.name.toLowerCase().includes(f) || d.desc.toLowerCase().includes(f));
+  document.getElementById("layoutList").innerHTML = list.map(d => `
+    <div class="card">
+      <div class="card-header" style="cursor: default">
+        <div>
+          <h3>${d.name}<span class="badge">${d.tag}</span></h3>
+          <span style="color: var(--muted); font-size: 13px">${d.desc}</span>
+        </div>
+      </div>
+    </div>
+  `).join("");
+}
+renderLayout();
+document.getElementById("layoutSearch").addEventListener("input", e => renderLayout(e.target.value));
+
+// ---------- Protocol explorer ----------
+const protocols = [
+  { id: "p06_triz", name: "TRIZ", cat: "reasoning", desc: "Inventive problem solving via contradictions" },
+  { id: "p16_ach", name: "Analysis of Competing Hypotheses", cat: "intel", desc: "Sherman Kent / intel-community method" },
+  { id: "p04_multi_round_debate", name: "Multi-Round Debate", cat: "debate", desc: "Adversarial multi-agent debate with judging" },
+  { id: "p53_contract_net", name: "Contract Net", cat: "decentralized", desc: "Task announcement → bid → award" },
+  { id: "p54_blackboard", name: "Blackboard", cat: "decentralized", desc: "Shared blackboard with knowledge sources" },
+  { id: "p55_gossip_consensus", name: "Gossip Consensus", cat: "decentralized", desc: "Epidemic-style information propagation" },
+  { id: "p56_stigmergic", name: "Stigmergic Exploration", cat: "decentralized", desc: "Ant-colony / pheromone-trail coordination" },
+  { id: "p57_liquid_democracy", name: "Liquid Democracy", cat: "decentralized", desc: "Transitive vote delegation" },
+  { id: "p_25_for_25", name: "25/10 Crowd Sourcing", cat: "liberating", desc: "Rapidly surface and select bold ideas" },
+  { id: "p_15_percent", name: "15% Solutions", cat: "liberating", desc: "Identify what each can do without permission" },
+  { id: "p_1_2_4_all", name: "1-2-4-All", cat: "liberating", desc: "Engage everyone simultaneously in generating questions / ideas" },
+  { id: "p_troika", name: "Troika Consulting", cat: "liberating", desc: "Get practical and imaginative help from colleagues" },
+  { id: "p_wise_crowds", name: "Wise Crowds", cat: "liberating", desc: "Tap the wisdom of the whole group" },
+  { id: "p_devils_advocacy", name: "Devil's Advocacy", cat: "intel", desc: "Argue the opposing case to stress-test reasoning" },
+  { id: "p_red_team", name: "Red Team Analysis", cat: "intel", desc: "Adopt adversary perspective" },
+  { id: "p_key_assumptions", name: "Key Assumptions Check", cat: "intel", desc: "Surface and test load-bearing assumptions" },
+  { id: "p_premortem", name: "Pre-Mortem", cat: "reasoning", desc: "Imagine the project failed — why?" },
+  { id: "p_systems_loops", name: "System Dynamics Loops", cat: "reasoning", desc: "Map reinforcing and balancing feedback" },
+  { id: "p_socratic", name: "Socratic Dialogue", cat: "debate", desc: "Iterative questioning to surface assumptions" },
+  { id: "p_dialectic", name: "Hegelian Dialectic", cat: "debate", desc: "Thesis → antithesis → synthesis" },
+];
+function renderProtocols(cat = "all") {
+  const list = cat === "all" ? protocols : protocols.filter(p => p.cat === cat);
+  document.getElementById("protoList").innerHTML = list.map(p => `
+    <div class="card">
+      <div class="card-header" style="cursor: default">
+        <div>
+          <h3>${p.name}<span class="badge">${p.id}</span></h3>
+          <span style="color: var(--muted); font-size: 13px">${p.desc}</span>
+        </div>
+      </div>
+    </div>
+  `).join("") + `<p style="color: var(--muted); font-size: 13px; margin-top: 8px">Showing ${list.length} of ~57 protocols. Full list lives in <code>CE - Multi-Agent Orchestration/protocols/</code>.</p>`;
+}
+renderProtocols();
+document.querySelectorAll("#protoTabs .tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#protoTabs .tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderProtocols(btn.dataset.cat);
+  });
+});
+
+// ---------- Card toggles ----------
+document.querySelectorAll("[data-card] .card-header").forEach(h => {
+  h.addEventListener("click", () => {
+    h.parentElement.classList.toggle("open");
+  });
+});
+
+// ---------- Active nav on scroll ----------
+const sections = document.querySelectorAll("section");
+const navLinks = document.querySelectorAll("#nav a");
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(a => a.classList.remove("active"));
+      const link = document.querySelector(`#nav a[href="#${e.target.id}"]`);
+      if (link) link.classList.add("active");
+    }
+  });
+}, { rootMargin: "-30% 0px -60% 0px" });
+sections.forEach(s => observer.observe(s));
+
+// ---------- Charts ----------
+Chart.defaults.color = "#8b97b1";
+Chart.defaults.borderColor = "#243049";
+
+new Chart(document.getElementById("chart1"), {
+  type: "doughnut",
+  data: {
+    labels: ["Protocols (57)", "Agent Registry (62)", "Role Prompts (80)", "Tool Schemas (27)"],
+    datasets: [{
+      data: [57, 62, 80, 27],
+      backgroundColor: ["#6aa8ff", "#8a7dff", "#38d6a3", "#ffb454"],
+      borderColor: "#0b0f17",
+      borderWidth: 2,
+    }]
+  },
+  options: { plugins: { legend: { position: "bottom", labels: { padding: 12 } } } }
+});
+
+new Chart(document.getElementById("chart2"), {
+  type: "bar",
+  data: {
+    labels: ["Top-level dirs", "Top-level files", "Protocols", "Agents", "Role prompts", "Tool schemas", "Tenants", "Shared pkgs"],
+    datasets: [{
+      label: "Count",
+      data: [23, 25, 57, 62, 80, 27, 6, 3],
+      backgroundColor: "#6aa8ff",
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: "y",
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: "#243049" } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+</script>
+
+</body>
+</html>

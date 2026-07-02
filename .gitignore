@@ -21,8 +21,17 @@ firebase-debug.log
 .vscode/
 .idea/
 
-# Claude Code
-.claude/
+# Claude Code — local-only state is ignored; the shared harness surface
+# (settings.json, skills/, agents/, commands/, hooks/, CLAUDE.md) is committed.
+**/.claude/*
+!**/.claude/settings.json
+!**/.claude/skills/
+!**/.claude/agents/
+!**/.claude/commands/
+!**/.claude/hooks/
+!**/.claude/CLAUDE.md
+**/.claude/settings.local.json
+**/.claude/worktrees/
 
 # Build artifacts
 dist/
@@ -40,12 +49,16 @@ pgdata/
 # Node artifacts
 node_modules/
 
-# macOS Finder duplicate files
-* 2.py
-* 2.md
+# macOS Finder / iCloud sync-conflict duplicates
+* 2.*
+* 2
+* 2/
 
 # Lock files (LibreOffice etc.)
 .~lock.*
 
-# Large media files
+# Large media files — research PDFs and demo videos stay out of git going forward
 Multi-Agent Research/Inside_the_2027_Intelligence_Explosion.m4a
+Multi-Agent Research/*.pdf
+*.webm
+demo_artifacts*/video_tmp/
