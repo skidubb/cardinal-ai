@@ -1,0 +1,33 @@
+id: p53_stigmergy
+name: Stigmergic Coordination
+category: Wave 2 Research
+coordination: Decentralized
+problem_types:
+  - Exploration
+  - Systems Analysis
+  - Multi-Stakeholder
+  - General Analysis
+agent_count:
+  min: 3
+  max: 12
+  recommended: 5
+rounds:
+  default: 3
+  max: 6
+cost_tier: medium
+mechanism: >
+  Agents deposit typed traces (risk / opportunity / constraint / insight /
+  question) onto shared "locations" over N waves. Each wave decays prior-wave
+  strength, so agents react to a recency-weighted field. The final report is
+  the mechanically-harvested trace field grouped by type and sorted by
+  cumulative strength. No central synthesizer merges opinions.
+when_to_prefer: >
+  Use when the question rewards structured divergence more than convergence,
+  and when you want to see which concerns emerge as attractors when many
+  agents deposit signals independently. Prefer this over parallel synthesis
+  when the goal is to map the problem landscape, not to pick an answer.
+when_to_avoid: >
+  Bad fit for prioritization or numerical estimation (use P19 Vickrey or
+  P18 Delphi instead). Bad fit for questions with a single correct answer
+  under uncertainty — the field will look diffuse and readers will over-
+  interpret weak signals.
