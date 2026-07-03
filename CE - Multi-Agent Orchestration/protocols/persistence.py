@@ -107,6 +107,18 @@ async def persist_run(
         if error:
             envelope.result_json["error_message"] = error[:4000]
 
+    # Best-effort auto-score BEFORE Postgres write so a DB outage doesn't
+    # break the learning loop. The scorer is silent on failure.
+    if envelope.status == "completed":
+        try:
+            from protocols.auto_score import auto_score_and_record
+
+            score_result = await auto_score_and_record(envelope)
+            if score_result.scored:
+                envelope.metadata["auto_score"] = score_result.as_dict()
+        except Exception as e:  # pragma: no cover — defensive
+            _log.debug("auto_score: skipped (%s)", e, exc_info=True)
+
     try:
         from ce_db import AgentOutput, Run, get_session
     except ImportError:

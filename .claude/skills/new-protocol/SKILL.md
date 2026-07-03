@@ -22,7 +22,7 @@ Create these files under `CE - Multi-Agent Orchestration/protocols/{id}/`:
 
 1. **`__init__.py`** — exports the orchestrator class and result dataclass.
 2. **`orchestrator.py`** — async class with `run(question) -> {Name}Result`. Uses `@trace_protocol("{id}")` decorator, `anthropic.AsyncAnthropic()`, `THINKING_MODEL` for reasoning, `ORCHESTRATION_MODEL` for mechanical steps. Import from `protocols.llm`, `protocols.langfuse_tracing`, `protocols.config`.
-3. **`prompts.py`** — string constants only. When `protocols/prompt_fragments.py` exists, prefer `from protocols.prompt_fragments import JSON_ENVELOPE, CIN_SCALE, PROHIBITED_HEADER` over redeclaring.
+3. **`prompts.py`** — string constants only. Prefer `from protocols.prompt_fragments import JSON_ONLY_INSTRUCTION, CIN_SCALE_SCORING, PROHIBITED_HEADER, agent_framing` over redeclaring boilerplate. The fragment library is the single source of truth for JSON envelopes, C/I/N scales, prohibition headers, and agent framing.
 4. **`run.py`** — CLI with argparse, `BUILTIN_AGENTS` dict, `print_result()`, calls `persist_run()` from `protocols.persistence`.
 5. **`capability.yaml`** — metadata read by `p0a_reasoning_router`:
    ```yaml
@@ -48,12 +48,29 @@ Create these files under `CE - Multi-Agent Orchestration/protocols/{id}/`:
 
 Pick the closest template and adapt.
 
+## Per-agent prompt assembly — use scoping
+
+Every new protocol should build per-agent prompts through `protocols.scoping.scoped_prompt` so agents only see context matching their `context_scope` (financial, technical, market, operational, strategic, hr, all). Ad-hoc `f"{TASK}\n\n{full_context_blob}"` concatenation is a regression.
+
+```python
+from protocols.scoping import scoped_prompt
+
+# In your parallel stage:
+prompt = scoped_prompt(
+    agent,
+    TASK_PROMPT.format(question=question),
+    shared_context=blackboard.blocks() if use_blackboard else None,
+)
+response = await agent.chat(prompt)
+```
+
 ## After scaffolding
 
 1. Add the protocol to `protocols/registry.py` so the router can find it.
 2. Add its capability to `p0a_reasoning_router`'s prompt if you want it routable.
 3. Add a smoke test: run `python -m protocols.{id}.run -q "test question" -a ceo cfo` and confirm it persists a run.
 4. Verify Langfuse tracing appears (if configured).
-5. Add a Mermaid diagram to `protocol-diagrams/` following the color conventions in `CLAUDE.md`.
+5. Confirm auto-scoring flows (check `~/.coordination-lab/weights.json` grew a record).
+6. Add a Mermaid diagram to `protocol-diagrams/` following the color conventions in `CLAUDE.md`.
 
-Do NOT copy prompt boilerplate verbatim from another protocol — use `prompt_fragments.py` if it exists. If it doesn't, note that shared fragments should be extracted.
+Do NOT copy prompt boilerplate verbatim from another protocol — always route through `prompt_fragments.py`.

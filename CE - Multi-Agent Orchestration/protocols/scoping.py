@@ -86,3 +86,59 @@ def filter_context_for_agent(agent: dict, context_blocks: list[dict]) -> str:
             filtered.append(block["content"])
 
     return "\n\n".join(filtered)
+
+
+# ---------------------------------------------------------------------------
+# Convenience: one-line adoption for new protocols
+# ---------------------------------------------------------------------------
+
+def scoped_prompt(
+    agent: dict,
+    task_prompt: str,
+    shared_context: list[dict] | None = None,
+) -> str:
+    """Assemble a scoped per-agent prompt in one call.
+
+    Layers:
+      1. Agent identity (from `agent["system_prompt"]` or "name" fallback)
+      2. Task instructions (the protocol's per-agent prompt)
+      3. Shared context filtered by the agent's `context_scope`
+
+    Any protocol that wants to adopt progressive disclosure can replace the
+    ad-hoc pattern:
+
+        prompt = f"{TASK}\n\n{full_context_blob}"
+
+    with:
+
+        from protocols.scoping import scoped_prompt
+        prompt = scoped_prompt(agent, TASK, shared_context=blackboard.blocks())
+
+    and the agent will only see context tagged with scopes it has access to.
+
+    Args:
+        agent: Agent dict — needs at least a `name` or `system_prompt` field.
+               Optional `context_scope: list[str]` narrows shared context.
+        task_prompt: The protocol's per-agent task instructions.
+        shared_context: Optional list of `{"scope": str, "content": str}`
+                        blocks to filter and append. If None, no context is
+                        appended (task-only prompt).
+
+    Returns:
+        A single assembled prompt string suitable for `agent.chat(prompt)`.
+    """
+    parts: list[str] = []
+    system = agent.get("system_prompt") or ""
+    if system.strip():
+        parts.append(system.strip())
+    elif agent.get("name"):
+        parts.append(f"You are {agent['name']}.")
+
+    parts.append(task_prompt.strip())
+
+    if shared_context:
+        filtered = filter_context_for_agent(agent, shared_context)
+        if filtered.strip():
+            parts.append(f"Relevant shared context:\n{filtered}")
+
+    return "\n\n".join(parts)
