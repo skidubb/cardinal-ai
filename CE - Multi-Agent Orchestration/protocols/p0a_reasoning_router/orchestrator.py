@@ -16,6 +16,11 @@ from protocols.langfuse_tracing import trace_protocol, create_span, end_span
 from protocols.llm import extract_text, llm_complete, parse_json_object
 
 from protocols.registry import build_routing_prompt_section
+from protocols.router_weights import (
+    format_for_prompt as format_weights_for_prompt,
+    performance_by_protocol,
+    suggest_override,
+)
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
     FEATURE_EXTRACTION_PROMPT,
@@ -47,6 +52,10 @@ class RouterResult:
     reasoning: str
     cost_tier: str
     timings: dict[str, float] = field(default_factory=dict)
+    historical_performance: list[dict[str, Any]] = field(default_factory=list)
+    weights_override_applied: bool = False
+    weights_override_rationale: str = ""
+    llm_recommendation: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -101,16 +110,39 @@ class ReasoningRouter:
             raise
         timings["phase2_classify"] = time.time() - t0
 
-        # Phase 3 — Protocol Selection (Haiku)
+        # Phase 3 — Protocol Selection (Haiku), informed by historical weights
+        problem_type = classification.get("problem_type", "General Analysis")
+        perf = performance_by_protocol(problem_type)
+        weights_context = format_weights_for_prompt(perf)
+
         t0 = time.time()
-        span = create_span("stage:protocol_selection", {})
+        span = create_span(
+            "stage:protocol_selection",
+            {"has_weights": bool(perf), "weight_count": len(perf)},
+        )
         try:
-            routing = await self._select_protocol(question, features, classification)
+            routing = await self._select_protocol(
+                question, features, classification, weights_context
+            )
             end_span(span, output=f"recommended={routing.get('recommended_protocol', 'unknown')}")
         except Exception:
             end_span(span, error="protocol_selection failed")
             raise
         timings["phase3_select"] = time.time() - t0
+
+        # Phase 3b — Post-hoc override from historical performance (best-effort)
+        llm_choice = routing.get("recommended_protocol", "P3")
+        final_choice = llm_choice
+        override_rationale = ""
+        override, rationale = suggest_override(llm_choice, perf)
+        if override:
+            final_choice = override
+            override_rationale = rationale or ""
+            span = create_span(
+                "stage:weights_override",
+                {"from": llm_choice, "to": override},
+            )
+            end_span(span, output=override_rationale)
 
         # Phase 4 — Assemble result
         t0 = time.time()
@@ -127,14 +159,18 @@ class ReasoningRouter:
         return RouterResult(
             question=question,
             features=features,
-            problem_type=classification.get("problem_type", "General Analysis"),
+            problem_type=problem_type,
             problem_type_confidence=classification.get("confidence", 50),
-            recommended_protocol=routing.get("recommended_protocol", "P3"),
+            recommended_protocol=final_choice,
             recommended_name=routing.get("recommended_name", "Parallel Synthesis"),
             alternatives=alternatives,
             reasoning=routing.get("reasoning", ""),
             cost_tier=routing.get("cost_tier", "low"),
             timings=timings,
+            historical_performance=[p.as_dict() for p in perf.values()],
+            weights_override_applied=bool(override),
+            weights_override_rationale=override_rationale,
+            llm_recommendation=llm_choice,
         )
 
     # ------------------------------------------------------------------
@@ -181,14 +217,22 @@ class ReasoningRouter:
         question: str,
         features: dict[str, Any],
         classification: dict[str, Any],
+        weights_context: str = "",
     ) -> dict[str, Any]:
+        history_block = (
+            f"\n\n{weights_context}\n\n"
+            "Weight this history against the rules — a protocol with strong historical "
+            "performance for this problem type is a stronger candidate."
+            if weights_context
+            else ""
+        )
         prompt = ROUTING_DECISION_PROMPT.format(
             question=question,
             features_json=json.dumps(features, indent=2),
             problem_type=classification.get("problem_type", "General Analysis"),
             confidence=classification.get("confidence", 50),
             type_reasoning=classification.get("reasoning", ""),
-            protocol_mapping=build_routing_prompt_section(),
+            protocol_mapping=build_routing_prompt_section() + history_block,
         )
         resp = await llm_complete(
             self.client,

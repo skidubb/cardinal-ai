@@ -20,8 +20,10 @@ firebase-debug.log
 .vscode/
 .idea/
 
-# Claude Code
-.claude/
+# Claude Code — commit shared config, ignore per-user local overrides
+.claude/settings.local.json
+.claude/.cache/
+.claude/logs/
 
 # Build artifacts
 dist/

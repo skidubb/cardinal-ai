@@ -1,16 +1,16 @@
 {
   "mcpServers": {
     "sec-edgar": {
-      "command": "/Users/scottewalt/Documents/CE - C-Suite/venv/bin/python",
-      "args": ["/Users/scottewalt/Documents/CE - C-Suite/mcp_servers/sec_edgar_mcp/server.py"]
+      "command": "${CE_AGENT_BUILDER}/venv/bin/python",
+      "args": ["${CE_AGENT_BUILDER}/mcp_servers/sec_edgar_mcp/server.py"]
     },
     "pricing-calculator": {
-      "command": "/Users/scottewalt/Documents/CE - C-Suite/venv/bin/python",
-      "args": ["/Users/scottewalt/Documents/CE - C-Suite/mcp_servers/pricing_mcp/server.py"]
+      "command": "${CE_AGENT_BUILDER}/venv/bin/python",
+      "args": ["${CE_AGENT_BUILDER}/mcp_servers/pricing_mcp/server.py"]
     },
     "github-intel": {
-      "command": "/Users/scottewalt/Documents/CE - C-Suite/venv/bin/python",
-      "args": ["/Users/scottewalt/Documents/CE - C-Suite/mcp_servers/github_intel_mcp/server.py"]
+      "command": "${CE_AGENT_BUILDER}/venv/bin/python",
+      "args": ["${CE_AGENT_BUILDER}/mcp_servers/github_intel_mcp/server.py"]
     }
   }
 }

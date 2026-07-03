@@ -81,7 +81,7 @@ Two independent agent systems:
 1. **Python CLI** (`src/csuite/`) -- 7 agents via Anthropic API, with synthesis, debate, audit, and event orchestration
 2. **Claude Code agents** (`~/claude-dotfiles/agents/`) -- 7 executives + 30 sub-agents as Claude Code Task tool agents
 
-See `.claude/CLAUDE.md` for full architecture documentation.
+See `CLAUDE.md` for full architecture documentation.
 
 ## Development
 
