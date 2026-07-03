@@ -1,0 +1,1400 @@
+<title>Cardinal AI - System Architecture</title>
+<style>
+  /* ── Tokens ─────────────────────────────────────────────── */
+  :root {
+    --cardinal: #C41E3A;
+    --cardinal-dim: #9B1830;
+    --teal: #1A7A6D;
+    --teal-soft: #E6F5F3;
+    --gold: #A18740;
+    --gold-soft: #F5F0E0;
+
+    --bg: #FAFAF7;
+    --bg-raised: #FFFFFF;
+    --bg-inset: #F0EDE6;
+    --bg-diagram: #F7F5F0;
+    --border: #D6D0C4;
+    --border-light: #E8E3D9;
+
+    --ink: #1E2532;
+    --ink-secondary: #5A6171;
+    --ink-tertiary: #8B9099;
+    --ink-on-accent: #FFFFFF;
+
+    --dot-color: rgba(30, 37, 50, 0.06);
+    --flow-line: #C41E3A22;
+
+    --font-display: Georgia, 'Times New Roman', serif;
+    --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+
+    --space-xs: 0.375rem;
+    --space-sm: 0.75rem;
+    --space-md: 1.25rem;
+    --space-lg: 2rem;
+    --space-xl: 3.5rem;
+    --space-2xl: 5rem;
+
+    --radius-sm: 3px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --cardinal: #E0405A;
+      --cardinal-dim: #A82E44;
+      --teal: #3DBAA8;
+      --teal-soft: #0E2E2A;
+      --gold: #D4AD4A;
+      --gold-soft: #2A2518;
+
+      --bg: #12151C;
+      --bg-raised: #1A1E28;
+      --bg-inset: #0E1118;
+      --bg-diagram: #151922;
+      --border: #2A2F3A;
+      --border-light: #222730;
+
+      --ink: #E2E4E8;
+      --ink-secondary: #9CA0AA;
+      --ink-tertiary: #6B7080;
+      --ink-on-accent: #FFFFFF;
+
+      --dot-color: rgba(255, 255, 255, 0.04);
+      --flow-line: #E0405A22;
+    }
+  }
+  :root[data-theme="dark"] {
+    --cardinal: #E0405A;
+    --cardinal-dim: #A82E44;
+    --teal: #3DBAA8;
+    --teal-soft: #0E2E2A;
+    --gold: #D4AD4A;
+    --gold-soft: #2A2518;
+
+    --bg: #12151C;
+    --bg-raised: #1A1E28;
+    --bg-inset: #0E1118;
+    --bg-diagram: #151922;
+    --border: #2A2F3A;
+    --border-light: #222730;
+
+    --ink: #E2E4E8;
+    --ink-secondary: #9CA0AA;
+    --ink-tertiary: #6B7080;
+    --ink-on-accent: #FFFFFF;
+
+    --dot-color: rgba(255, 255, 255, 0.04);
+    --flow-line: #E0405A22;
+  }
+  :root[data-theme="light"] {
+    --cardinal: #C41E3A;
+    --cardinal-dim: #9B1830;
+    --teal: #1A7A6D;
+    --teal-soft: #E6F5F3;
+    --gold: #A18740;
+    --gold-soft: #F5F0E0;
+
+    --bg: #FAFAF7;
+    --bg-raised: #FFFFFF;
+    --bg-inset: #F0EDE6;
+    --bg-diagram: #F7F5F0;
+    --border: #D6D0C4;
+    --border-light: #E8E3D9;
+
+    --ink: #1E2532;
+    --ink-secondary: #5A6171;
+    --ink-tertiary: #8B9099;
+    --ink-on-accent: #FFFFFF;
+
+    --dot-color: rgba(30, 37, 50, 0.06);
+    --flow-line: #C41E3A22;
+  }
+
+  /* ── Reset & Base ───────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Typography ─────────────────────────────────────────── */
+  h1, h2, h3, h4 { line-height: 1.2; text-wrap: balance; }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.625rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: var(--space-md);
+  }
+  h3 {
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: var(--space-sm);
+  }
+  h4 {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-tertiary);
+    margin-bottom: var(--space-xs);
+  }
+
+  p { max-width: 62ch; color: var(--ink-secondary); }
+  a { color: var(--cardinal); text-decoration: none; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.8125em;
+    background: var(--bg-inset);
+    padding: 0.15em 0.4em;
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+  }
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: var(--space-xl) var(--space-lg);
+  }
+
+  .section {
+    margin-bottom: var(--space-2xl);
+  }
+  .section + .section {
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--border-light);
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-2xl);
+    padding-bottom: var(--space-xl);
+    border-bottom: 2px solid var(--cardinal);
+  }
+  .header-mark {
+    width: 52px;
+    height: 52px;
+    background: var(--cardinal);
+    border-radius: var(--radius-md);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .header-mark svg { width: 28px; height: 28px; }
+  .header-text { flex: 1; }
+  .header-text h1 { margin-bottom: 0.25rem; }
+  .header-text p {
+    font-size: 1.0625rem;
+    color: var(--ink-secondary);
+    max-width: 52ch;
+  }
+  .header-meta {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--ink-tertiary);
+    text-align: right;
+    flex-shrink: 0;
+    line-height: 1.8;
+  }
+
+  /* ── Nav ─────────────────────────────────────────────────── */
+  nav.toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-md);
+    margin-bottom: var(--space-2xl);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-inset);
+    border-radius: var(--radius-md);
+  }
+  nav.toc a {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-secondary);
+    padding: var(--space-xs) 0;
+    transition: color 0.15s;
+  }
+  nav.toc a:hover { color: var(--cardinal); }
+  nav.toc .sep {
+    color: var(--border);
+    user-select: none;
+  }
+
+  /* ── Diagram Canvas ─────────────────────────────────────── */
+  .diagram-canvas {
+    background:
+      radial-gradient(circle, var(--dot-color) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-color: var(--bg-diagram);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    overflow-x: auto;
+  }
+
+  /* ── Node styles ────────────────────────────────────────── */
+  .node {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    position: relative;
+  }
+  .node-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.25rem;
+  }
+  .node-desc {
+    font-size: 0.8125rem;
+    color: var(--ink-secondary);
+    line-height: 1.4;
+  }
+
+  .node--cardinal { border-left: 3px solid var(--cardinal); }
+  .node--cardinal .node-title { color: var(--cardinal); }
+
+  .node--teal { border-left: 3px solid var(--teal); }
+  .node--teal .node-title { color: var(--teal); }
+
+  .node--gold { border-left: 3px solid var(--gold); }
+  .node--gold .node-title { color: var(--gold); }
+
+  .node--ink { border-left: 3px solid var(--ink-tertiary); }
+
+  /* ── System Overview Diagram ────────────────────────────── */
+  .overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto auto auto;
+    gap: var(--space-md);
+    min-width: 680px;
+  }
+
+  .ov-entry {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+  .ov-entry .node {
+    display: inline-block;
+    border-left: none;
+    border-top: 3px solid var(--ink-tertiary);
+    text-align: center;
+    padding: var(--space-sm) var(--space-xl);
+  }
+
+  .ov-arrow {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-sm);
+    color: var(--ink-tertiary);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+  }
+  .ov-arrow svg {
+    width: 14px;
+    height: 24px;
+    stroke: var(--cardinal);
+    stroke-width: 2;
+    fill: none;
+  }
+
+  .ov-project { }
+  .ov-project .node {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .ov-project .node-desc {
+    flex: 1;
+    font-size: 0.8125rem;
+  }
+
+  .ov-bridge {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    gap: var(--space-sm);
+    align-items: center;
+    padding: var(--space-xs) 0;
+  }
+  .bridge-line {
+    flex: 1;
+    max-width: 120px;
+    height: 1px;
+    background: var(--cardinal);
+    opacity: 0.3;
+  }
+  .bridge-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--cardinal);
+    white-space: nowrap;
+  }
+
+  .ov-infra {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-sm);
+  }
+  .ov-infra .node {
+    border-left: 2px solid var(--border);
+    padding: var(--space-sm);
+  }
+
+  /* ── Detail Sections ────────────────────────────────────── */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-md);
+  }
+
+  .component-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+  }
+  .component-card h3 {
+    font-size: 0.9375rem;
+    margin-bottom: var(--space-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+  .component-card ul {
+    list-style: none;
+    padding: 0;
+  }
+  .component-card li {
+    font-size: 0.8125rem;
+    color: var(--ink-secondary);
+    padding: 0.2rem 0;
+    padding-left: 1rem;
+    position: relative;
+  }
+  .component-card li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.6em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  /* ── Badge ──────────────────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.15em 0.5em;
+    border-radius: var(--radius-sm);
+    vertical-align: middle;
+  }
+  .badge--cardinal { background: var(--cardinal); color: var(--ink-on-accent); }
+  .badge--teal { background: var(--teal); color: var(--ink-on-accent); }
+  .badge--gold { background: var(--gold); color: var(--ink-on-accent); }
+  .badge--muted { background: var(--bg-inset); color: var(--ink-secondary); border: 1px solid var(--border-light); }
+
+  /* ── Protocol Taxonomy ──────────────────────────────────── */
+  .taxonomy {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-md);
+  }
+  .tax-category {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .tax-header {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+  .tax-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .tax-header h3 {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+  .tax-header .badge {
+    margin-left: auto;
+  }
+  .tax-list {
+    padding: var(--space-sm) var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .tax-item {
+    font-size: 0.8125rem;
+    color: var(--ink-secondary);
+    display: flex;
+    gap: var(--space-sm);
+    line-height: 1.5;
+  }
+  .tax-item code {
+    flex-shrink: 0;
+    font-size: 0.6875rem;
+    background: transparent;
+    padding: 0;
+    color: var(--ink-tertiary);
+    min-width: 2.5em;
+    text-align: right;
+  }
+
+  /* ── Agent Registry ─────────────────────────────────────── */
+  .agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--space-sm);
+  }
+  .agent-group {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+  }
+  .agent-group h4 {
+    margin-bottom: var(--space-xs);
+    padding-bottom: var(--space-xs);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .agent-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--ink-secondary);
+    background: var(--bg-inset);
+    padding: 0.1em 0.4em;
+    margin: 0.1em 0;
+    border-radius: var(--radius-sm);
+  }
+
+  /* ── Flow Sequence ──────────────────────────────────────── */
+  .flow-sequence {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+    padding-left: 2rem;
+  }
+  .flow-step {
+    position: relative;
+    padding: var(--space-sm) 0 var(--space-md) var(--space-md);
+    border-left: 2px solid var(--border);
+  }
+  .flow-step:last-child {
+    border-left-color: transparent;
+  }
+  .flow-step::before {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: var(--space-sm);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid var(--cardinal);
+  }
+  .flow-step:first-child::before {
+    background: var(--cardinal);
+  }
+  .flow-step:last-child::before {
+    background: var(--teal);
+    border-color: var(--teal);
+  }
+  .flow-step-num {
+    position: absolute;
+    left: -2rem;
+    top: var(--space-sm);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    color: var(--ink-tertiary);
+    text-align: right;
+    width: 1.2rem;
+    line-height: 12px;
+  }
+  .flow-step h3 {
+    font-size: 0.875rem;
+    margin-bottom: 0.2rem;
+  }
+  .flow-step p {
+    font-size: 0.8125rem;
+    color: var(--ink-secondary);
+    line-height: 1.45;
+  }
+  .flow-step code {
+    font-size: 0.75rem;
+  }
+
+  /* ── Connector Table ────────────────────────────────────── */
+  .conn-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .conn-table th {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-tertiary);
+    text-align: left;
+    padding: var(--space-sm) var(--space-sm);
+    border-bottom: 2px solid var(--border);
+  }
+  .conn-table td {
+    padding: var(--space-sm);
+    border-bottom: 1px solid var(--border-light);
+    color: var(--ink-secondary);
+    vertical-align: top;
+  }
+  .conn-table td:first-child {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .conn-table tr:last-child td { border-bottom: none; }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-raised);
+  }
+  .table-wrap .conn-table {
+    min-width: 580px;
+  }
+  .table-wrap .conn-table th:first-child,
+  .table-wrap .conn-table td:first-child {
+    padding-left: var(--space-md);
+  }
+
+  /* ── Subsection intro ───────────────────────────────────── */
+  .section-intro {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+  }
+  .section-intro p {
+    flex: 1;
+  }
+
+  /* ── Helpers ────────────────────────────────────────────── */
+  .mt-sm { margin-top: var(--space-sm); }
+  .mt-md { margin-top: var(--space-md); }
+  .mt-lg { margin-top: var(--space-lg); }
+  .mb-sm { margin-bottom: var(--space-sm); }
+  .mb-md { margin-bottom: var(--space-md); }
+  .flex-row { display: flex; gap: var(--space-sm); align-items: center; }
+
+  /* ── Responsive ─────────────────────────────────────────── */
+  @media (max-width: 700px) {
+    .page { padding: var(--space-lg) var(--space-md); }
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.375rem; }
+    .header { flex-direction: column; gap: var(--space-sm); }
+    .header-meta { text-align: left; }
+    .overview-grid { grid-template-columns: 1fr; }
+    .ov-entry, .ov-bridge, .ov-infra { grid-column: 1; }
+    .taxonomy { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .agent-grid { grid-template-columns: 1fr 1fr; }
+    nav.toc { gap: var(--space-xs) var(--space-sm); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+</style>
+
+<div class="page">
+
+  <!-- ════ Header ════ -->
+  <header class="header">
+    <div class="header-mark">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M12 2v20M4 7l8 5 8-5" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>Cardinal AI Architecture</h1>
+      <p>Monorepo for Cardinal Element's agentic AI platform. Builds specialized executive agents, orchestrates them through 50 coordination protocols, and evaluates outputs with blind multi-model judges.</p>
+    </div>
+    <div class="header-meta">
+      Cardinal Element<br>
+      Owner: Scott Ewalt<br>
+      Python 3.11+ &middot; Async
+    </div>
+  </header>
+
+  <!-- ════ TOC ════ -->
+  <nav class="toc">
+    <a href="#overview">System Overview</a>
+    <span class="sep">/</span>
+    <a href="#agent-builder">Agent Builder</a>
+    <span class="sep">/</span>
+    <a href="#orchestration">Multi-Agent Orchestration</a>
+    <span class="sep">/</span>
+    <a href="#evals">Evals</a>
+    <span class="sep">/</span>
+    <a href="#protocols">Protocol Taxonomy</a>
+    <span class="sep">/</span>
+    <a href="#agents">Agent Registry</a>
+    <span class="sep">/</span>
+    <a href="#dataflow">Data Flow</a>
+    <span class="sep">/</span>
+    <a href="#infra">Infrastructure</a>
+  </nav>
+
+  <!-- ════ 1. System Overview ════ -->
+  <section class="section" id="overview">
+    <h2>System Overview</h2>
+    <p class="mb-md">Four projects + two shared packages. Agents are built in one module, sent through coordination protocols in another, and scored by blind judges in a third.</p>
+
+    <div class="diagram-canvas">
+      <div class="overview-grid">
+
+        <!-- Entry Points -->
+        <div class="ov-entry">
+          <div class="node">
+            <div class="node-title">User Entry Points</div>
+            <div class="node-desc">CLI (<code>csuite</code>, <code>python -m protocols.*</code>) &middot; React UI &middot; FastAPI REST &middot; n8n Workflows</div>
+          </div>
+        </div>
+
+        <!-- Arrow down -->
+        <div class="ov-arrow">
+          <svg viewBox="0 0 14 24"><line x1="7" y1="0" x2="7" y2="18"/><polyline points="3,14 7,20 11,14"/></svg>
+        </div>
+
+        <!-- Three main projects -->
+        <div class="ov-project">
+          <div class="node node--cardinal">
+            <div class="node-title">CE &ndash; Agent Builder</div>
+            <div class="node-desc">
+              7 C-Suite agents (CEO, CFO, CTO, CMO, COO, CPO, CRO) + 48 sub-agents. Each has role-specific tools, MCP servers, memory, and learning. Exposes <code>async chat(msg) &rarr; str</code>.
+            </div>
+            <div class="mt-sm">
+              <span class="badge badge--cardinal">Agents</span>
+              <span class="badge badge--muted">Tools</span>
+              <span class="badge badge--muted">MCP</span>
+              <span class="badge badge--muted">Memory</span>
+            </div>
+          </div>
+        </div>
+        <div class="ov-project">
+          <div class="node node--teal">
+            <div class="node-title">CE &ndash; Multi-Agent Orchestration</div>
+            <div class="node-desc">
+              50 coordination protocols across 9 categories. Blackboard-driven state machine. Dual model tiers: Opus for thinking, Haiku for mechanical steps. FastAPI + React UI.
+            </div>
+            <div class="mt-sm">
+              <span class="badge badge--teal">Protocols</span>
+              <span class="badge badge--muted">API</span>
+              <span class="badge badge--muted">UI</span>
+              <span class="badge badge--muted">SSE</span>
+            </div>
+          </div>
+        </div>
+        <div class="ov-project">
+          <div class="node node--gold">
+            <div class="node-title">CE &ndash; Evals</div>
+            <div class="node-desc">
+              LLM-as-judge evaluation framework. Blind anonymized scoring with multi-model consensus (Claude, GPT, Gemini). YAML rubrics. Cost tracking.
+            </div>
+            <div class="mt-sm">
+              <span class="badge badge--gold">Judges</span>
+              <span class="badge badge--muted">Rubrics</span>
+              <span class="badge badge--muted">Backends</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bridge: how they connect -->
+        <div class="ov-bridge">
+          <span class="bridge-line"></span>
+          <span class="bridge-label">AgentBridge wraps SdkAgent for protocol compatibility</span>
+          <span class="bridge-line"></span>
+        </div>
+
+        <!-- Shared infrastructure -->
+        <div class="ov-infra">
+          <div class="node">
+            <div class="node-title" style="font-size:0.6875rem;">ce-shared</div>
+            <div class="node-desc">Pricing registry, env loading, dotenv finder</div>
+          </div>
+          <div class="node">
+            <div class="node-title" style="font-size:0.6875rem;">ce-db</div>
+            <div class="node-desc">SQLAlchemy ORM: runs, agent_outputs, eval_samples</div>
+          </div>
+          <div class="node">
+            <div class="node-title" style="font-size:0.6875rem;">PostgreSQL 16</div>
+            <div class="node-desc">Run persistence, cost tracking, eval regressions</div>
+          </div>
+          <div class="node">
+            <div class="node-title" style="font-size:0.6875rem;">Langfuse Cloud</div>
+            <div class="node-desc">Traces, spans, generation tracking, scoring</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ 2. Agent Builder ════ -->
+  <section class="section" id="agent-builder">
+    <div class="section-intro">
+      <h2>CE &ndash; Agent Builder</h2>
+      <span class="badge badge--cardinal">src/csuite/</span>
+    </div>
+    <p class="mb-lg">The agent factory. Builds fully-equipped AI executives with tools, memory, and learning. Two backends: legacy (raw Anthropic API with tool loop) and SDK (Claude Agent SDK with MCP servers). Both expose the same <code>async chat(message) &rarr; str</code> interface.</p>
+
+    <div class="detail-grid">
+      <div class="component-card">
+        <h3><span class="badge badge--cardinal">Core</span> Agent Classes</h3>
+        <ul>
+          <li><code>BaseAgent</code> &mdash; Abstract base. Session management, system prompt builder, tool execution loop (max 15 iterations), cost ceiling enforcement</li>
+          <li><code>SdkAgent</code> &mdash; Claude Agent SDK adapter. Per-role MCP servers, post-response self-evaluation, experience logging</li>
+          <li><code>factory.py</code> &mdash; Routes to SDK or legacy based on <code>AGENT_BACKEND</code> config setting</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--cardinal">Roles</span> 7 Executives</h3>
+        <ul>
+          <li><strong>CEO</strong> &mdash; Strategy, vision, competitive positioning (temp: 0.6)</li>
+          <li><strong>CFO</strong> &mdash; Unit economics, cash flow, risk (temp: 0.5)</li>
+          <li><strong>CTO</strong> &mdash; Architecture, AI stack, build vs buy (temp: 0.6)</li>
+          <li><strong>CMO</strong> &mdash; Brand, channels, positioning (temp: 0.8)</li>
+          <li><strong>COO</strong> &mdash; Ops, scaling, resource allocation (temp: 0.6)</li>
+          <li><strong>CPO</strong> &mdash; Product-market fit, roadmap (temp: 0.6)</li>
+          <li><strong>CRO</strong> &mdash; Revenue, pipeline, GTM (temp: 0.6)</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">Tools</span> 16 Tool Implementations</h3>
+        <ul>
+          <li><strong>SEC EDGAR</strong> &mdash; Company search, financials, filings, prospect briefs</li>
+          <li><strong>GitHub Intel</strong> &mdash; Org metadata, tech stack analysis, engineering maturity</li>
+          <li><strong>Census/BLS</strong> &mdash; Market sizing, labor data, benchmarks</li>
+          <li><strong>Pinecone KB</strong> &mdash; Vector search over institutional knowledge</li>
+          <li><strong>Pricing Calculator</strong> &mdash; Audit, implementation, retainer pricing models</li>
+          <li><strong>Web Search</strong> &mdash; Brave Search API integration</li>
+          <li><strong>Notion</strong> &mdash; Workspace search, page operations</li>
+          <li><strong>Image Gen</strong> &mdash; OpenAI DALL-E / Gemini</li>
+          <li><strong>Report Gen</strong> &mdash; PDF/markdown export</li>
+          <li><strong>QA Protocol</strong> &mdash; Validation framework</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">MCP</span> 3 Custom Servers</h3>
+        <ul>
+          <li><strong>sec_edgar_mcp</strong> &mdash; 4 tools: search, financials, filings, prospect brief. Used by CFO, CEO, CRO</li>
+          <li><strong>pricing_mcp</strong> &mdash; 3 tools: audit, implementation, retainer pricing. Used by CFO, CRO, CPO</li>
+          <li><strong>github_intel_mcp</strong> &mdash; 3 tools: org, tech stack, maturity assessment. Used by CTO</li>
+        </ul>
+        <p class="mt-sm" style="font-size: 0.8125rem">All agents also get Pinecone KB + Notion MCP servers as common tools.</p>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">State</span> Memory &amp; Learning</h3>
+        <ul>
+          <li><strong>Memory Store</strong> &mdash; DuckDB-backed vector similarity. Retrieves top-k relevant memories by role + query</li>
+          <li><strong>Experience Log</strong> &mdash; Extracts lessons from user corrections. Stores structured lessons by role</li>
+          <li><strong>Preference Tracker</strong> &mdash; Learns user preferences over time. Enriches system prompt</li>
+          <li><strong>Session Manager</strong> &mdash; DuckDB persistence, session forking, resume by ID</li>
+          <li><strong>Cost Tracker</strong> &mdash; Per-agent, per-model, per-task-type token/cost logging</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">CLI</span> <code>csuite</code> Commands</h3>
+        <ul>
+          <li><code>csuite ceo "question"</code> &mdash; Single agent query</li>
+          <li><code>csuite synthesize "q" -a cfo cto</code> &mdash; Multi-agent synthesis</li>
+          <li><code>csuite debate "q" -a cfo cto -r 3</code> &mdash; Multi-round debate</li>
+          <li><code>csuite interactive</code> &mdash; REPL with @agent directives</li>
+          <li><code>csuite audit "desc" --revenue "$12M"</code> &mdash; 7-agent audit pipeline</li>
+          <li><code>csuite sessions list|resume|fork</code> &mdash; Session management</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ 3. Multi-Agent Orchestration ════ -->
+  <section class="section" id="orchestration">
+    <div class="section-intro">
+      <h2>CE &ndash; Multi-Agent Orchestration</h2>
+      <span class="badge badge--teal">protocols/</span>
+    </div>
+    <p class="mb-lg">50 coordination protocols that orchestrate agents through structured reasoning patterns. Each protocol is a standalone Python module with an orchestrator class, prompt templates, and a CLI entry point. Blackboard-driven state machine dispatches stages when triggers match.</p>
+
+    <h3 class="mt-lg mb-md">Core Architecture</h3>
+    <div class="detail-grid">
+      <div class="component-card">
+        <h3><span class="badge badge--teal">Engine</span> Orchestrator Loop</h3>
+        <ul>
+          <li><strong>Blackboard</strong> &mdash; Append-only shared state store. Topics, versioning, role-scoped reads, watcher callbacks</li>
+          <li><strong>Stage Executors</strong> &mdash; Factory functions: <code>parallel_agent_stage()</code>, <code>sequential_agent_stage()</code>, <code>mechanical_stage()</code>, <code>synthesis_stage()</code></li>
+          <li><strong>Orchestrator</strong> &mdash; Pure state machine: while pending stages, check triggers, dispatch. Never reads content&mdash;only checks triggers and fires stages</li>
+          <li><strong>LLM Dispatch</strong> &mdash; Routes calls: <code>AgentBridge.chat()</code> for production, LiteLLM for multi-provider, raw Anthropic for research mode</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--teal">Tiers</span> Dual Model Strategy</h3>
+        <ul>
+          <li><strong>Thinking Model</strong> (Opus) &mdash; Agent reasoning, synthesis, creative stages. Extended thinking with 10K token budget</li>
+          <li><strong>Orchestration Model</strong> (Haiku) &mdash; Dedup, ranking, extraction, classification. Fast mechanical steps</li>
+          <li><strong>Balanced Model</strong> (Sonnet) &mdash; Middle tier for structured analysis</li>
+          <li><strong>LiteLLM</strong> &mdash; Multi-provider support for Gemini, GPT, Grok. Per-agent model override via <code>agent["model"]</code></li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--teal">Bridge</span> Agent Provider</h3>
+        <ul>
+          <li><strong>Production mode</strong> (default) &mdash; <code>build_production_agents()</code> creates real SdkAgent instances wrapped in AgentBridge</li>
+          <li><strong>Research mode</strong> &mdash; Lightweight dicts from <code>agents.py</code> registry. Opt-in via <code>--mode research</code> or <code>AGENT_MODE=research</code></li>
+          <li><strong>AgentBridge</strong> &mdash; Dict-compatible wrapper. Supports both <code>agent["name"]</code> access and <code>agent.chat(msg)</code></li>
+          <li><strong>Path resolution</strong> &mdash; Finds Agent Builder via <code>CE_AGENT_BUILDER_PATH</code> env or sibling directory</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">API</span> FastAPI + React</h3>
+        <ul>
+          <li><strong>Server</strong> &mdash; FastAPI with lifespan hooks, CORS, optional API key auth</li>
+          <li><strong>Runner</strong> &mdash; SSE streaming protocol execution. Dynamic orchestrator discovery via glob + regex</li>
+          <li><strong>Routers</strong> &mdash; <code>/api/protocols</code>, <code>/api/runs</code>, <code>/api/agents</code>, <code>/api/teams</code>, <code>/api/pipelines</code>, <code>/api/knowledge</code>, <code>/api/reports</code></li>
+          <li><strong>UI</strong> &mdash; React/TypeScript + Vite. Dashboard, protocol library, run history, agent registry, settings</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">Observe</span> Observability</h3>
+        <ul>
+          <li><strong>Langfuse</strong> &mdash; <code>@trace_protocol</code> decorator on every orchestrator. Root span + child spans for stages. Generation tracking for LLM calls</li>
+          <li><strong>Postgres</strong> &mdash; <code>persist_run()</code> writes run metadata, result JSON, cost, trace_id to <code>runs</code> table</li>
+          <li><strong>Cost Tracker</strong> &mdash; <code>ProtocolCostTracker</code> aggregates per-model, per-agent token usage via <code>ce_shared.pricing</code></li>
+          <li>Both degrade gracefully when not configured</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">Pattern</span> Protocol Module Structure</h3>
+        <ul>
+          <li><code>__init__.py</code> &mdash; Exports orchestrator class + result dataclass</li>
+          <li><code>orchestrator.py</code> &mdash; Async class with <code>run(question) &rarr; *Result</code></li>
+          <li><code>prompts.py</code> &mdash; All LLM prompt templates as string constants</li>
+          <li><code>run.py</code> &mdash; CLI entry point with argparse</li>
+        </ul>
+        <p class="mt-sm" style="font-size: 0.8125rem">All accept: <code>-q</code>, <code>-a</code>, <code>--thinking-model</code>, <code>--orchestration-model</code>, <code>--mode</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ 4. Evals ════ -->
+  <section class="section" id="evals">
+    <div class="section-intro">
+      <h2>CE &ndash; Evals</h2>
+      <span class="badge badge--gold">src/ce_evals/core/</span>
+    </div>
+    <p class="mb-lg">Library-only evaluation framework. Anonymizes protocol outputs, sends them to multi-model judge panels, and aggregates blind scores against YAML rubrics. Detects disagreements, computes regressions vs. baseline.</p>
+
+    <div class="detail-grid">
+      <div class="component-card">
+        <h3><span class="badge badge--gold">Core</span> BlindJudge</h3>
+        <ul>
+          <li>Takes <code>{name: response}</code> dict, anonymizes as Response A/B/C</li>
+          <li>Sends to 3 judge models concurrently (Claude Opus, GPT-5.2, Gemini Pro)</li>
+          <li>Aggregates via mean + std dev, Borda count ranking</li>
+          <li>Flags disagreements when std dev > 1.0</li>
+          <li>Returns <code>(aggregated_result, per_judge_results)</code></li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--gold">Backends</span> Multi-Provider</h3>
+        <ul>
+          <li><strong>AnthropicBackend</strong> &mdash; Claude models via Anthropic SDK</li>
+          <li><strong>OpenAIBackend</strong> &mdash; GPT-4o, o1, o3 with reasoning effort config</li>
+          <li><strong>GeminiBackend</strong> &mdash; Google Gemini with ThinkingConfig for extended thinking</li>
+          <li>All implement: <code>call(system, user, model, temp) &rarr; (text, in_tok, out_tok)</code></li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">Config</span> Rubrics &amp; Runner</h3>
+        <ul>
+          <li><strong>Rubrics</strong> &mdash; YAML with dimensions (name, description, 1-5 scale). Generates judge system prompts with <code>{{dimensions}}</code> injection</li>
+          <li><strong>Runner</strong> &mdash; <code>EvalRunner</code> orchestrates: run protocols, collect outputs, judge, persist to ce-db</li>
+          <li><strong>Cost</strong> &mdash; Token pricing lookup for all models. Feb 2026 rates with caching multipliers</li>
+          <li><strong>Regressions</strong> &mdash; quality_delta, variance_delta, cost_per_correct_delta vs. baseline</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ 5. Protocol Taxonomy ════ -->
+  <section class="section" id="protocols">
+    <h2>Protocol Taxonomy</h2>
+    <p class="mb-lg">50 protocols across 9 categories, from baselines (parallel synthesis, debate) to advanced research (Tetlock forecasting, OODA loops, Hegelian sublation). Each is a standalone async orchestrator with Langfuse tracing and Postgres persistence.</p>
+
+    <div class="taxonomy">
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#607D8B"></div>
+          <h3>Meta-Protocols</h3>
+          <span class="badge badge--muted">3</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P0a</code> Reasoning Router &mdash; Cynefin-based adaptive routing</div>
+          <div class="tax-item"><code>P0b</code> Skip Gate &mdash; Fast-path for simple problems</div>
+          <div class="tax-item"><code>P0c</code> Tiered Escalation &mdash; Complexity escalation</div>
+        </div>
+      </div>
+
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#4A90D9"></div>
+          <h3>Baselines</h3>
+          <span class="badge badge--muted">3</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P03</code> Parallel Synthesis &mdash; All agents in parallel + unified synthesis</div>
+          <div class="tax-item"><code>P04</code> Multi-Round Debate &mdash; N rounds with rebuttals</div>
+          <div class="tax-item"><code>P05</code> Constraint Negotiation &mdash; Extract + negotiate constraints</div>
+        </div>
+      </div>
+
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#9B59B6"></div>
+          <h3>Liberating Structures</h3>
+          <span class="badge badge--muted">10</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P06</code> TRIZ &mdash; Inversion (failure &rarr; solutions)</div>
+          <div class="tax-item"><code>P07</code> Wicked Questions &mdash; Paradox decomposition</div>
+          <div class="tax-item"><code>P08</code> Min Specs &mdash; Minimal specification extraction</div>
+          <div class="tax-item"><code>P09</code> Troika Consulting &mdash; Peer coaching format</div>
+          <div class="tax-item"><code>P10</code> Heard/Seen/Respected</div>
+          <div class="tax-item"><code>P11</code> Discovery-Action Dialogue</div>
+          <div class="tax-item"><code>P12</code> 25/10 Prioritization</div>
+          <div class="tax-item"><code>P13</code> Ecocycle Planning</div>
+          <div class="tax-item"><code>P14</code> 1-2-4-All &mdash; Divergence/convergence</div>
+          <div class="tax-item"><code>P15</code> What / So What / Now What</div>
+        </div>
+      </div>
+
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#E74C3C"></div>
+          <h3>Intelligence Analysis</h3>
+          <span class="badge badge--muted">3</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P16</code> ACH &mdash; Analysis of Competing Hypotheses (5 phases, matrix scoring)</div>
+          <div class="tax-item"><code>P17</code> Red/Blue/White Team &mdash; Adversarial attack + defense + adjudication</div>
+          <div class="tax-item"><code>P18</code> Delphi Method &mdash; Multi-round consensus building</div>
+        </div>
+      </div>
+
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#F39C12"></div>
+          <h3>Game Theory</h3>
+          <span class="badge badge--muted">3</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P19</code> Vickrey Auction &mdash; Second-price mechanism design</div>
+          <div class="tax-item"><code>P20</code> Borda Count &mdash; Ranked voting aggregation</div>
+          <div class="tax-item"><code>P21</code> Interests-Based Negotiation</div>
+        </div>
+      </div>
+
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#1ABC9C"></div>
+          <h3>Org &amp; Systems</h3>
+          <span class="badge badge--muted">4</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P22</code> Sequential Pipeline &mdash; Ordered stage execution</div>
+          <div class="tax-item"><code>P23</code> Cynefin Probe &mdash; Probe-Sense-Respond</div>
+          <div class="tax-item"><code>P24</code> Causal Loop Mapping &mdash; Feedback loop identification</div>
+          <div class="tax-item"><code>P25</code> System Archetype Detection &mdash; Senge archetypes</div>
+        </div>
+      </div>
+
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#E91E63"></div>
+          <h3>Design Thinking</h3>
+          <span class="badge badge--muted">2</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P26</code> Crazy Eights &mdash; Rapid ideation (8 variations)</div>
+          <div class="tax-item"><code>P27</code> Affinity Mapping &mdash; Cluster analysis</div>
+        </div>
+      </div>
+
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#8E44AD"></div>
+          <h3>Wave 2 Research</h3>
+          <span class="badge badge--muted">20</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P28</code> Six Hats &mdash; De Bono thinking hats</div>
+          <div class="tax-item"><code>P29</code> PMI Enumeration &mdash; Plus-Minus-Interesting</div>
+          <div class="tax-item"><code>P30</code> Llull Combinatorial</div>
+          <div class="tax-item"><code>P31</code> Wittgenstein Language Game</div>
+          <div class="tax-item"><code>P32</code> Tetlock Forecast &mdash; Superforecasting</div>
+          <div class="tax-item"><code>P33</code> Evaporation Cloud (Theory of Constraints)</div>
+          <div class="tax-item"><code>P34</code> Current Reality Tree</div>
+          <div class="tax-item"><code>P35</code> Satisficing (Simon)</div>
+          <div class="tax-item"><code>P36</code> Peirce Abduction</div>
+          <div class="tax-item"><code>P37</code> Hegel Sublation &mdash; Thesis-antithesis-synthesis</div>
+          <div class="tax-item"><code>P38</code> Klein Premortem</div>
+          <div class="tax-item"><code>P39</code> Popper Falsification</div>
+          <div class="tax-item"><code>P40</code> Boyd OODA Loop</div>
+          <div class="tax-item"><code>P41</code> Duke Decision Quality</div>
+          <div class="tax-item"><code>P42</code> Aristotle Square of Opposition</div>
+          <div class="tax-item"><code>P43</code> Leibniz Audit</div>
+          <div class="tax-item"><code>P44</code> Kant Pre-Router</div>
+          <div class="tax-item"><code>P45</code> Whitehead Weights</div>
+          <div class="tax-item"><code>P46</code> Incubation</div>
+          <div class="tax-item"><code>P47</code> Polya Lookback</div>
+        </div>
+      </div>
+
+      <div class="tax-category">
+        <div class="tax-header">
+          <div class="tax-swatch" style="background:#2ECC71"></div>
+          <h3>Black Swan Walks</h3>
+          <span class="badge badge--muted">5</span>
+        </div>
+        <div class="tax-list">
+          <div class="tax-item"><code>P48</code> Black Swan Detection</div>
+          <div class="tax-item"><code>P49</code> Walk Base &mdash; 14 cognitive lenses in sequence</div>
+          <div class="tax-item"><code>P50</code> Tournament Walk &mdash; Elimination bracket</div>
+          <div class="tax-item"><code>P51</code> Wildcard Walk &mdash; Random lens selection</div>
+          <div class="tax-item"><code>P52</code> Drift-Return Walk &mdash; Pattern persistence</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ 6. Agent Registry ════ -->
+  <section class="section" id="agents">
+    <h2>Agent Registry</h2>
+    <p class="mb-lg">55+ agents across 14 categories in <code>protocols/agents.py</code>. Supports <code>@category</code> group syntax for bulk selection (e.g., <code>-a @gtm-leadership</code>). Each agent has a name, system prompt, and optional context scope.</p>
+
+    <div class="agent-grid">
+      <div class="agent-group">
+        <h4 style="color:var(--cardinal)">C-Suite Executives (7)</h4>
+        <span class="agent-tag">ceo</span>
+        <span class="agent-tag">cfo</span>
+        <span class="agent-tag">cto</span>
+        <span class="agent-tag">cmo</span>
+        <span class="agent-tag">coo</span>
+        <span class="agent-tag">cpo</span>
+        <span class="agent-tag">cro</span>
+      </div>
+      <div class="agent-group">
+        <h4>CEO Direct Reports (3)</h4>
+        <span class="agent-tag">ceo-board-prep</span>
+        <span class="agent-tag">ceo-competitive-intel</span>
+        <span class="agent-tag">ceo-deal-strategist</span>
+      </div>
+      <div class="agent-group">
+        <h4>CFO Direct Reports (3)</h4>
+        <span class="agent-tag">cfo-cash-flow-forecaster</span>
+        <span class="agent-tag">cfo-client-profitability</span>
+        <span class="agent-tag">cfo-pricing-strategist</span>
+      </div>
+      <div class="agent-group">
+        <h4>CTO Direct Reports (7)</h4>
+        <span class="agent-tag">cto-ai-systems-designer</span>
+        <span class="agent-tag">cto-audit-architect</span>
+        <span class="agent-tag">cto-internal-platform</span>
+        <span class="agent-tag">cto-rd-lead</span>
+        <span class="agent-tag">cto-ml-engineer</span>
+        <span class="agent-tag">cto-infra-engineer</span>
+        <span class="agent-tag">cto-security-engineer</span>
+      </div>
+      <div class="agent-group">
+        <h4>CMO Direct Reports (6)</h4>
+        <span class="agent-tag">cmo-brand-designer</span>
+        <span class="agent-tag">cmo-distribution-strategist</span>
+        <span class="agent-tag">cmo-linkedin-ghostwriter</span>
+        <span class="agent-tag">cmo-market-intel</span>
+        <span class="agent-tag">cmo-outbound-campaign</span>
+        <span class="agent-tag">cmo-thought-leadership</span>
+      </div>
+      <div class="agent-group">
+        <h4>COO Direct Reports (3)</h4>
+        <span class="agent-tag">coo-bench-coordinator</span>
+        <span class="agent-tag">coo-engagement-manager</span>
+        <span class="agent-tag">coo-process-builder</span>
+      </div>
+      <div class="agent-group">
+        <h4>CPO Direct Reports (3)</h4>
+        <span class="agent-tag">cpo-client-insights</span>
+        <span class="agent-tag">cpo-deliverable-designer</span>
+        <span class="agent-tag">cpo-service-designer</span>
+      </div>
+      <div class="agent-group">
+        <h4>GTM Leadership (6)</h4>
+        <span class="agent-tag">gtm-cro</span>
+        <span class="agent-tag">gtm-vp-sales</span>
+        <span class="agent-tag">gtm-vp-growth-ops</span>
+        <span class="agent-tag">gtm-vp-partnerships</span>
+        <span class="agent-tag">gtm-vp-revops</span>
+        <span class="agent-tag">gtm-vp-success</span>
+      </div>
+      <div class="agent-group">
+        <h4>GTM Sales (5)</h4>
+        <span class="agent-tag">gtm-ae-strategist</span>
+        <span class="agent-tag">gtm-deal-desk</span>
+        <span class="agent-tag">gtm-sales-ops</span>
+        <span class="agent-tag">gtm-sdr-manager</span>
+        <span class="agent-tag">gtm-sdr-agent</span>
+      </div>
+      <div class="agent-group">
+        <h4>GTM Marketing (5)</h4>
+        <span class="agent-tag">gtm-abm-specialist</span>
+        <span class="agent-tag">gtm-content-marketer</span>
+        <span class="agent-tag">gtm-demand-gen</span>
+        <span class="agent-tag">gtm-analytics</span>
+        <span class="agent-tag">gtm-revenue-analyst</span>
+      </div>
+      <div class="agent-group">
+        <h4>GTM Partners (4)</h4>
+        <span class="agent-tag">gtm-partner-manager</span>
+        <span class="agent-tag">gtm-partner-enablement</span>
+        <span class="agent-tag">gtm-alliance-ops</span>
+        <span class="agent-tag">gtm-channel-marketer</span>
+      </div>
+      <div class="agent-group">
+        <h4>GTM Success &amp; Ops (5)</h4>
+        <span class="agent-tag">gtm-csm-lead</span>
+        <span class="agent-tag">gtm-onboarding-specialist</span>
+        <span class="agent-tag">gtm-renewals-manager</span>
+        <span class="agent-tag">gtm-data-ops</span>
+        <span class="agent-tag">gtm-systems-admin</span>
+      </div>
+      <div class="agent-group">
+        <h4>External &amp; Special (3)</h4>
+        <span class="agent-tag">vc-app-investor</span>
+        <span class="agent-tag">vc-infra-investor</span>
+        <span class="agent-tag">brand-essence</span>
+      </div>
+      <div class="agent-group">
+        <h4 style="color:var(--teal)">Walk Cognitive Lenses (14)</h4>
+        <span class="agent-tag">problem-framer</span>
+        <span class="agent-tag">systems-walker</span>
+        <span class="agent-tag">analogy-walker</span>
+        <span class="agent-tag">narrative-walker</span>
+        <span class="agent-tag">constraint-walker</span>
+        <span class="agent-tag">reductionist-walker</span>
+        <span class="agent-tag">temporal-walker</span>
+        <span class="agent-tag">ethics-walker</span>
+        <span class="agent-tag">embodied-walker</span>
+        <span class="agent-tag">cultural-walker</span>
+        <span class="agent-tag">chaos-walker</span>
+        <span class="agent-tag">future-walker</span>
+        <span class="agent-tag">scale-walker</span>
+        <span class="agent-tag">emergence-walker</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ 7. Data Flow ════ -->
+  <section class="section" id="dataflow">
+    <h2>Execution Sequence</h2>
+    <p class="mb-lg">A protocol run from API request through agent execution to persisted result. This traces the P04 Multi-Round Debate path; other protocols follow the same envelope with different internal stages.</p>
+
+    <div class="diagram-canvas">
+      <div class="flow-sequence">
+        <div class="flow-step">
+          <span class="flow-step-num">1</span>
+          <h3>Client Request</h3>
+          <p><code>POST /api/protocols/run</code> with <code>protocol_key</code>, <code>question</code>, <code>agent_keys</code>, <code>rounds</code>. React UI or direct API call. Returns SSE stream.</p>
+        </div>
+        <div class="flow-step">
+          <span class="flow-step-num">2</span>
+          <h3>Create Run Record</h3>
+          <p>FastAPI router creates a <code>Run</code> row in Postgres (status: pending). Initializes <code>ProtocolCostTracker</code> and Langfuse root trace via <code>@trace_protocol</code>.</p>
+        </div>
+        <div class="flow-step">
+          <span class="flow-step-num">3</span>
+          <h3>Build Production Agents</h3>
+          <p><code>build_production_agents(["ceo", "cfo", "cto"])</code> resolves Agent Builder's <code>SdkAgent</code> for each key. Wraps in <code>AgentBridge</code> for dict + <code>chat()</code> access. Falls back to research dicts if Agent Builder unavailable.</p>
+        </div>
+        <div class="flow-step">
+          <span class="flow-step-num">4</span>
+          <h3>Load Orchestrator</h3>
+          <p><code>_discover_orchestrators()</code> globs <code>protocols/p*/orchestrator.py</code>, regex-matches class names. Dynamic import of <code>DebateOrchestrator</code>. Instantiate with agents, models, rounds.</p>
+        </div>
+        <div class="flow-step">
+          <span class="flow-step-num">5</span>
+          <h3>Execute Rounds</h3>
+          <p>For each round: <code>asyncio.gather()</code> queries all agents in parallel. Each call routes through <code>agent_complete()</code> &rarr; <code>AgentBridge.chat()</code> &rarr; <code>SdkAgent</code> (tools, memory, learning). SSE events stream per-agent responses to client.</p>
+        </div>
+        <div class="flow-step">
+          <span class="flow-step-num">6</span>
+          <h3>Synthesis</h3>
+          <p><code>SynthesisEngine</code> aggregates all arguments. Calls Opus with extended thinking (10K token budget). Produces unified strategic recommendation. SSE: <code>synthesis_complete</code>.</p>
+        </div>
+        <div class="flow-step">
+          <span class="flow-step-num">7</span>
+          <h3>Persist &amp; Score</h3>
+          <p><code>persist_run()</code> writes Run metadata, AgentOutput rows, cost summary to Postgres. Links Langfuse <code>trace_id</code>. Optional <code>QualityJudge</code> scores the synthesis.</p>
+        </div>
+        <div class="flow-step">
+          <span class="flow-step-num">8</span>
+          <h3>Evaluate (Optional)</h3>
+          <p>CE-Evals <code>BlindJudge</code> anonymizes protocol outputs. Three models (Claude, GPT, Gemini) score against YAML rubric. Aggregates Borda ranking. Persists to <code>eval_samples</code> + <code>eval_regressions</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ 8. Infrastructure ════ -->
+  <section class="section" id="infra">
+    <h2>Infrastructure</h2>
+    <p class="mb-lg">Docker Compose orchestrates Postgres, Metabase, and the FastAPI backend. Multi-stage Dockerfile builds React UI then Python runtime. CI runs lint, type-check, and tests for all three projects.</p>
+
+    <div class="detail-grid">
+      <div class="component-card">
+        <h3><span class="badge badge--muted">Docker</span> Compose Services</h3>
+        <ul>
+          <li><strong>postgres:16</strong> &mdash; <code>ce_platform</code> DB with pgdata volume. Healthcheck on startup</li>
+          <li><strong>metabase</strong> &mdash; BI dashboard on port 3001. Connects to postgres</li>
+          <li><strong>backend</strong> &mdash; FastAPI (port 8000). Multi-stage build: Node 22 for UI, Python 3.11 for runtime</li>
+          <li><strong>Langfuse Cloud</strong> &mdash; External SaaS. Env vars: <code>LANGFUSE_SECRET_KEY</code>, <code>LANGFUSE_PUBLIC_KEY</code></li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">Build</span> Multi-Stage Dockerfile</h3>
+        <ul>
+          <li><strong>Stage 1</strong> &mdash; Node 22: <code>npm ci</code> + <code>vite build</code> for React UI &rarr; <code>/dist</code></li>
+          <li><strong>Stage 2</strong> &mdash; Python 3.11 slim: installs ce-shared, ce-db, Agent Builder (<code>[sdk]</code>), Orchestration deps</li>
+          <li>Copies UI dist into FastAPI static dir</li>
+          <li>Sets <code>CE_AGENT_BUILDER_PATH</code>, strips <code>.env</code> files</li>
+          <li>Runs: <code>uvicorn api.server:app --host 0.0.0.0 --port 8000</code></li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">CI/CD</span> GitHub Actions</h3>
+        <ul>
+          <li><strong>Agent Builder</strong> &mdash; <code>ruff check</code> + <code>mypy</code> + <code>pytest -m "not integration"</code></li>
+          <li><strong>Orchestration</strong> &mdash; <code>ruff check</code> + <code>pytest</code> + <code>vite build</code></li>
+          <li><strong>Evals</strong> &mdash; <code>pytest</code> full suite</li>
+          <li>Triggers: push to main, PRs to main</li>
+          <li>Python 3.13, Node 20</li>
+        </ul>
+      </div>
+
+      <div class="component-card">
+        <h3><span class="badge badge--muted">Data</span> Database Schema</h3>
+        <ul>
+          <li><strong>runs</strong> &mdash; protocol_key, question, status, result_json, cost, trace_id, judge verdict</li>
+          <li><strong>agent_outputs</strong> &mdash; run_id FK, agent_key, output_text, tool_calls, cost, tokens</li>
+          <li><strong>run_steps</strong> &mdash; Pipeline checkpoints for resume</li>
+          <li><strong>eval_runs</strong> &mdash; Eval batch metadata</li>
+          <li><strong>eval_samples</strong> &mdash; Per-candidate scores, variance, cost</li>
+          <li><strong>eval_regressions</strong> &mdash; Delta tracking vs. baseline</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="mt-lg mb-md">Key File Reference</h3>
+    <div class="table-wrap">
+      <table class="conn-table">
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Purpose</th>
+            <th>Project</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>src/csuite/agents/sdk_agent.py</td><td>SdkAgent &mdash; Claude Agent SDK adapter with MCP, memory, learning</td><td><span class="badge badge--cardinal">Builder</span></td></tr>
+          <tr><td>src/csuite/agents/factory.py</td><td>Agent factory &mdash; routes to SDK or legacy backend</td><td><span class="badge badge--cardinal">Builder</span></td></tr>
+          <tr><td>src/csuite/tools/registry.py</td><td>Tool registry &mdash; role-based tool mapping and execution</td><td><span class="badge badge--cardinal">Builder</span></td></tr>
+          <tr><td>protocols/agents.py</td><td>Shared registry &mdash; 55+ agents across 14 categories</td><td><span class="badge badge--teal">Orch</span></td></tr>
+          <tr><td>protocols/agent_provider.py</td><td>AgentBridge + dual-mode builder (production vs. research)</td><td><span class="badge badge--teal">Orch</span></td></tr>
+          <tr><td>protocols/orchestrator_loop.py</td><td>Generic state machine &mdash; triggers, stages, blackboard</td><td><span class="badge badge--teal">Orch</span></td></tr>
+          <tr><td>protocols/llm.py</td><td>LLM dispatch &mdash; agent_complete(), LiteLLM, retries</td><td><span class="badge badge--teal">Orch</span></td></tr>
+          <tr><td>protocols/blackboard.py</td><td>Append-only shared state &mdash; topics, scoping, watchers</td><td><span class="badge badge--teal">Orch</span></td></tr>
+          <tr><td>api/server.py</td><td>FastAPI app &mdash; lifespan, CORS, static UI, routers</td><td><span class="badge badge--teal">Orch</span></td></tr>
+          <tr><td>api/runner.py</td><td>Protocol execution &mdash; SSE streaming, orchestrator discovery</td><td><span class="badge badge--teal">Orch</span></td></tr>
+          <tr><td>src/ce_evals/core/judge.py</td><td>BlindJudge &mdash; anonymized multi-model scoring</td><td><span class="badge badge--gold">Evals</span></td></tr>
+          <tr><td>src/ce_evals/core/judge_backends.py</td><td>Anthropic, OpenAI, Gemini backend adapters</td><td><span class="badge badge--gold">Evals</span></td></tr>
+          <tr><td>ce-shared/src/ce_shared/pricing.py</td><td>Single source of truth for all model pricing</td><td><span class="badge badge--muted">Shared</span></td></tr>
+          <tr><td>ce-db/src/ce_db/models/</td><td>SQLAlchemy ORM &mdash; runs, agent_outputs, evals</td><td><span class="badge badge--muted">Shared</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
