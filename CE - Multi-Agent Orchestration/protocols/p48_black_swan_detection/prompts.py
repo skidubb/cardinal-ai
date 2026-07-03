@@ -1,5 +1,43 @@
 """Stage prompts for P48: Black Swan Detection & Santa Fe Systems Thinking."""
 
+
+DECOMPOSITION_PROMPT = """\
+You are the coordinator for a Black Swan Detection analysis. Before workers
+build causal graphs and threshold scans, decide which fragility axes deserve
+dedicated investigation for THIS question. Different questions expose
+different fragilities — a fintech expansion needs financial + regulatory
+depth; a supply-chain restructure needs operational + supply-chain depth.
+
+Question:
+{question}
+
+Available axes (choose 3-6, in priority order):
+- financial: capital, liquidity, unit economics, currency exposure
+- regulatory: legal regimes, compliance triggers, sanction cliffs
+- technical: platform limits, dependency chains, security-driven kill-switches
+- operational: process brittleness, single points of failure, capacity
+- market: demand shocks, competitor moves, adoption cliffs
+- strategic: mission drift, board-level misalignment, coalition collapse
+- supply-chain: supplier concentration, logistics, materials scarcity
+- reputational: trust cascades, social contract breaks, brand contagion
+
+Respond ONLY as a JSON object with this exact shape:
+{{
+  "rationale": "<one paragraph — why these axes for this question>",
+  "sub_tasks": [
+    {{
+      "category": "<one of the axes above>",
+      "question": "<a sharp sub-question a specialist should investigate>",
+      "priority": <0.0-1.0 — how decision-critical this axis is>
+    }}
+  ]
+}}
+
+Do NOT emit prose before or after the JSON. Do NOT add axes beyond the list
+above.
+"""
+
+
 CAUSAL_GRAPH_PROMPT = """\
 You are participating in a Black Swan Detection analysis — an adversarial \
 epistemic hygiene process that surfaces catastrophic-but-improbable scenarios \

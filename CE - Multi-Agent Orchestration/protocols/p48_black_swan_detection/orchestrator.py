@@ -14,6 +14,13 @@ from dataclasses import dataclass, field
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
 from protocols.llm import extract_text, llm_complete, filter_exceptions, parse_json_array
+from protocols.hierarchical import (
+    Decomposition,
+    SubResult,
+    delegate,
+    format_results_for_synthesis,
+    parse_decomposition,
+)
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -22,6 +29,7 @@ from .prompts import (
     CONFLUENCE_PROMPT,
     HISTORICAL_ANALOGUE_PROMPT,
     ADVERSARIAL_MEMO_PROMPT,
+    DECOMPOSITION_PROMPT,
 )
 
 
@@ -34,6 +42,9 @@ class BlackSwanResult:
     historical_analogues: list[str] = field(default_factory=list)
     adversarial_memo: str = ""
     timings: dict[str, float] = field(default_factory=dict)
+    # Hierarchical mode outputs — empty when hierarchical=False.
+    decomposition: dict = field(default_factory=dict)
+    sub_task_results: list[dict] = field(default_factory=list)
 
 
 class BlackSwanOrchestrator:
@@ -45,6 +56,7 @@ class BlackSwanOrchestrator:
         thinking_model: str = THINKING_MODEL,
         orchestration_model: str = ORCHESTRATION_MODEL,
         thinking_budget: int = 10_000,
+        hierarchical: bool = False,
     ):
         if not agents:
             raise ValueError("At least one agent is required")
@@ -52,21 +64,59 @@ class BlackSwanOrchestrator:
         self.thinking_model = thinking_model
         self.orchestration_model = orchestration_model
         self.thinking_budget = thinking_budget
+        self.hierarchical = hierarchical
         self.client = anthropic.AsyncAnthropic()
 
     @trace_protocol("p48_black_swan_detection")
     async def run(self, question: str) -> BlackSwanResult:
-        """Execute the five-layer Black Swan Detection protocol."""
+        """Execute the five-layer Black Swan Detection protocol.
+
+        In hierarchical mode, an additional Layer 0 runs first: a coordinator
+        decomposes the question into typed fragility sub-tasks, each
+        dispatched to a specialized agent. Layer 1 then receives the
+        aggregated sub-task findings as context, so causal graphs are
+        informed by the specific fragilities of THIS question.
+        """
         result = BlackSwanResult(question=question)
+        prior_findings = ""
+
+        # Layer 0 (optional): Coordinator decomposition + hierarchical delegation
+        if self.hierarchical:
+            print("\nLayer 0: Coordinator decomposition + hierarchical delegation...")
+            t0 = time.time()
+            span = create_span("stage:hierarchical_decomposition", {})
+            try:
+                decomposition, sub_results = await self._hierarchical_layer(question)
+                result.decomposition = decomposition.as_dict()
+                result.sub_task_results = [r.as_dict() for r in sub_results]
+                prior_findings = format_results_for_synthesis(sub_results)
+                result.timings["layer_0_hierarchical"] = time.time() - t0
+                end_span(
+                    span,
+                    output=(
+                        f"{len(decomposition.sub_tasks)} sub-tasks, "
+                        f"{sum(1 for r in sub_results if r.succeeded)} successful"
+                    ),
+                )
+            except Exception:
+                end_span(span, error="hierarchical_decomposition failed")
+                raise
 
         # Layer 1: Causal Graph Construction (parallel agents, Opus)
         print("\nLayer 1: Causal Graph Construction...")
         t0 = time.time()
         span = create_span("stage:causal_graphs", {"agent_count": len(self.agents)})
         try:
-            result.causal_graphs = await self._parallel_agents(
-                CAUSAL_GRAPH_PROMPT.format(question=question)
-            )
+            causal_prompt = CAUSAL_GRAPH_PROMPT.format(question=question)
+            if prior_findings:
+                causal_prompt = (
+                    causal_prompt
+                    + "\n\nPRIOR FRAGILITY FINDINGS (from Layer 0 hierarchical "
+                    "delegation — use these to focus your causal graph on the "
+                    "specific fragilities most relevant to this question):\n"
+                    + prior_findings
+                )
+            result.causal_graphs = await self._parallel_agents(causal_prompt)
             result.timings["layer_1_causal_graphs"] = time.time() - t0
             end_span(span, output=f"{len(result.causal_graphs)} causal graphs")
         except Exception:
@@ -141,6 +191,61 @@ class BlackSwanOrchestrator:
             raise
 
         return result
+
+    async def _hierarchical_layer(
+        self, question: str
+    ) -> tuple[Decomposition, list[SubResult]]:
+        """Layer 0: coordinator decomposes → typed sub-tasks → routed workers.
+
+        Uses the hierarchical primitive so the same pattern is available to
+        every protocol. If the coordinator fails to emit a valid
+        decomposition, returns an empty one and no sub-results — Layer 1
+        continues without prior findings.
+        """
+        # Coordinator call — orchestration model, single completion.
+        coord_response = await llm_complete(
+            self.client,
+            model=self.orchestration_model,
+            max_tokens=2048,
+            messages=[{
+                "role": "user",
+                "content": DECOMPOSITION_PROMPT.format(question=question),
+            }],
+            agent_name="hierarchical_coordinator",
+        )
+        decomposition = parse_decomposition(extract_text(coord_response))
+        if not decomposition.sub_tasks:
+            return decomposition, []
+
+        # Sort by priority so higher-signal sub-tasks come first in the field.
+        decomposition.sub_tasks.sort(key=lambda t: t.priority, reverse=True)
+
+        # Worker runner: each specialized agent answers its typed sub-question.
+        async def runner(sub_task, worker: dict) -> str:
+            response = await llm_complete(
+                self.client,
+                model=self.thinking_model,
+                max_tokens=self.thinking_budget + 4096,
+                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+                system=worker.get("system_prompt", ""),
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        f"You are investigating the {sub_task.category} axis of "
+                        f"this Black Swan analysis.\n\n"
+                        f"Root question:\n{question}\n\n"
+                        f"Your sub-question:\n{sub_task.question}\n\n"
+                        "Focus specifically on your axis. Do NOT restate the "
+                        "full analysis — deliver 3-5 concrete findings a "
+                        "coordinator can weave into a broader causal graph."
+                    ),
+                }],
+                agent_name=f"worker:{worker.get('key', worker.get('name', 'agent'))}",
+            )
+            return extract_text(response)
+
+        sub_results = await delegate(decomposition, self.agents, runner)
+        return decomposition, sub_results
 
     async def _parallel_agents(self, prompt: str) -> list[str]:
         """Run prompt across all agents in parallel using thinking model."""

@@ -88,6 +88,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output raw JSON result")
     parser.add_argument("--mode", choices=["research", "production"], default="production", help="Agent mode")
     parser.add_argument("--blackboard", action="store_true", help="Use blackboard-driven orchestrator")
+    parser.add_argument("--hierarchical", action="store_true", help="Prepend Layer 0: coordinator decomposes into typed sub-tasks, each routed to a specialized agent, before Layer 1 causal graph construction")
     parser.add_argument("--dry-run", action="store_true", help="Print config and exit (no LLM calls)")
     args = parser.parse_args()
 
@@ -127,6 +128,7 @@ def main():
         thinking_model=args.thinking_model,
         orchestration_model=args.orchestration_model,
         thinking_budget=args.thinking_budget,
+        hierarchical=args.hierarchical,
     )
 
     print(f"Running Black Swan Detection with {len(agents)} agents: {', '.join(a['name'] for a in agents)}")

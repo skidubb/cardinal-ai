@@ -151,38 +151,19 @@ async def _noop_backend(_query: str, _scope: SearchScope) -> list[Hit]:
 
 
 def _register_default_backends() -> None:
-    """Register best-effort backends. Each guards its own imports.
+    """Register the real backends via `knowledge_backends.register_all`.
 
-    Intentionally does NOT raise if a library is missing — the facade must
-    remain usable with zero backends registered.
+    Falls back to no-ops when a backend's library isn't available, so the
+    facade remains importable and callable in slim environments (tests,
+    headless CI). Consumers can always `register_backend()` custom ones on
+    top.
     """
-
-    # Pinecone backend — only registers if the client library is available and
-    # a key is set. Actual namespace routing is defined in Agent Builder's
-    # `csuite/memory` module; this stub is a placeholder consumers can override.
     try:
-        import os
+        from protocols.knowledge_backends import register_all
 
-        if os.getenv("PINECONE_API_KEY"):
-            register_backend("pinecone", _noop_backend)
-    except Exception:
-        pass
-
-    # Runs backend — Postgres via ce-db. Only registers if ce-db is importable.
-    try:
-        import ce_db  # noqa: F401
-
-        register_backend("runs", _noop_backend)
-    except ImportError:
-        pass
-
-    # Experience log — DuckDB. Only registers if the module is present.
-    try:
-        from csuite.learning.experience_log import ExperienceLog  # noqa: F401
-
-        register_backend("experience", _noop_backend)
-    except ImportError:
-        pass
+        register_all()
+    except Exception as e:  # noqa: BLE001 — defensive
+        _log.debug("knowledge_backends.register_all failed (%s); no real backends", e)
 
 
 _register_default_backends()
