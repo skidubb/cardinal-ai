@@ -2,16 +2,25 @@
 
 Bridges the Next.js portal (cardinal-portal) with the Railway FastAPI engine.
 The portal sends Clerk-issued JWTs in the Authorization header; this module
-validates them against Clerk's published JWKS and extracts:
+validates them against Clerk's published JWKS and extracts claims from either
+token format:
 
-- ``sub``       -- Clerk user ID
-- ``org_id``    -- Clerk Organization ID
-- ``org_slug``  -- canonical CE tenant slug (used by ce-graph)
-- ``org_role``  -- admin / member
-- ``tier``      -- 1 / 2 / 3 (from Organization.public_metadata.tier)
+**Default session token (v2)** — the current portal format. Org claims are
+nested under ``o`` (``o.slg`` slug, ``o.id``, ``o.rol`` role) and Clerk
+Billing state rides in session-tied claims:
+
+- ``pla``  -- active plan, e.g. ``"o:pro"`` (``o:`` = org-payer)
+- ``fea``  -- enabled features, e.g. ``"o:premium_protocols,o:knowledge_graph"``
+
+**Legacy ``ce-railway`` JWT template** — flat ``org_slug`` / ``org_role`` /
+``tier`` (1/2/3 from Organization.public_metadata.tier) claims. Supported as
+a fallback until the template is retired; ``pla``/``fea`` cannot appear in
+custom templates (Clerk forbids session-tied claims there).
 
 Set ``CLERK_JWKS_URL`` and (optionally) ``CLERK_AUDIENCE`` in env. If unset,
 all auth-required endpoints fail closed with 503 (server misconfigured).
+Leave ``CLERK_AUDIENCE`` unset for default session tokens (they carry ``azp``,
+not ``aud``).
 """
 
 from __future__ import annotations
@@ -42,6 +51,8 @@ class ClerkAuthContext:
     org_slug: str | None
     org_role: str | None
     tier: int | None
+    plan: str | None
+    features: frozenset[str]
     raw_claims: dict[str, Any]
 
     def require_org(self) -> str:
@@ -76,12 +87,17 @@ def _decode_token(token: str, jwks_url: str, audience: str | None) -> dict[str, 
     try:
         unverified_header = jwt.get_unverified_header(token)
     except JWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Malformed token: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Malformed token: {exc}"
+        )
 
     kid = unverified_header.get("kid")
     key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
     if key is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Signing key not found in JWKS")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Signing key not found in JWKS",
+        )
 
     options = {"verify_aud": bool(audience)}
     try:
@@ -93,12 +109,74 @@ def _decode_token(token: str, jwks_url: str, audience: str | None) -> dict[str, 
             options=options,
         )
     except JWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {exc}"
+        )
 
 
 @lru_cache(maxsize=1)
 def _config() -> tuple[str | None, str | None]:
     return os.environ.get("CLERK_JWKS_URL"), os.environ.get("CLERK_AUDIENCE")
+
+
+def _parse_claims(claims: dict[str, Any]) -> ClerkAuthContext:
+    """Build a ClerkAuthContext from either token format.
+
+    Default session tokens (v2) nest org claims under ``o`` and carry billing
+    state in ``pla`` (plan) / ``fea`` (features). Legacy ``ce-railway``
+    template tokens use flat ``org_slug``/``org_role``/``tier`` claims.
+    """
+    o = claims.get("o") or {}
+    is_v2 = bool(o) or claims.get("v") == 2
+
+    if is_v2:
+        org_id = o.get("id")
+        org_slug = o.get("slg")
+        org_role = f"org:{o['rol']}" if o.get("rol") else None
+    else:
+        org_id = claims.get("org_id")
+        org_slug = claims.get("org_slug")
+        org_role = claims.get("org_role")
+
+    # pla: "o:pro" -> "pro". Only org-payer plans count (org = tenant = payer).
+    plan: str | None = None
+    pla = claims.get("pla")
+    if isinstance(pla, str) and ":" in pla:
+        payer, _, slug = pla.partition(":")
+        if "o" in payer and slug:
+            plan = slug
+
+    # fea: "o:premium_protocols,uo:knowledge_graph" -> org-payer features.
+    features: set[str] = set()
+    fea = claims.get("fea")
+    if isinstance(fea, str):
+        for item in fea.split(","):
+            payer, _, feat = item.strip().partition(":")
+            if feat and "o" in payer:
+                features.add(feat)
+
+    # Legacy tier claim (from Organization.public_metadata.tier).
+    tier_raw = claims.get("tier")
+    tier: int | None
+    try:
+        tier = (
+            int(tier_raw)
+            if tier_raw is not None and str(tier_raw).strip() != ""
+            else None
+        )
+    except (TypeError, ValueError):
+        tier = None
+
+    return ClerkAuthContext(
+        user_id=str(claims.get("sub", "")),
+        org_id=org_id,
+        org_slug=org_slug,
+        org_role=org_role,
+        tier=tier,
+        plan=plan,
+        features=frozenset(features),
+        raw_claims=claims,
+    )
 
 
 def _bearer_token(request: Request) -> str | None:
@@ -129,27 +207,14 @@ async def get_auth(request: Request) -> ClerkAuthContext:
         )
 
     claims = _decode_token(token, jwks_url, audience)
-
-    tier_raw = claims.get("tier")
-    tier: int | None
-    try:
-        tier = int(tier_raw) if tier_raw is not None and str(tier_raw).strip() != "" else None
-    except (TypeError, ValueError):
-        tier = None
-
-    ctx = ClerkAuthContext(
-        user_id=str(claims.get("sub", "")),
-        org_id=claims.get("org_id"),
-        org_slug=claims.get("org_slug"),
-        org_role=claims.get("org_role"),
-        tier=tier,
-        raw_claims=claims,
-    )
+    ctx = _parse_claims(claims)
     request.state.auth = ctx
     return ctx
 
 
-async def get_auth_with_org(ctx: ClerkAuthContext = Depends(get_auth)) -> ClerkAuthContext:
+async def get_auth_with_org(
+    ctx: ClerkAuthContext = Depends(get_auth),
+) -> ClerkAuthContext:
     """Same as ``get_auth`` but also requires an active org. Use for tenant-scoped endpoints."""
     ctx.require_org()
     return ctx
@@ -175,13 +240,16 @@ async def get_auth_with_org(ctx: ClerkAuthContext = Depends(get_auth)) -> ClerkA
 # should always require auth (admin, billing) use ``get_auth_with_org``
 # directly instead of ``resolve_tenant``.
 
-DEFAULT_TENANT = "cardinal-element" if os.environ.get("CE_ALLOW_PROD") == "1" else "local-dev"
+DEFAULT_TENANT = (
+    "cardinal-element" if os.environ.get("CE_ALLOW_PROD") == "1" else "local-dev"
+)
 
 # Clerk auto-appends a 16+ digit numeric ID to org slugs when the base slug is
 # already taken in the instance (e.g. "cardinal-element-1776752029963075226").
 # We canonicalize those to their base slug so runs persisted under either
 # form are accessible from either session variant.
 import re as _re
+
 _CLERK_SUFFIX_RE = _re.compile(r"^(.+)-(\d{10,})$")
 
 

@@ -4,6 +4,8 @@ import {
   fetchAgents,
   fetchPipelines,
   fetchTeams,
+  fetchModels,
+  type ModelsResponse,
 } from "@/lib/api";
 import RunForm from "./RunForm";
 
@@ -12,7 +14,8 @@ export default async function RunPage({
 }: {
   searchParams: Promise<{ question?: string; protocol?: string; agents?: string }>;
 }) {
-  const { orgSlug } = await auth();
+  const { orgSlug, has } = await auth();
+  const hasPremium = has({ feature: "premium_protocols" });
   const sp = await searchParams;
   const initialQuestion = typeof sp.question === "string" ? sp.question : "";
   const initialProtocol = typeof sp.protocol === "string" ? sp.protocol : "";
@@ -21,17 +24,19 @@ export default async function RunPage({
       ? sp.agents.split(",").map((s) => s.trim()).filter(Boolean)
       : [];
 
-  const [protocolsR, agentsR, pipelinesR, teamsR] = await Promise.allSettled([
+  const [protocolsR, agentsR, pipelinesR, teamsR, modelsR] = await Promise.allSettled([
     fetchProtocols(),
     fetchAgents(),
     fetchPipelines(),
     fetchTeams(),
+    fetchModels(),
   ]);
 
   const protocols = protocolsR.status === "fulfilled" ? protocolsR.value : [];
   const agents = agentsR.status === "fulfilled" ? agentsR.value : [];
   const pipelines = pipelinesR.status === "fulfilled" ? pipelinesR.value : [];
   const teams = teamsR.status === "fulfilled" ? teamsR.value : [];
+  const models: ModelsResponse | null = modelsR.status === "fulfilled" ? modelsR.value : null;
 
   const setupError =
     protocolsR.status === "rejected"
@@ -69,9 +74,11 @@ export default async function RunPage({
           agents={agents}
           pipelines={pipelines}
           teams={teams}
+          models={models}
           initialQuestion={initialQuestion}
           initialProtocol={initialProtocol}
           initialAgents={initialAgents}
+          hasPremium={hasPremium}
         />
       )}
     </div>

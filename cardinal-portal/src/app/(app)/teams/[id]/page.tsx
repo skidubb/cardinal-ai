@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
 import { fetchAgents, type Team } from "@/lib/api";
+import { getRailwayToken, RAILWAY_API_BASE } from "@/lib/railway";
 import { TeamForm } from "@/components/teams/TeamForm";
 import { DeleteTeamButton } from "@/components/teams/DeleteTeamButton";
 
 async function loadTeam(id: string): Promise<Team | null> {
-  const { getToken } = await auth();
-  const token = await getToken({ template: "ce-railway" }).catch(() => null);
-  const API_BASE = process.env.NEXT_PUBLIC_RAILWAY_API_URL ?? "http://localhost:8000";
-  const resp = await fetch(`${API_BASE}/api/teams/${id}`, {
+  const token = await getRailwayToken();
+  const resp = await fetch(`${RAILWAY_API_BASE}/api/teams/${id}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     cache: "no-store",
   });

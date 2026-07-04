@@ -1,14 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
+import { getRailwayToken, RAILWAY_API_BASE } from "@/lib/railway";
 import NewCorrectionForm from "./NewCorrectionForm";
 import CorrectionsList, { type Correction } from "./CorrectionsList";
 
-const API_BASE = process.env.NEXT_PUBLIC_RAILWAY_API_URL ?? "http://localhost:8000";
-
 async function loadCorrections(): Promise<{ corrections: Correction[]; error: string | null }> {
   try {
-    const { getToken } = await auth();
-    const token = await getToken({ template: "ce-railway" }).catch(() => null);
-    const resp = await fetch(`${API_BASE}/api/corrections?active_only=true`, {
+    const token = await getRailwayToken();
+    const resp = await fetch(`${RAILWAY_API_BASE}/api/corrections?active_only=true`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       cache: "no-store",
     });

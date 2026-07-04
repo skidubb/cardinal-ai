@@ -21,8 +21,12 @@ from api.context_pipeline import (
     process_uploaded_files,
 )
 from api.database import engine
+from api.entitlements import (
+    TenantEntitlements,
+    check_protocol_allowed,
+    require_run_admission,
+)
 from api.manifest import get_protocol_manifest
-from api.middleware.clerk_auth import resolve_tenant
 from api.models import Run
 from api.routers.runs import ProtocolRunRequest
 from api.runner import run_protocol_stream
@@ -39,11 +43,12 @@ def list_protocols() -> list[dict]:
 
 # ── POST /run — declared BEFORE GET /{key}/stages to avoid route conflict ─────
 
+
 @router.post("/run")
 async def start_protocol_run(
     payload: ProtocolRunRequest,
     request: Request,
-    tenant_slug: str = Depends(resolve_tenant),
+    te: TenantEntitlements = Depends(require_run_admission),
 ) -> StreamingResponse:
     """Start a protocol run and stream SSE events.
 
@@ -52,7 +57,11 @@ async def start_protocol_run(
 
     The run row is stamped with ``tenant_slug`` derived from the caller's
     Clerk JWT (or the configured fallback for unauthenticated local calls).
+    Quota + premium-protocol entitlements are enforced before the run row
+    is created, so rejections are plain JSON 402/403 (never a broken stream).
     """
+    check_protocol_allowed(payload.protocol_key, te)
+    tenant_slug = te.tenant_slug
     with Session(engine) as session:
         run = Run(
             type="protocol",
@@ -80,6 +89,7 @@ async def start_protocol_run(
                 rounds=payload.rounds,
                 no_tools=payload.no_tools,
                 tenant_slug=tenant_slug,
+                cost_ceiling_usd=te.entitlements.run_cost_ceiling_usd,
             ):
                 await event_queue.put(chunk)
         finally:
@@ -103,6 +113,7 @@ async def start_protocol_run(
 
 # ── POST /run/with-context — multipart file upload + run config ────────────
 
+
 @router.post("/run/with-context")
 async def start_protocol_run_with_context(
     request: Request,
@@ -114,13 +125,15 @@ async def start_protocol_run_with_context(
     rounds: int | None = Form(None),
     no_tools: bool = Form(False),
     files: list[UploadFile] = File(default=[]),
-    tenant_slug: str = Depends(resolve_tenant),
+    te: TenantEntitlements = Depends(require_run_admission),
 ) -> StreamingResponse:
     """Start a protocol run with uploaded context files and stream SSE events.
 
     The run row is stamped with ``tenant_slug`` derived from the caller's Clerk
     JWT so the resulting run is visible to the caller's list-by-tenant query.
     """
+    check_protocol_allowed(protocol_key, te)
+    tenant_slug = te.tenant_slug
     # Parse agent_keys from JSON string
     try:
         parsed_agent_keys: list[str] = _json.loads(agent_keys)
@@ -187,6 +200,7 @@ async def start_protocol_run_with_context(
                 no_tools=no_tools,
                 context=run_context,
                 tenant_slug=tenant_slug,
+                cost_ceiling_usd=te.entitlements.run_cost_ceiling_usd,
             ):
                 await event_queue_ctx.put(chunk)
         finally:
@@ -219,7 +233,9 @@ def _stages_from_yaml(key: str) -> list[dict] | None:
 
     cap_file = (
         Path(__file__).resolve().parent.parent.parent
-        / "protocols" / key / "capability.yaml"
+        / "protocols"
+        / key
+        / "capability.yaml"
     )
     if not cap_file.exists():
         return None
@@ -236,17 +252,21 @@ def _stages_from_yaml(key: str) -> list[dict] | None:
         name = s.get("name") or s.get("key") or ""
         if not name:
             continue
-        stages.append({
-            "key": s.get("key") or _slugify(name),
-            "name": name,
-            # `kind` is the canonical YAML field (used by P53-P57 Decentralized
-            # Coordination protocols); `stage_type` kept as an alias for older
-            # manifests; _classify_stage is a last-resort name heuristic.
-            "stage_type": s.get("stage_type") or s.get("kind") or _classify_stage(name),
-            "depends_on": s.get("depends_on") or [],
-            "agents_filter": s.get("agents_filter"),
-            "description": s.get("description") or "",
-        })
+        stages.append(
+            {
+                "key": s.get("key") or _slugify(name),
+                "name": name,
+                # `kind` is the canonical YAML field (used by P53-P57 Decentralized
+                # Coordination protocols); `stage_type` kept as an alias for older
+                # manifests; _classify_stage is a last-resort name heuristic.
+                "stage_type": s.get("stage_type")
+                or s.get("kind")
+                or _classify_stage(name),
+                "depends_on": s.get("depends_on") or [],
+                "agents_filter": s.get("agents_filter"),
+                "description": s.get("description") or "",
+            }
+        )
     return stages or None
 
 
@@ -286,8 +306,12 @@ def get_protocol_stages(key: str):
     ]
     # Also try protocol_id prefix patterns (e.g., p06_triz)
     if protocol_id:
-        candidates.append(f"protocols.{protocol_id}_{key.replace(protocol_id + '_', '')}.orchestrator")
-        candidates.append(f"protocols.{key.lstrip('p').lstrip('0123456789').lstrip('_')}.orchestrator")
+        candidates.append(
+            f"protocols.{protocol_id}_{key.replace(protocol_id + '_', '')}.orchestrator"
+        )
+        candidates.append(
+            f"protocols.{key.lstrip('p').lstrip('0123456789').lstrip('_')}.orchestrator"
+        )
 
     for pattern in candidates:
         try:
@@ -334,11 +358,11 @@ def _extract_stages_from_source(source: str) -> list[dict]:
     stages: list[dict] = []
 
     # Look for stage comments: "# Stage N: ..." or "# Step N: ..."
-    stage_comments = re.findall(r'#\s*(?:Stage|Step|Phase)\s*\d*[:\s-]*(.+)', source)
+    stage_comments = re.findall(r"#\s*(?:Stage|Step|Phase)\s*\d*[:\s-]*(.+)", source)
 
     # Look for stage method definitions (match _keyword... or _run_keyword...)
     stage_methods = re.findall(
-        r'async\s+def\s+(_?(?:(?:run_)?(?:stage|step|phase|round|gather|synthesize|analyze|evaluate|debate|vote|rank))\w*)',
+        r"async\s+def\s+(_?(?:(?:run_)?(?:stage|step|phase|round|gather|synthesize|analyze|evaluate|debate|vote|rank))\w*)",
         source,
     )
 
@@ -346,22 +370,26 @@ def _extract_stages_from_source(source: str) -> list[dict]:
         for comment in stage_comments:
             name = comment.strip()
             stage_type = _classify_stage(name)
-            stages.append({
-                "name": name,
-                "stage_type": stage_type,
-                "depends_on": [stages[-1]["name"]] if stages else [],
-                "agents_filter": "all" if stage_type == "agent" else None,
-            })
+            stages.append(
+                {
+                    "name": name,
+                    "stage_type": stage_type,
+                    "depends_on": [stages[-1]["name"]] if stages else [],
+                    "agents_filter": "all" if stage_type == "agent" else None,
+                }
+            )
     elif stage_methods:
         for method in stage_methods:
             name = method.lstrip("_").replace("_", " ").strip().title()
             stage_type = _classify_stage(method)
-            stages.append({
-                "name": name,
-                "stage_type": stage_type,
-                "depends_on": [stages[-1]["name"]] if stages else [],
-                "agents_filter": "all" if stage_type == "agent" else None,
-            })
+            stages.append(
+                {
+                    "name": name,
+                    "stage_type": stage_type,
+                    "depends_on": [stages[-1]["name"]] if stages else [],
+                    "agents_filter": "all" if stage_type == "agent" else None,
+                }
+            )
 
     return stages
 
@@ -369,7 +397,10 @@ def _extract_stages_from_source(source: str) -> list[dict]:
 def _classify_stage(text: str) -> str:
     """Classify a stage as agent, synthesis, or mechanical."""
     lower = text.lower()
-    if any(kw in lower for kw in ("agent", "gather", "parallel", "query", "debate", "round", "vote")):
+    if any(
+        kw in lower
+        for kw in ("agent", "gather", "parallel", "query", "debate", "round", "vote")
+    ):
         return "agent"
     if any(kw in lower for kw in ("synth", "combine", "merge", "final", "summary")):
         return "synthesis"
@@ -381,17 +412,55 @@ def _fallback_stages(proto: dict) -> dict:
     supports_rounds = proto.get("supports_rounds", False)
 
     stages = [
-        {"name": "Input & Agent Assignment", "stage_type": "mechanical", "depends_on": [], "agents_filter": None},
-        {"name": "Agent Analysis", "stage_type": "agent", "depends_on": ["Input & Agent Assignment"], "agents_filter": "all"},
+        {
+            "name": "Input & Agent Assignment",
+            "stage_type": "mechanical",
+            "depends_on": [],
+            "agents_filter": None,
+        },
+        {
+            "name": "Agent Analysis",
+            "stage_type": "agent",
+            "depends_on": ["Input & Agent Assignment"],
+            "agents_filter": "all",
+        },
     ]
 
     if supports_rounds:
-        stages.append({"name": "Multi-Round Iteration", "stage_type": "agent", "depends_on": ["Agent Analysis"], "agents_filter": "all"})
-        stages.append({"name": "Synthesis", "stage_type": "synthesis", "depends_on": ["Multi-Round Iteration"], "agents_filter": None})
+        stages.append(
+            {
+                "name": "Multi-Round Iteration",
+                "stage_type": "agent",
+                "depends_on": ["Agent Analysis"],
+                "agents_filter": "all",
+            }
+        )
+        stages.append(
+            {
+                "name": "Synthesis",
+                "stage_type": "synthesis",
+                "depends_on": ["Multi-Round Iteration"],
+                "agents_filter": None,
+            }
+        )
     else:
-        stages.append({"name": "Synthesis", "stage_type": "synthesis", "depends_on": ["Agent Analysis"], "agents_filter": None})
+        stages.append(
+            {
+                "name": "Synthesis",
+                "stage_type": "synthesis",
+                "depends_on": ["Agent Analysis"],
+                "agents_filter": None,
+            }
+        )
 
-    stages.append({"name": "Output", "stage_type": "mechanical", "depends_on": ["Synthesis"], "agents_filter": None})
+    stages.append(
+        {
+            "name": "Output",
+            "stage_type": "mechanical",
+            "depends_on": ["Synthesis"],
+            "agents_filter": None,
+        }
+    )
 
     return {
         "protocol_id": proto.get("protocol_id", ""),

@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The **Coordination Lab** is Cardinal Element's multi-agent research program and production platform. It contains 60 implemented coordination protocols (P00–P01 baselines, meta-routers P0a–P0c, and P3–P57; P02 retired) plus a shared 74-agent registry, 34 benchmark questions across 8 problem types, a FastAPI web UI with React frontend, and PDF report generation. Deployed on Railway at `cardinal-ai-production.up.railway.app`. The goal is to empirically validate these protocols across problem types, then build an adaptive router that selects the optimal protocol for any strategic question.
 
-**Multi-tenancy**: the API is tenant-scoped. Clerk-issued JWTs are validated by `api/middleware/clerk_auth.py`, the `org_slug` claim is extracted, and every run / ce-graph query / Pinecone lookup is scoped to that tenant. Runs persist with a `tenant_id` column so a single Postgres instance cleanly partitions multi-customer data.
+**Multi-tenancy**: the API is tenant-scoped. Clerk-issued JWTs are validated by `api/middleware/clerk_auth.py` (default session token v2 with `o.slg`/`pla`/`fea` claims; legacy `ce-railway` template as fallback), the org slug is extracted, and every run / ce-graph query / Pinecone lookup is scoped to that tenant. Runs persist with a `tenant_id` column so a single Postgres instance cleanly partitions multi-customer data.
+
+**Subscriptions & entitlements**: `api/entitlements.py` maps the Clerk Billing plan (`pla` claim) to limits — monthly run quota, per-run cost hard stop, and feature flags (`premium_protocols`, `knowledge_graph`, `custom_protocols_agents`) — enforced as FastAPI dependencies on all money-spending endpoints. Kill switch: `ENTITLEMENTS_ENFORCE` (0 = log-only dry run). X-API-Key callers are the `internal` plan (unlimited). Full guide: [`docs/billing-setup.md`](docs/billing-setup.md).
 
 ## Running Protocols
 

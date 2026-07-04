@@ -9,6 +9,7 @@ import {
   fetchGraphStats,
   type Run,
 } from "@/lib/api";
+import { UsageMeter } from "@/components/billing/UsageMeter";
 
 export default async function DashboardPage() {
   const { orgSlug, orgRole } = await auth();
@@ -38,9 +39,16 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-7xl px-8 py-10 space-y-10">
       <header>
         <span className="ce-eyebrow">Workspace</span>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">
-          {orgSlug ? `${orgSlug}` : "Your workspace"}
-        </h1>
+        <div className="mt-2 flex items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight">
+            {orgSlug ? `${orgSlug}` : "Your workspace"}
+          </h1>
+          {usage?.plan ? (
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-primary">
+              {usage.plan}
+            </span>
+          ) : null}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Ask a question · Build an agent · Connect a tool · Chain a pipeline
           {orgRole ? <span className="ml-2 ce-label">· {orgRole}</span> : null}
@@ -122,6 +130,11 @@ export default async function DashboardPage() {
             }
           />
         </div>
+        {usage ? (
+          <div className="mt-3">
+            <UsageMeter usage={usage} />
+          </div>
+        ) : null}
       </section>
 
       <section>

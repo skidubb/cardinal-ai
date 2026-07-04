@@ -36,9 +36,14 @@ from api.database import engine
 from api.models import AgentOutput, Run, RunStep
 from protocols.agent_provider import build_production_agents
 from protocols.config import ORCHESTRATION_MODEL, THINKING_MODEL
-from protocols.cost_tracker import ProtocolCostTracker
+from protocols.cost_tracker import CostCeilingExceeded, ProtocolCostTracker
 from protocols.judge import QualityJudge
-from protocols.langfuse_tracing import get_trace_id, is_enabled as langfuse_is_enabled, score_trace, set_session_id
+from protocols.langfuse_tracing import (
+    get_trace_id,
+    is_enabled as langfuse_is_enabled,
+    score_trace,
+    set_session_id,
+)
 from protocols.llm import set_cost_tracker, set_event_queue, set_no_tools
 from protocols.persistence import PersistOutcome, persist_run
 from protocols.run_envelope import StepEnvelope, TelemetryWarning, build_run_envelope
@@ -46,6 +51,7 @@ from protocols.learning.hooks import pre_run_hook, post_run_hook
 
 
 # ── Protocol → orchestrator class mapping ────────────────────────────────────
+
 
 def _discover_orchestrators() -> dict[str, tuple[str, str]]:
     """Map protocol keys to (module_path, class_name) tuples.
@@ -55,6 +61,7 @@ def _discover_orchestrators() -> dict[str, tuple[str, str]]:
     ``async def run`` method (the canonical entrypoint signature).
     """
     from pathlib import Path
+
     mapping: dict[str, tuple[str, str]] = {}
     protocols_dir = Path(__file__).resolve().parent.parent / "protocols"
     for orch_file in protocols_dir.glob("p*/orchestrator.py"):
@@ -70,7 +77,10 @@ def _find_entrypoint_class(text: str) -> str | None:
     match = re.search(r"^class (\w+Orchestrator)\b", text, re.MULTILINE)
     if match:
         return match.group(1)
-    classes = [(m.start(), m.group(1)) for m in re.finditer(r"^class (\w+)\b", text, re.MULTILINE)]
+    classes = [
+        (m.start(), m.group(1))
+        for m in re.finditer(r"^class (\w+)\b", text, re.MULTILINE)
+    ]
     for run in re.finditer(r"^    async def run\s*\(", text, re.MULTILINE):
         preceding = [name for pos, name in classes if pos < run.start()]
         if preceding:
@@ -98,69 +108,8 @@ def _load_orchestrator_class(protocol_key: str):
     return getattr(module, class_name)
 
 
-# ── Agent resolution ─────────────────────────────────────────────────────────
-
-def _resolve_agents(agent_keys: list[str]) -> list[dict]:
-    """Build full agent dicts from DB (rich) or registry (thin).
-
-    DEPRECATED: Use build_production_agents() from protocols.agent_provider instead.
-    This function returns plain dicts (research/fallback mode) and is retained for
-    reference only. It is no longer called by run_protocol_stream or run_pipeline_stream.
-    """
-    from sqlmodel import select as sql_select
-
-    from api.models import Agent as AgentModel
-    from protocols.agents import BUILTIN_AGENTS
-
-    agents = []
-
-    with Session(engine) as sess:
-        for key in agent_keys:
-            db_agent = sess.exec(  # noqa: S102
-                sql_select(AgentModel).where(AgentModel.key == key)
-            ).first()
-
-            if db_agent and db_agent.system_prompt:
-                tools = json.loads(db_agent.tools_json) if db_agent.tools_json != "[]" else []
-
-                assembled_prompt = db_agent.system_prompt
-
-                frameworks = json.loads(db_agent.frameworks_json) if db_agent.frameworks_json != "[]" else []
-                if frameworks:
-                    assembled_prompt += "\n\n## Analytical Frameworks\n"
-                    for fw in frameworks:
-                        assembled_prompt += f"\n### {fw['name']}\n{fw['description']}\n**When to use:** {fw['when_to_use']}\n"
-
-                if db_agent.deliverable_template:
-                    assembled_prompt += f"\n\n## Deliverable Template\n{db_agent.deliverable_template}"
-
-                if db_agent.communication_style:
-                    assembled_prompt += f"\n\n## Communication Style\n{db_agent.communication_style}"
-
-                agent_dict = {
-                    "name": db_agent.name,
-                    "system_prompt": assembled_prompt,
-                    "tools": tools,
-                    "max_tokens": db_agent.max_tokens,
-                    "temperature": db_agent.temperature,
-                }
-                if db_agent.model:
-                    agent_dict["model"] = db_agent.model
-
-                agents.append(agent_dict)
-            elif key in BUILTIN_AGENTS:
-                a = BUILTIN_AGENTS[key]
-                agents.append({
-                    "name": a["name"],
-                    "system_prompt": a["system_prompt"],
-                })
-            else:
-                agents.append({"name": key, "system_prompt": f"You are {key}."})
-
-    return agents
-
-
 # ── SSE event helpers ────────────────────────────────────────────────────────
+
 
 def _sse_event(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
@@ -226,6 +175,7 @@ def _merge_cost_summaries(cost_summaries: list[dict[str, Any]]) -> dict[str, Any
 
 # ── Single protocol run ─────────────────────────────────────────────────────
 
+
 async def run_protocol_stream(
     run_id: int,
     protocol_key: str,
@@ -237,12 +187,18 @@ async def run_protocol_stream(
     no_tools: bool = False,
     context: "RunContext | None" = None,
     tenant_slug: str = "cardinal-element",
+    cost_ceiling_usd: float | None = None,
 ) -> AsyncGenerator[str, None]:
     """Execute a protocol and yield SSE events.
 
     ``tenant_slug`` is propagated to ``persist_run`` so the Postgres run row
     is correctly tenant-scoped. Defaults to ``cardinal-element`` for CLI/local
     callers that don't have an auth context.
+
+    ``cost_ceiling_usd`` is the per-run entitlement cost cap. When set (and
+    entitlement enforcement is on), the run hard-stops with a
+    ``cost_cap_exceeded`` error once accumulated LLM spend crosses it. When
+    None, the tracker falls back to the warn-only ``PROTOCOL_COST_CEILING``.
     """
     from api.context_pipeline import build_effective_question, cleanup_run_context
 
@@ -257,23 +213,25 @@ async def run_protocol_stream(
             session.commit()
 
     started_at = datetime.now(timezone.utc)
+    cost_tracker: ProtocolCostTracker | None = None
 
     try:
         OrchestratorClass = _load_orchestrator_class(protocol_key)
-        agents = build_production_agents(agent_keys)
+        agents = build_production_agents(agent_keys, model=thinking_model)
 
         # M5: Assemble context from the tenant's knowledge graph + inject as
         # institutional_memory. Best-effort -- failures don't block the run.
         try:
             from protocols.context_assembler import assemble_context
+
             _ce_brief = await assemble_context(tenant_slug, question, agent_keys)
             if _ce_brief:
                 for agent in agents:
                     if hasattr(agent, "institutional_memory"):
                         existing = getattr(agent, "institutional_memory", None) or ""
                         agent.institutional_memory = (
-                            (existing + "\n\n" if existing else "") + _ce_brief
-                        )
+                            existing + "\n\n" if existing else ""
+                        ) + _ce_brief
         except Exception:
             pass
 
@@ -281,6 +239,7 @@ async def run_protocol_stream(
         _learning_categories = ["unclassified"]
         try:
             import anthropic as _anth
+
             _learning_client = _anth.AsyncAnthropic()
             _user_config = {"rounds": rounds}
             _user_config, _learning_categories = await pre_run_hook(
@@ -295,9 +254,14 @@ async def run_protocol_stream(
         except Exception:
             pass  # Learning hooks are non-blocking
 
-        yield _sse_event("agent_roster", {
-            "agents": [{"key": k, "name": a["name"]} for k, a in zip(agent_keys, agents)]
-        })
+        yield _sse_event(
+            "agent_roster",
+            {
+                "agents": [
+                    {"key": k, "name": a["name"]} for k, a in zip(agent_keys, agents)
+                ]
+            },
+        )
 
         # Build orchestrator kwargs, then filter to what the orchestrator's
         # __init__ actually accepts. Older orchestrators (e.g. P04 Debate) don't
@@ -313,7 +277,9 @@ async def run_protocol_stream(
 
         _accepted = inspect.signature(OrchestratorClass.__init__).parameters
         # If __init__ uses **kwargs, pass everything; otherwise drop keys it doesn't name.
-        accepts_var_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in _accepted.values())
+        accepts_var_kwargs = any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in _accepted.values()
+        )
         kwargs = (
             candidate_kwargs
             if accepts_var_kwargs
@@ -335,15 +301,24 @@ async def run_protocol_stream(
         # Inject uploaded context into the question
         effective_question = question
         if context is not None:
-            yield _sse_event("context_processing", {
-                "message": f"Processing {len(context.files)} context file(s)...",
-                "mode": context.mode,
-                "files": [f.metadata_dict() for f in context.files],
-            })
+            yield _sse_event(
+                "context_processing",
+                {
+                    "message": f"Processing {len(context.files)} context file(s)...",
+                    "mode": context.mode,
+                    "files": [f.metadata_dict() for f in context.files],
+                },
+            )
             effective_question = await build_effective_question(question, context)
 
-        # Set up cost tracker for this run
-        cost_tracker = ProtocolCostTracker()
+        # Set up cost tracker for this run. A per-tier entitlement ceiling
+        # hard-stops the run; without one, warn-only env ceiling applies.
+        from api.entitlements import _enforce as _entitlements_enforce
+
+        cost_tracker = ProtocolCostTracker(
+            cost_ceiling_usd=cost_ceiling_usd,
+            hard_stop=cost_ceiling_usd is not None and _entitlements_enforce(),
+        )
         set_cost_tracker(cost_tracker)
 
         # Set up event queue for live tool visibility
@@ -435,11 +410,11 @@ async def run_protocol_stream(
         if envelope.result_summary and envelope.agent_outputs:
             try:
                 from protocols.tracing import make_client as _make_judge_client
+
                 judge_client = _make_judge_client(protocol_id="judge")
                 judge = QualityJudge(judge_client)
                 agent_outputs_text = "\n\n".join(
-                    f"=== {o.agent_key} ===\n{o.text}"
-                    for o in envelope.agent_outputs
+                    f"=== {o.agent_key} ===\n{o.text}" for o in envelope.agent_outputs
                 )
                 verdict = await judge.evaluate(
                     question=question,
@@ -452,7 +427,9 @@ async def run_protocol_stream(
                 # Attach scores to Langfuse trace for dashboard filtering/trends
                 trace_id = envelope.trace_id
                 for dim in ("completeness", "consistency", "actionability", "overall"):
-                    score_trace(f"judge_{dim}", float(getattr(verdict, dim)), trace_id=trace_id)
+                    score_trace(
+                        f"judge_{dim}", float(getattr(verdict, dim)), trace_id=trace_id
+                    )
                 score_trace(
                     "judge_recommendation",
                     1.0 if verdict.recommendation == "accept" else 0.0,
@@ -466,9 +443,7 @@ async def run_protocol_stream(
                     "component": "judge",
                     "recoverable": True,
                 }
-                run_warnings.append(
-                    TelemetryWarning(**_judge_warning)
-                )
+                run_warnings.append(TelemetryWarning(**_judge_warning))
 
         # Persist outputs
         with Session(engine) as session:
@@ -481,7 +456,9 @@ async def run_protocol_stream(
                 if judge_verdict_dict:
                     run.judge_verdict_json = json.dumps(judge_verdict_dict)
                 if envelope.telemetry_degraded:
-                    warning_json = json.dumps([w.as_dict() for w in envelope.warnings])[:4000]
+                    warning_json = json.dumps([w.as_dict() for w in envelope.warnings])[
+                        :4000
+                    ]
                     run.error_message = warning_json
                 session.add(run)
 
@@ -492,7 +469,9 @@ async def run_protocol_stream(
                             agent_key=out.agent_key,
                             model=out.model or thinking_model,
                             output_text=out.text,
-                            tool_calls_json=json.dumps(out.tool_calls) if out.tool_calls else "[]",
+                            tool_calls_json=json.dumps(out.tool_calls)
+                            if out.tool_calls
+                            else "[]",
                             input_tokens=out.input_tokens,
                             output_tokens=out.output_tokens,
                             cost_usd=out.cost_usd,
@@ -541,15 +520,20 @@ async def run_protocol_stream(
         # via context_assembler. Best-effort; never blocks the run.
         try:
             from protocols.graph_writer import write_decision
+
             try:
                 envelope.run_id = run_id  # type: ignore[attr-defined]
             except Exception:
                 pass
-            await write_decision(tenant_slug=tenant_slug, envelope=envelope, run_id_source=str(run_id))
+            await write_decision(
+                tenant_slug=tenant_slug, envelope=envelope, run_id_source=str(run_id)
+            )
         except Exception as graph_err:
             _log.warning(
                 "graph_writer.invoke_failed run_id=%s tenant=%s err=%s",
-                run_id, tenant_slug, graph_err,
+                run_id,
+                tenant_slug,
+                graph_err,
             )
 
         if persist_outcome.telemetry_degraded:
@@ -560,19 +544,27 @@ async def run_protocol_stream(
                 with Session(engine) as session:
                     run = session.get(Run, run_id)
                     if run and run.status == "completed":
-                        run.error_message = json.dumps([w.as_dict() for w in fatal_warnings])[:4000]
+                        run.error_message = json.dumps(
+                            [w.as_dict() for w in fatal_warnings]
+                        )[:4000]
                         session.add(run)
                         session.commit()
 
         # Protocol learning: record run outcome
         try:
             await post_run_hook(
-                run_id=persist_outcome.run_id if persist_outcome and persist_outcome.run_id else str(run_id),
+                run_id=persist_outcome.run_id
+                if persist_outcome and persist_outcome.run_id
+                else str(run_id),
                 protocol_key=protocol_key,
                 question=question,
                 question_categories=_learning_categories,
                 eval_score=_judge_overall,
-                config={"rounds": rounds, "agents": agent_keys, "thinking_model": thinking_model},
+                config={
+                    "rounds": rounds,
+                    "agents": agent_keys,
+                    "thinking_model": thinking_model,
+                },
                 synthesis_text=envelope.result_summary or "",
                 cost_summary=cost_summary,
             )
@@ -608,12 +600,26 @@ async def run_protocol_stream(
         tb_str = traceback.format_exc()
         run_warnings: list[dict[str, Any]] = []
         _active_run_tasks.pop(run_id, None)
+        cost_capped = isinstance(e, CostCeilingExceeded)
+        if cost_capped:
+            error_message = json.dumps(
+                {
+                    "code": "cost_cap_exceeded",
+                    "message": str(e),
+                    "total_cost_usd": round(e.total_cost, 6),
+                    "ceiling_usd": e.ceiling,
+                }
+            )
+        else:
+            error_message = tb_str[:4000]  # truncate to avoid oversized rows
         with Session(engine) as session:
             run = session.get(Run, run_id)
             if run:
                 run.status = "failed"
                 run.completed_at = datetime.now(timezone.utc)
-                run.error_message = tb_str[:4000]  # truncate to avoid oversized rows
+                run.error_message = error_message
+                if cost_tracker is not None:
+                    run.cost_usd = cost_tracker.total_cost
                 session.add(run)
                 session.commit()
 
@@ -641,7 +647,19 @@ async def run_protocol_stream(
             )
 
         _log.error("Run failed:\n%s", tb_str)
-        yield _sse_event("error", {"message": str(e)})
+        error_event: dict[str, Any] = {"message": str(e)}
+        if cost_capped:
+            error_event = {
+                "code": "cost_cap_exceeded",
+                "message": (
+                    "Run stopped: it reached your plan's per-run cost cap. "
+                    "Upgrade for a higher cap."
+                ),
+                "total_cost_usd": round(e.total_cost, 6),
+                "ceiling_usd": e.ceiling,
+                "upgrade_url": "/billing",
+            }
+        yield _sse_event("error", error_event)
         yield _sse_event(
             "run_complete",
             {
@@ -663,6 +681,7 @@ async def run_protocol_stream(
 
 # ── Pipeline run ─────────────────────────────────────────────────────────────
 
+
 async def run_pipeline_stream(
     run_id: int,
     steps: list[dict],
@@ -677,7 +696,15 @@ async def run_pipeline_stream(
     already-completed steps and continue from the last checkpoint.
     """
 
-    yield _sse_event("run_start", {"run_id": run_id, "type": "pipeline", "step_count": len(steps), "resuming_from": start_from_step})
+    yield _sse_event(
+        "run_start",
+        {
+            "run_id": run_id,
+            "type": "pipeline",
+            "step_count": len(steps),
+            "resuming_from": start_from_step,
+        },
+    )
 
     # Set session_id so all protocol traces in this pipeline are grouped
     pipeline_session_id = f"pipeline-{run_id}"
@@ -732,12 +759,15 @@ async def run_pipeline_stream(
                 step_id = run_step.id
 
             OrchestratorClass = _load_orchestrator_class(protocol_key)
-            agents = build_production_agents(agent_keys)
+            step_thinking_model = step.get("thinking_model", THINKING_MODEL)
+            agents = build_production_agents(agent_keys, model=step_thinking_model)
 
             kwargs: dict[str, Any] = {
                 "agents": agents,
-                "thinking_model": step.get("thinking_model", THINKING_MODEL),
-                "orchestration_model": step.get("orchestration_model", ORCHESTRATION_MODEL),
+                "thinking_model": step_thinking_model,
+                "orchestration_model": step.get(
+                    "orchestration_model", ORCHESTRATION_MODEL
+                ),
             }
             if step.get("rounds"):
                 kwargs["rounds"] = step["rounds"]
@@ -755,9 +785,9 @@ async def run_pipeline_stream(
             step_tool_events: list[dict[str, Any]] = []
             pip_task = asyncio.create_task(orchestrator.run(step_question))
             _active_run_tasks[run_id] = pip_task
-            pip_task.add_done_callback(lambda t: (
-                t.exception() if not t.cancelled() and t.exception() else None
-            ))
+            pip_task.add_done_callback(
+                lambda t: t.exception() if not t.cancelled() and t.exception() else None
+            )
 
             pip_t0 = time.time()
             pip_last_heartbeat = time.time()
@@ -805,11 +835,15 @@ async def run_pipeline_stream(
                 yield _sse_event("agent_output", {**output.as_sse_payload(), "step": i})
 
             if step_env.result_summary:
-                yield _sse_event("synthesis", {"text": step_env.result_summary, "step": i})
+                yield _sse_event(
+                    "synthesis", {"text": step_env.result_summary, "step": i}
+                )
 
             # Pass output forward
             if step.get("output_passthrough", True):
-                prev_output = step_env.result_summary or (step_env.agent_outputs[-1].text if step_env.agent_outputs else "")
+                prev_output = step_env.result_summary or (
+                    step_env.agent_outputs[-1].text if step_env.agent_outputs else ""
+                )
 
             # Update step record with checkpoint for resume
             with Session(engine) as session:
@@ -837,11 +871,14 @@ async def run_pipeline_stream(
                 )
             )
             set_cost_tracker(None)
-            yield _sse_event("step_complete", {
-                "step": i,
-                "protocol_key": protocol_key,
-                "cost": step_cost_summary,
-            })
+            yield _sse_event(
+                "step_complete",
+                {
+                    "step": i,
+                    "protocol_key": protocol_key,
+                    "cost": step_cost_summary,
+                },
+            )
 
         # Mark run complete and persist agent outputs for report generation
         with Session(engine) as session:
@@ -868,7 +905,9 @@ async def run_pipeline_stream(
                                 agent_key=out.agent_key,
                                 model=out.model or "",
                                 output_text=out.text,
-                                tool_calls_json=json.dumps(out.tool_calls) if out.tool_calls else "[]",
+                                tool_calls_json=json.dumps(out.tool_calls)
+                                if out.tool_calls
+                                else "[]",
                                 input_tokens=out.input_tokens,
                                 output_tokens=out.output_tokens,
                                 cost_usd=out.cost_usd,
@@ -928,7 +967,9 @@ async def run_pipeline_stream(
                 with Session(engine) as session:
                     run = session.get(Run, run_id)
                     if run:
-                        run.error_message = json.dumps([w.as_dict() for w in pipeline_envelope.warnings])[:4000]
+                        run.error_message = json.dumps(
+                            [w.as_dict() for w in pipeline_envelope.warnings]
+                        )[:4000]
                         session.add(run)
                         session.commit()
         except Exception as pg_err:

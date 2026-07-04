@@ -76,7 +76,11 @@ def _infer_pattern_from_stages(stages: list[dict], cap: dict) -> str:
         for s in agent_stages:
             for dep in s.get("depends_on") or []:
                 target = _resolve_dep(dep)
-                if target is not None and _stage_kind(target) == "agent" and target is not s:
+                if (
+                    target is not None
+                    and _stage_kind(target) == "agent"
+                    and target is not s
+                ):
                     return "hybrid_matrix"
 
     # Parallel: one agent stage + synthesis (canonical P3 shape).
@@ -108,11 +112,24 @@ def _infer_pattern_from_metadata(cap: dict) -> str:
     if any(
         k in name
         for k in (
-            "red", "troika", "ach", "competing hypotheses",
-            "heard", "wicked", "min specs", "one two four",
-            "1-2-4", "25/10", "crowd", "discovery action",
-            "affinity", "crazy eights", "evaporation", "current reality",
-            "premortem", "delphi",
+            "red",
+            "troika",
+            "ach",
+            "competing hypotheses",
+            "heard",
+            "wicked",
+            "min specs",
+            "one two four",
+            "1-2-4",
+            "25/10",
+            "crowd",
+            "discovery action",
+            "affinity",
+            "crazy eights",
+            "evaporation",
+            "current reality",
+            "premortem",
+            "delphi",
         )
     ):
         return "hub_and_spoke"
@@ -157,6 +174,13 @@ def _resolve_recommended_agents(cap: dict) -> list[str]:
     return list(_DEFAULT_RECOMMENDED_AGENTS)
 
 
+def _free_protocol_keys() -> frozenset[str]:
+    """Protocols available on the free plan (lazy import avoids a cycle)."""
+    from api.entitlements import FREE_PROTOCOL_KEYS
+
+    return FREE_PROTOCOL_KEYS
+
+
 def get_protocol_manifest() -> list[dict]:
     """Scan all protocol directories and return metadata list."""
     protocols = []
@@ -171,24 +195,27 @@ def get_protocol_manifest() -> list[dict]:
         if cap is None:
             continue
 
-        protocols.append({
-            "key": d.name,
-            "protocol_id": cap.get("protocol_id", d.name),
-            "name": cap.get("name", d.name),
-            "category": cap.get("category", ""),
-            "problem_types": cap.get("problem_types", []),
-            "cost_tier": cap.get("cost_tier", ""),
-            "min_agents": cap.get("min_agents", 1),
-            "max_agents": cap.get("max_agents"),
-            "supports_rounds": cap.get("supports_rounds", False),
-            "description": cap.get("description", ""),
-            "when_to_use": cap.get("when_to_use", ""),
-            "when_not_to_use": cap.get("when_not_to_use", ""),
-            "tools_enabled": cap.get("tools_enabled", True),
-            "has_stage_manifest": bool(cap.get("stages")),
-            "orchestration_pattern": _infer_orchestration_pattern(cap),
-            "recommended_agents": _resolve_recommended_agents(cap),
-        })
+        protocols.append(
+            {
+                "key": d.name,
+                "protocol_id": cap.get("protocol_id", d.name),
+                "name": cap.get("name", d.name),
+                "category": cap.get("category", ""),
+                "problem_types": cap.get("problem_types", []),
+                "cost_tier": cap.get("cost_tier", ""),
+                "min_agents": cap.get("min_agents", 1),
+                "max_agents": cap.get("max_agents"),
+                "supports_rounds": cap.get("supports_rounds", False),
+                "description": cap.get("description", ""),
+                "when_to_use": cap.get("when_to_use", ""),
+                "when_not_to_use": cap.get("when_not_to_use", ""),
+                "tools_enabled": cap.get("tools_enabled", True),
+                "premium": d.name not in _free_protocol_keys(),
+                "has_stage_manifest": bool(cap.get("stages")),
+                "orchestration_pattern": _infer_orchestration_pattern(cap),
+                "recommended_agents": _resolve_recommended_agents(cap),
+            }
+        )
 
     return protocols
 

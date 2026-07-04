@@ -1,26 +1,16 @@
 // Proxy: /api/proxy/integrations/[name] -> Railway /api/integrations/{name}. PUT + DELETE.
 
-import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
-
-const API_BASE = process.env.NEXT_PUBLIC_RAILWAY_API_URL ?? "http://localhost:8000";
+import { proxyToRailway } from "@/lib/railway";
 
 async function proxy(req: NextRequest, method: string, name: string) {
-  const { getToken } = await auth();
-  const token = await getToken({ template: "ce-railway" }).catch(() => null);
   const body = method === "DELETE" ? undefined : await req.text();
 
-  const upstream = await fetch(
-    `${API_BASE}/api/integrations/${encodeURIComponent(name)}`,
-    {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body,
-    },
-  );
+  const upstream = await proxyToRailway(`/api/integrations/${encodeURIComponent(name)}`, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
 
   if (method === "DELETE" && upstream.status === 204) {
     return new Response(null, { status: 204 });

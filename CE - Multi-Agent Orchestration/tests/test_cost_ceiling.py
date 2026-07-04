@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-import os
 
 import pytest
 
-from protocols.cost_tracker import ProtocolCostTracker
+from protocols.cost_tracker import CostCeilingExceeded, ProtocolCostTracker
 
 
 @pytest.fixture(autouse=True)
@@ -18,13 +17,19 @@ def _clear_ceiling_env(monkeypatch: pytest.MonkeyPatch):
 
 # ---- helpers ----------------------------------------------------------------
 
-def _track_cost(tracker: ProtocolCostTracker, model: str = "claude-haiku-4-5-20251001",
-                input_tokens: int = 5000, output_tokens: int = 1000) -> None:
+
+def _track_cost(
+    tracker: ProtocolCostTracker,
+    model: str = "claude-haiku-4-5-20251001",
+    input_tokens: int = 5000,
+    output_tokens: int = 1000,
+) -> None:
     """Fire one track() call with token counts that produce a known cost."""
     tracker.track(model=model, input_tokens=input_tokens, output_tokens=output_tokens)
 
 
 # ---- tests ------------------------------------------------------------------
+
 
 def test_ceiling_warning_fires(caplog: pytest.LogCaptureFixture):
     """Warning is logged when total cost exceeds the ceiling."""
@@ -52,6 +57,33 @@ def test_ceiling_from_env(monkeypatch: pytest.MonkeyPatch):
     assert tracker.cost_ceiling_usd == 1.0
 
 
+def test_hard_stop_raises_when_ceiling_crossed():
+    """hard_stop=True raises CostCeilingExceeded on the call that crosses."""
+    tracker = ProtocolCostTracker(cost_ceiling_usd=0.001, hard_stop=True)
+    with pytest.raises(CostCeilingExceeded) as exc_info:
+        _track_cost(tracker, input_tokens=10_000, output_tokens=5_000)
+    assert exc_info.value.ceiling == 0.001
+    assert exc_info.value.total_cost > 0.001
+    # The crossing call's cost is still recorded before the raise.
+    assert tracker.total_cost == exc_info.value.total_cost
+
+
+def test_hard_stop_keeps_raising_on_subsequent_calls():
+    """Every track() after the ceiling is crossed raises (no further spend)."""
+    tracker = ProtocolCostTracker(cost_ceiling_usd=0.001, hard_stop=True)
+    with pytest.raises(CostCeilingExceeded):
+        _track_cost(tracker, input_tokens=10_000, output_tokens=5_000)
+    with pytest.raises(CostCeilingExceeded):
+        _track_cost(tracker, input_tokens=100, output_tokens=10)
+
+
+def test_default_is_warn_only():
+    """Without hard_stop, crossing the ceiling never raises (legacy behavior)."""
+    tracker = ProtocolCostTracker(cost_ceiling_usd=0.001)
+    _track_cost(tracker, input_tokens=10_000, output_tokens=5_000)
+    _track_cost(tracker, input_tokens=10_000, output_tokens=5_000)  # no raise
+
+
 def test_ceiling_warns_once(caplog: pytest.LogCaptureFixture):
     """Ceiling warning fires only once even when cost exceeds on multiple track() calls."""
     tracker = ProtocolCostTracker(cost_ceiling_usd=0.001)
@@ -59,4 +91,6 @@ def test_ceiling_warns_once(caplog: pytest.LogCaptureFixture):
         _track_cost(tracker, input_tokens=10_000, output_tokens=5_000)
         _track_cost(tracker, input_tokens=10_000, output_tokens=5_000)
     warnings = [r for r in caplog.records if "exceeds ceiling" in r.message]
-    assert len(warnings) == 1, f"Expected exactly 1 warning, got {len(warnings)}: {warnings}"
+    assert len(warnings) == 1, (
+        f"Expected exactly 1 warning, got {len(warnings)}: {warnings}"
+    )

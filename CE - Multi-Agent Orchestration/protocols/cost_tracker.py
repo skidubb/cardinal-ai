@@ -25,6 +25,21 @@ from ce_shared.pricing import cost_for_model
 logger = logging.getLogger(__name__)
 
 
+class CostCeilingExceeded(RuntimeError):
+    """Raised by a hard-stop tracker when a run crosses its cost ceiling.
+
+    The call that crossed the ceiling has already been paid for and recorded;
+    raising prevents any further LLM calls in the run.
+    """
+
+    def __init__(self, total_cost: float, ceiling: float) -> None:
+        self.total_cost = total_cost
+        self.ceiling = ceiling
+        super().__init__(
+            f"Run cost ${total_cost:.4f} exceeded the ${ceiling:.2f} ceiling"
+        )
+
+
 def _compute_cost(
     model: str,
     input_tokens: int,
@@ -55,6 +70,7 @@ def _compute_cost(
 # Per-model accumulator
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class _ModelStats:
     calls: int = 0
@@ -68,6 +84,7 @@ class _ModelStats:
 # ---------------------------------------------------------------------------
 # Per-agent accumulator
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class _AgentStats:
@@ -84,24 +101,31 @@ class _AgentStats:
 # ProtocolCostTracker
 # ---------------------------------------------------------------------------
 
+
 class ProtocolCostTracker:
     """Accumulate token usage and compute USD cost for a single protocol run.
 
     Thread-safety note: protocols use asyncio (single thread), so no locking needed.
     """
 
-    def __init__(self, cost_ceiling_usd: float | None = None) -> None:
+    def __init__(
+        self,
+        cost_ceiling_usd: float | None = None,
+        hard_stop: bool = False,
+    ) -> None:
         self._calls: int = 0
         self._total_cost: float = 0.0
         self._by_model: dict[str, _ModelStats] = {}
         self._by_agent: dict[str, _AgentStats] = {}
 
-        # Budget ceiling: warn (but don't halt) when exceeded
+        # Budget ceiling: warn when exceeded; with hard_stop=True, raise
+        # CostCeilingExceeded instead (per-tier entitlement enforcement).
         if cost_ceiling_usd is not None:
             self.cost_ceiling_usd: float | None = cost_ceiling_usd
         else:
             env_val = os.environ.get("PROTOCOL_COST_CEILING")
             self.cost_ceiling_usd = float(env_val) if env_val else None
+        self.hard_stop = hard_stop
         self._ceiling_warned: bool = False
 
     # ------------------------------------------------------------------
@@ -127,7 +151,9 @@ class ProtocolCostTracker:
             agent_name: Optional label for per-agent breakdown.
             cache_write_tokens: Cache-write tokens (charged at 1.25×).
         """
-        cost = _compute_cost(model, input_tokens, output_tokens, cached_tokens, cache_write_tokens)
+        cost = _compute_cost(
+            model, input_tokens, output_tokens, cached_tokens, cache_write_tokens
+        )
         self._calls += 1
         self._total_cost += cost
 
@@ -156,19 +182,21 @@ class ProtocolCostTracker:
             model_stats.cache_write_tokens += cache_write_tokens
             model_stats.cost_usd += cost
 
-        # Budget ceiling check (warn once per run)
+        # Budget ceiling check (warn once per run; hard_stop raises instead)
         if (
             self.cost_ceiling_usd is not None
-            and not self._ceiling_warned
             and self._total_cost > self.cost_ceiling_usd
         ):
-            self._ceiling_warned = True
-            logger.warning(
-                "Protocol cost $%.4f exceeds ceiling $%.2f%s",
-                self._total_cost,
-                self.cost_ceiling_usd,
-                f" (model: {model})" if model else "",
-            )
+            if not self._ceiling_warned:
+                self._ceiling_warned = True
+                logger.warning(
+                    "Protocol cost $%.4f exceeds ceiling $%.2f%s",
+                    self._total_cost,
+                    self.cost_ceiling_usd,
+                    f" (model: {model})" if model else "",
+                )
+            if self.hard_stop:
+                raise CostCeilingExceeded(self._total_cost, self.cost_ceiling_usd)
 
     @property
     def total_cost(self) -> float:
@@ -220,7 +248,9 @@ class ProtocolCostTracker:
                     "primary_model": max(
                         s.by_model.items(),
                         key=lambda kv: kv[1].calls,
-                    )[0] if s.by_model else "",
+                    )[0]
+                    if s.by_model
+                    else "",
                     "by_model": {
                         model: {
                             "calls": ms.calls,

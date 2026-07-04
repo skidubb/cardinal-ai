@@ -5,9 +5,15 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from api.database import get_session
+from api.entitlements import (
+    FEATURE_CUSTOM,
+    TenantEntitlements,
+    require_feature,
+)
 from api.models import Agent
 from api.tool_registry import (
     MCP_SERVER_CATALOG,
@@ -17,6 +23,8 @@ from api.tool_registry import (
     TOOL_CATALOG,
 )
 from protocols.agents import AGENT_CATEGORIES, BUILTIN_AGENTS
+
+_require_custom = require_feature(FEATURE_CUSTOM)
 
 # Import rich production prompts from Agent Builder (the real system prompts)
 try:
@@ -29,6 +37,7 @@ tools_router = APIRouter(prefix="/api", tags=["tools"])
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _get_parent_executive(category: str) -> str:
     """Map a sub-agent category to its parent executive role."""
@@ -111,12 +120,14 @@ def _db_agent_to_dict(a: Agent) -> dict:
 
 # ── Tools endpoint (separate router to avoid /{key} conflict) ────────────────
 
+
 @tools_router.get("/tools")
 def list_tools():
     return {"tools": TOOL_CATALOG, "mcp_servers": MCP_SERVER_CATALOG}
 
 
 # ── Agent endpoints ──────────────────────────────────────────────────────────
+
 
 @router.get("")
 def list_agents(session: Session = Depends(get_session)) -> list[dict]:
@@ -140,25 +151,46 @@ def list_agents(session: Session = Depends(get_session)) -> list[dict]:
 
 def _apply_body_to_agent(agent: Agent, body: dict) -> None:
     """Apply a dict body (with list fields) to an Agent model (with JSON string fields)."""
-    for field in ["name", "category", "model", "temperature", "max_tokens", "system_prompt",
-                  "kb_write_enabled", "deliverable_template", "personality", "communication_style"]:
+    for field in [
+        "name",
+        "category",
+        "model",
+        "temperature",
+        "max_tokens",
+        "system_prompt",
+        "kb_write_enabled",
+        "deliverable_template",
+        "personality",
+        "communication_style",
+    ]:
         if field in body:
             setattr(agent, field, body[field])
 
-    for field, json_field in [("tools", "tools_json"), ("mcp_servers", "mcp_servers_json"),
-                               ("kb_namespaces", "kb_namespaces_json"), ("frameworks", "frameworks_json"),
-                               ("delegation", "delegation_json"), ("constraints", "constraints_json")]:
+    for field, json_field in [
+        ("tools", "tools_json"),
+        ("mcp_servers", "mcp_servers_json"),
+        ("kb_namespaces", "kb_namespaces_json"),
+        ("frameworks", "frameworks_json"),
+        ("delegation", "delegation_json"),
+        ("constraints", "constraints_json"),
+    ]:
         if field in body:
             setattr(agent, json_field, json.dumps(body[field]))
 
 
 @router.post("", status_code=201)
-def create_agent(body: dict, session: Session = Depends(get_session)) -> dict:
+def create_agent(
+    body: dict,
+    session: Session = Depends(get_session),
+    _feature: TenantEntitlements = Depends(_require_custom),
+) -> dict:
     key = body.get("key", "")
     if not key:
         raise HTTPException(status_code=400, detail="Agent key is required")
     if key in BUILTIN_AGENTS:
-        raise HTTPException(status_code=409, detail=f"Agent key '{key}' is a builtin agent")
+        raise HTTPException(
+            status_code=409, detail=f"Agent key '{key}' is a builtin agent"
+        )
     found = session.exec(select(Agent).where(Agent.key == key)).first()
     if found:
         raise HTTPException(status_code=409, detail=f"Agent key '{key}' already exists")
@@ -169,6 +201,43 @@ def create_agent(body: dict, session: Session = Depends(get_session)) -> dict:
     session.commit()
     session.refresh(agent)
     return _db_agent_to_dict(agent)
+
+
+class AgentSuggestRequest(BaseModel):
+    question: str
+    context: str | None = None
+    protocol_key: str | None = None
+
+
+@router.post("/suggest")
+async def suggest_agents_endpoint(
+    body: AgentSuggestRequest,
+    _feature: TenantEntitlements = Depends(_require_custom),
+) -> dict:
+    """LLM-designed agent suggestions for a question the bench may not cover.
+
+    Returns ranked existing agents, fully-specified new agent proposals
+    (field-compatible with POST /api/agents), and a suggested team. Nothing
+    is persisted here — creation goes through the normal create endpoint.
+    """
+    if not body.question.strip():
+        raise HTTPException(status_code=400, detail="question is required")
+
+    from protocols.agent_designer import suggest_agents
+
+    suggestion = await suggest_agents(
+        body.question,
+        context=body.context,
+        protocol_key=body.protocol_key,
+    )
+
+    # Enrich existing-agent picks with display metadata for the UI.
+    for pick in suggestion["existing_agents"]:
+        builtin = BUILTIN_AGENTS.get(pick["key"], {})
+        pick.setdefault("name", builtin.get("name", pick["key"]))
+        pick.setdefault("category", builtin.get("category", ""))
+
+    return suggestion
 
 
 @router.get("/{key}")
@@ -184,7 +253,12 @@ def get_agent(key: str, session: Session = Depends(get_session)) -> dict:
 
 
 @router.put("/{key}")
-def update_agent(key: str, body: dict, session: Session = Depends(get_session)) -> dict:
+def update_agent(
+    key: str,
+    body: dict,
+    session: Session = Depends(get_session),
+    _feature: TenantEntitlements = Depends(_require_custom),
+) -> dict:
     agent = session.exec(select(Agent).where(Agent.key == key)).first()
     if not agent:
         if key not in BUILTIN_AGENTS:
@@ -200,7 +274,11 @@ def update_agent(key: str, body: dict, session: Session = Depends(get_session)) 
 
 
 @router.delete("/{key}")
-def delete_agent(key: str, session: Session = Depends(get_session)) -> dict:
+def delete_agent(
+    key: str,
+    session: Session = Depends(get_session),
+    _feature: TenantEntitlements = Depends(_require_custom),
+) -> dict:
     if key in BUILTIN_AGENTS:
         raise HTTPException(
             status_code=400,
@@ -220,7 +298,11 @@ def delete_agent(key: str, session: Session = Depends(get_session)) -> dict:
 
 
 @router.post("/import-rich")
-def import_rich_endpoint(session: Session = Depends(get_session)):
+def import_rich_endpoint(
+    session: Session = Depends(get_session),
+    _feature: TenantEntitlements = Depends(_require_custom),
+):
     from api.import_rich_agents import import_rich_agents
+
     stats = import_rich_agents()
     return {"status": "ok", **stats}

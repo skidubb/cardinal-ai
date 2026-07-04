@@ -9,6 +9,7 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   match?: (pathname: string) => boolean;
+  pro?: boolean;
 }
 
 export interface NavGroupProps {
@@ -44,7 +45,12 @@ export function NavGroup({ label, items }: NavGroupProps) {
                 ].join(" ")}
               >
                 <Icon size={16} strokeWidth={2} className={active ? "text-primary" : "text-muted-foreground"} />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {item.pro ? (
+                  <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-wider text-primary">
+                    Pro
+                  </span>
+                ) : null}
               </Link>
             </li>
           );

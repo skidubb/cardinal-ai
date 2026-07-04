@@ -10,7 +10,13 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, col, select
 
 from api.database import engine, get_session
-from api.middleware.clerk_auth import resolve_tenant
+from api.entitlements import (
+    FEATURE_CUSTOM,
+    FEATURE_PREMIUM_PROTOCOLS,
+    TenantEntitlements,
+    require_feature,
+    require_run_admission,
+)
 from api.models import Pipeline, PipelineStep, Run, RunStep
 from api.pipeline_presets import PIPELINE_PRESETS
 from api.routers.runs import PipelineRunRequest
@@ -21,11 +27,13 @@ router = APIRouter(prefix="/api/pipelines", tags=["pipelines"])
 
 # ── POST /run — start a pipeline run with SSE streaming ──────────────────────
 
+
 @router.post("/run")
 async def start_pipeline_run(
     payload: PipelineRunRequest,
     request: Request,
-    tenant_slug: str = Depends(resolve_tenant),
+    te: TenantEntitlements = Depends(require_run_admission),
+    _feature: TenantEntitlements = Depends(require_feature(FEATURE_PREMIUM_PROTOCOLS)),
 ) -> StreamingResponse:
     """Start a pipeline run and stream SSE events.
 
@@ -34,7 +42,10 @@ async def start_pipeline_run(
 
     The run row is stamped with ``tenant_slug`` from the caller's Clerk JWT
     so the resulting run is visible to the caller's list-by-tenant query.
+    Pipelines compose multiple protocols, so they require the
+    premium_protocols feature in addition to run-quota admission.
     """
+    tenant_slug = te.tenant_slug
     steps = [
         {
             "protocol_key": s.protocol_key,
@@ -96,28 +107,48 @@ async def start_pipeline_run(
 
 # ── POST /resume/{run_id} — resume a failed/cancelled pipeline ──────────────
 
+
 @router.post("/resume/{run_id}")
-async def resume_pipeline_run(run_id: int, request: Request) -> StreamingResponse:
+async def resume_pipeline_run(
+    run_id: int,
+    request: Request,
+    te: TenantEntitlements = Depends(require_run_admission),
+    _feature: TenantEntitlements = Depends(require_feature(FEATURE_PREMIUM_PROTOCOLS)),
+) -> StreamingResponse:
     """Resume a failed or cancelled pipeline from the last completed step."""
     with Session(engine) as session:
         run = session.get(Run, run_id)
         if not run or run.type != "pipeline":
             raise HTTPException(status_code=404, detail="Pipeline run not found")
         if run.status not in ("failed", "cancelled"):
-            raise HTTPException(status_code=400, detail=f"Run is {run.status}, not resumable")
+            raise HTTPException(
+                status_code=400, detail=f"Run is {run.status}, not resumable"
+            )
 
         # Load original config
-        steps = _json.loads(run.steps_json) if run.steps_json and run.steps_json != "[]" else []
-        agent_keys = _json.loads(run.agent_keys_json) if run.agent_keys_json and run.agent_keys_json != "[]" else []
+        steps = (
+            _json.loads(run.steps_json)
+            if run.steps_json and run.steps_json != "[]"
+            else []
+        )
+        agent_keys = (
+            _json.loads(run.agent_keys_json)
+            if run.agent_keys_json and run.agent_keys_json != "[]"
+            else []
+        )
         if not steps or not agent_keys:
-            raise HTTPException(status_code=400, detail="Run missing step/agent config — cannot resume")
+            raise HTTPException(
+                status_code=400, detail="Run missing step/agent config — cannot resume"
+            )
 
         # Find last completed step
-        completed_steps = list(session.exec(
-            select(RunStep)
-            .where(RunStep.run_id == run_id, RunStep.status == "completed")
-            .order_by(col(RunStep.step_order).desc())
-        ).all())
+        completed_steps = list(
+            session.exec(
+                select(RunStep)
+                .where(RunStep.run_id == run_id, RunStep.status == "completed")
+                .order_by(col(RunStep.step_order).desc())
+            ).all()
+        )
 
         start_from = 0
         prev_output = ""
@@ -155,7 +186,9 @@ async def resume_pipeline_run(run_id: int, request: Request) -> StreamingRespons
 
 @router.get("")
 def list_pipelines(session: Session = Depends(get_session)) -> list[dict]:
-    db_pipelines = [_pipeline_with_steps(p, session) for p in session.exec(select(Pipeline)).all()]
+    db_pipelines = [
+        _pipeline_with_steps(p, session) for p in session.exec(select(Pipeline)).all()
+    ]
     return PIPELINE_PRESETS + db_pipelines  # noqa: RUF005
 
 
@@ -163,6 +196,7 @@ def list_pipelines(session: Session = Depends(get_session)) -> list[dict]:
 def create_pipeline(
     payload: dict,
     session: Session = Depends(get_session),
+    _feature: TenantEntitlements = Depends(require_feature(FEATURE_CUSTOM)),
 ) -> dict:
     steps_data = payload.pop("steps", [])
     pipeline = Pipeline(**payload)
@@ -180,7 +214,11 @@ def create_pipeline(
 
 
 @router.delete("/{pipeline_id}", status_code=204)
-def delete_pipeline(pipeline_id: str, session: Session = Depends(get_session)):
+def delete_pipeline(
+    pipeline_id: str,
+    session: Session = Depends(get_session),
+    _feature: TenantEntitlements = Depends(require_feature(FEATURE_CUSTOM)),
+):
     if not pipeline_id.isdigit():
         raise HTTPException(status_code=400, detail="Presets cannot be deleted")
     pid = int(pipeline_id)

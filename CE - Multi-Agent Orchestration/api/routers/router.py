@@ -24,18 +24,32 @@ from api.context_pipeline import (
     process_uploaded_files,
 )
 from api.database import engine
-from api.middleware.clerk_auth import resolve_tenant
+from api.entitlements import (
+    FEATURE_PREMIUM_PROTOCOLS,
+    FREE_PROTOCOL_KEYS,
+    TenantEntitlements,
+    check_protocol_allowed,
+    require_run_admission,
+)
 from api.models import Run
 from api.runner import run_protocol_stream
 from protocols.adaptive_router import (
     AdaptiveRouterOrchestrator,
     Resolver,
 )
+from protocols.adaptive_router.resolver import DEFAULT_ALLOWLIST
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 
 _log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/router", tags=["router"])
+
+
+def _resolver_allowlist(te: TenantEntitlements) -> frozenset[str] | None:
+    """Free tenants route only within the free protocol set (degrade, not 403)."""
+    if FEATURE_PREMIUM_PROTOCOLS in te.entitlements.features:
+        return None  # Resolver default allowlist
+    return FREE_PROTOCOL_KEYS & DEFAULT_ALLOWLIST
 
 
 class RouterRunRequest(BaseModel):
@@ -73,7 +87,7 @@ async def decide_only(payload: RouterRunRequest) -> dict:
 async def router_run(
     payload: RouterRunRequest,
     request: Request,
-    tenant_slug: str = Depends(resolve_tenant),
+    te: TenantEntitlements = Depends(require_run_admission),
 ) -> StreamingResponse:
     """Classify, resolve, then stream the chosen protocol's SSE events.
 
@@ -83,8 +97,12 @@ async def router_run(
 
     If the decision has no plan or tier=='low', yields `router_error` and stops.
     """
+    tenant_slug = te.tenant_slug
+    allowlist = _resolver_allowlist(te)
     orchestrator = AdaptiveRouterOrchestrator(
-        resolver=Resolver(max_cost_tier=payload.max_cost_tier),
+        resolver=Resolver(allowlist=allowlist, max_cost_tier=payload.max_cost_tier)
+        if allowlist is not None
+        else Resolver(max_cost_tier=payload.max_cost_tier),
         high_threshold=payload.high_threshold,
         mid_threshold=payload.mid_threshold,
     )
@@ -119,6 +137,7 @@ async def router_run(
 
     # Create the Run record so the executed protocol's events persist properly.
     plan = decision.plan
+    check_protocol_allowed(plan.protocol_key, te)
     with Session(engine) as session:
         run = Run(
             type="protocol",
@@ -151,6 +170,7 @@ async def router_run(
                 rounds=payload.rounds,
                 no_tools=payload.no_tools,
                 tenant_slug=tenant_slug,
+                cost_ceiling_usd=te.entitlements.run_cost_ceiling_usd,
             ):
                 await event_queue.put(chunk)
         finally:
@@ -185,7 +205,7 @@ async def router_run_with_context(
     orchestration_model: str = Form(ORCHESTRATION_MODEL),
     no_tools: bool = Form(False),
     files: list[UploadFile] = File(default=[]),
-    tenant_slug: str = Depends(resolve_tenant),
+    te: TenantEntitlements = Depends(require_run_admission),
 ) -> StreamingResponse:
     """Smart-route + uploaded context. Classifies the question via P0a, then
     runs the chosen protocol with the uploaded files as grounding context.
@@ -219,8 +239,12 @@ async def router_run_with_context(
             f"Total upload size ({total_size // (1024 * 1024)}MB) exceeds 200MB limit",
         )
 
+    tenant_slug = te.tenant_slug
+    allowlist = _resolver_allowlist(te)
     orchestrator = AdaptiveRouterOrchestrator(
-        resolver=Resolver(max_cost_tier=max_cost_tier),
+        resolver=Resolver(allowlist=allowlist, max_cost_tier=max_cost_tier)
+        if allowlist is not None
+        else Resolver(max_cost_tier=max_cost_tier),
         high_threshold=high_threshold,
         mid_threshold=mid_threshold,
     )
@@ -237,6 +261,7 @@ async def router_run_with_context(
         )
 
     plan = decision.plan
+    check_protocol_allowed(plan.protocol_key, te)
 
     # Persist Run row (tenant-scoped).
     with Session(engine) as session:
@@ -284,6 +309,7 @@ async def router_run_with_context(
                 no_tools=no_tools,
                 context=run_context,
                 tenant_slug=tenant_slug,
+                cost_ceiling_usd=te.entitlements.run_cost_ceiling_usd,
             ):
                 await event_queue.put(chunk)
         finally:

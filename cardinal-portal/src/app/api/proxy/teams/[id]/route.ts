@@ -1,21 +1,14 @@
 // Proxy: /api/proxy/teams/[id] -> Railway /api/teams/{id}. GET/PUT/DELETE.
 
-import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
-
-const API_BASE = process.env.NEXT_PUBLIC_RAILWAY_API_URL ?? "http://localhost:8000";
+import { proxyToRailway } from "@/lib/railway";
 
 async function proxy(req: NextRequest, method: string, id: string) {
-  const { getToken } = await auth();
-  const token = await getToken({ template: "ce-railway" }).catch(() => null);
   const body = method === "GET" || method === "DELETE" ? undefined : await req.text();
 
-  const upstream = await fetch(`${API_BASE}/api/teams/${id}`, {
+  const upstream = await proxyToRailway(`/api/teams/${id}`, {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { "Content-Type": "application/json" },
     body,
   });
 

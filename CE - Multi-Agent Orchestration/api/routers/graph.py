@@ -16,15 +16,24 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from api.entitlements import (
+    FEATURE_KNOWLEDGE_GRAPH,
+    TenantEntitlements,
+    require_feature,
+)
 from api.middleware.clerk_auth import resolve_tenant
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
+_require_graph = require_feature(FEATURE_KNOWLEDGE_GRAPH)
+
 
 class BackfillRequest(BaseModel):
-    sources: list[Literal["notion", "granola"]] = Field(default_factory=lambda: ["notion", "granola"])
+    sources: list[Literal["notion", "granola"]] = Field(
+        default_factory=lambda: ["notion", "granola"]
+    )
     since: str | None = None  # ISO-8601 (e.g. "2025-01-01"); optional
     limit: int | None = None  # cap pages/meetings ingested per source
 
@@ -46,13 +55,16 @@ def _get_graph_queries(tenant_slug: str):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tenant '{tenant_slug}' not provisioned in ce-graph. "
-                   f"Run cegraph init --tenant {tenant_slug} first.",
+            f"Run cegraph init --tenant {tenant_slug} first.",
         )
     return GraphQueries(FalkorClient(tenant=tenant))
 
 
 @router.get("/stats")
-async def graph_stats(tenant_slug: str = Depends(resolve_tenant)) -> dict:
+async def graph_stats(
+    tenant_slug: str = Depends(resolve_tenant),
+    _feature: TenantEntitlements = Depends(_require_graph),
+) -> dict:
     """Return node counts per label in this tenant's graph."""
     try:
         q = _get_graph_queries(tenant_slug)
@@ -80,6 +92,7 @@ async def graph_stats(tenant_slug: str = Depends(resolve_tenant)) -> dict:
 async def graph_subgraph(
     limit: int = 500,
     tenant_slug: str = Depends(resolve_tenant),
+    _feature: TenantEntitlements = Depends(_require_graph),
 ) -> dict:
     """Return a node + edge subgraph for interactive visualization.
 
@@ -117,11 +130,17 @@ async def graph_health() -> dict:
     """Unauthenticated probe. Returns whether ce-graph/FalkorDB is operational."""
     try:
         from ce_graph.falkor_client import FalkorClient
+
         c = FalkorClient()
         c.query("RETURN 1")
         return {"ok": True, "ce_graph": True, "falkordb": True}
     except Exception as exc:
-        return {"ok": False, "ce_graph": True, "falkordb": False, "error": str(exc)[:200]}
+        return {
+            "ok": False,
+            "ce_graph": True,
+            "falkordb": False,
+            "error": str(exc)[:200],
+        }
 
 
 def _parse_since(raw: str | None) -> datetime | None:
@@ -154,32 +173,52 @@ async def _run_backfill(
         try:
             if src == "notion":
                 from ce_graph.scripts.backfill_notion import backfill as notion_backfill
+
                 logger.info(
                     "graph_backfill.start tenant=%s source=notion since=%s limit=%s",
-                    tenant_slug, since, limit,
+                    tenant_slug,
+                    since,
+                    limit,
                 )
                 rc = await notion_backfill(
-                    since=since, dry_run=False, limit=limit, tenant_slug=tenant_slug,
+                    since=since,
+                    dry_run=False,
+                    limit=limit,
+                    tenant_slug=tenant_slug,
                 )
                 logger.info(
-                    "graph_backfill.done tenant=%s source=notion rc=%s", tenant_slug, rc,
+                    "graph_backfill.done tenant=%s source=notion rc=%s",
+                    tenant_slug,
+                    rc,
                 )
             elif src == "granola":
-                from ce_graph.scripts.backfill_granola import backfill as granola_backfill
+                from ce_graph.scripts.backfill_granola import (
+                    backfill as granola_backfill,
+                )
+
                 logger.info(
                     "graph_backfill.start tenant=%s source=granola since=%s limit=%s",
-                    tenant_slug, since, limit,
+                    tenant_slug,
+                    since,
+                    limit,
                 )
                 rc = await granola_backfill(
-                    since=since, dry_run=False, limit=limit, tenant_slug=tenant_slug,
+                    since=since,
+                    dry_run=False,
+                    limit=limit,
+                    tenant_slug=tenant_slug,
                 )
                 logger.info(
-                    "graph_backfill.done tenant=%s source=granola rc=%s", tenant_slug, rc,
+                    "graph_backfill.done tenant=%s source=granola rc=%s",
+                    tenant_slug,
+                    rc,
                 )
         except Exception as exc:
             logger.warning(
                 "graph_backfill.failed tenant=%s source=%s err=%s",
-                tenant_slug, src, exc,
+                tenant_slug,
+                src,
+                exc,
             )
 
 
@@ -188,6 +227,7 @@ async def graph_backfill(
     payload: BackfillRequest,
     background_tasks: BackgroundTasks,
     tenant_slug: str = Depends(resolve_tenant),
+    _feature: TenantEntitlements = Depends(_require_graph),
 ) -> dict:
     """Kick off a Notion + Granola backfill for this tenant.
 
@@ -204,6 +244,7 @@ async def graph_backfill(
     # Verify the tenant is provisioned before scheduling work.
     try:
         from ce_graph.tenancy import load_tenant
+
         load_tenant(tenant_slug)
     except ImportError as exc:
         raise HTTPException(
@@ -214,7 +255,7 @@ async def graph_backfill(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tenant '{tenant_slug}' not provisioned. "
-                   f"Run cegraph init --tenant {tenant_slug} first.",
+            f"Run cegraph init --tenant {tenant_slug} first.",
         )
 
     # Schedule on FastAPI's background runner. Because the scripts are async,

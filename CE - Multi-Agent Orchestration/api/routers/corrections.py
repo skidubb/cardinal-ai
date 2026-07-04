@@ -18,7 +18,14 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
+from api.entitlements import (
+    FEATURE_KNOWLEDGE_GRAPH,
+    TenantEntitlements,
+    require_feature,
+)
 from api.middleware.clerk_auth import get_auth_with_org, resolve_tenant
+
+_require_graph = require_feature(FEATURE_KNOWLEDGE_GRAPH)
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +76,7 @@ def _get_queries(tenant_slug: str):
 async def list_corrections(
     active_only: bool = True,
     tenant_slug: str = Depends(resolve_tenant),
+    _feature: TenantEntitlements = Depends(_require_graph),
 ) -> dict:
     q = _get_queries(tenant_slug)
     rows = q.list_corrections(active_only=active_only)
@@ -78,13 +86,14 @@ async def list_corrections(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_correction(
     payload: CorrectionIn,
-    auth = Depends(get_auth_with_org),
+    auth=Depends(get_auth_with_org),
+    _feature: TenantEntitlements = Depends(_require_graph),
 ) -> CorrectionOut:
     if payload.scope != "global" and not payload.target_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Correction scope '{payload.scope}' requires a target_id "
-                   "(e.g. client name, protocol code, agent key, decision id).",
+            "(e.g. client name, protocol code, agent key, decision id).",
         )
     q = _get_queries(auth.org_slug or "cardinal-element")
     correction_id = f"cor_{uuid.uuid4().hex[:16]}"
@@ -98,7 +107,10 @@ async def create_correction(
     )
     logger.info(
         "Correction %s created: scope=%s target=%s by=%s",
-        correction_id, payload.scope, payload.target_id, auth.user_id,
+        correction_id,
+        payload.scope,
+        payload.target_id,
+        auth.user_id,
     )
     return CorrectionOut(
         id=correction_id,
@@ -116,6 +128,7 @@ async def create_correction(
 async def retire_correction(
     correction_id: str,
     tenant_slug: str = Depends(resolve_tenant),
+    _feature: TenantEntitlements = Depends(_require_graph),
 ) -> dict:
     """Retire a correction (sets valid_to=now). Kept in history for audit."""
     q = _get_queries(tenant_slug)

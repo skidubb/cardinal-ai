@@ -1,21 +1,14 @@
 // Proxy: /api/proxy/pipelines -> Railway /api/pipelines. GET list, POST create.
 
-import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
-
-const API_BASE = process.env.NEXT_PUBLIC_RAILWAY_API_URL ?? "http://localhost:8000";
+import { proxyToRailway } from "@/lib/railway";
 
 async function proxy(req: NextRequest, method: string) {
-  const { getToken } = await auth();
-  const token = await getToken({ template: "ce-railway" }).catch(() => null);
   const body = method === "GET" ? undefined : await req.text();
 
-  const upstream = await fetch(`${API_BASE}/api/pipelines`, {
+  const upstream = await proxyToRailway("/api/pipelines", {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { "Content-Type": "application/json" },
     body,
   });
 

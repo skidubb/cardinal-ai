@@ -14,7 +14,7 @@ See the monorepo root [`CLAUDE.md`](../CLAUDE.md) for the full stack context and
 
 - **Next.js 16** (App Router) — **middleware.ts is renamed to `src/proxy.ts`** in Next 16. Clerk's `clerkMiddleware` still works inside it.
 - **React 19**, **TypeScript**, **Tailwind 4** (via `@tailwindcss/postcss`), **shadcn/ui** components under `src/components/ui/`.
-- **Clerk** (`@clerk/nextjs`) — auth, Organizations (= tenants), Billing. Custom JWT template: `ce-railway` (must include `org_slug`, `org_role`, `tier`).
+- **Clerk** (`@clerk/nextjs`) — auth, Organizations (= tenants), Billing. Uses Clerk's default session token (v2) — no custom JWT template. Claims: `o.slg` (org slug), `o.rol` (org role), `pla` (plan), `fea` (features).
 - **Vercel** deploy. Root directory: `cardinal-portal`.
 
 ## Commands
@@ -66,8 +66,8 @@ cardinal-portal/
 
 - **User → Organization (Clerk)** — standard Clerk; portal requires an active org.
 - **Organization → Tenant** — `org.slug` is the canonical tenant id. Matches a `ce-graph/tenants/<slug>.yaml` file on the backend.
-- **API calls** — `src/lib/api.ts` fetches a fresh JWT via `auth().getToken({ template: "ce-railway" })` and attaches it as `Authorization: Bearer <jwt>` on every Railway call. Use this wrapper (`authedFetch`) from Server Components and Server Actions — don't roll your own fetch.
-- **Backend verification** — Railway's `api/middleware/clerk_auth.py` validates the JWT and pulls `org_slug` out for tenant scoping.
+- **API calls** — Railway accepts Clerk's default session token (v2), so there's no custom JWT template to configure. `src/lib/railway.ts` exports `getRailwayToken()` (`auth().getToken()`, no template arg) as the single source of the bearer token, plus `proxyToRailway()` for browser-facing `/api/proxy/**` routes (handles JSON and SSE passthrough, including 402/403 rejection bodies). `src/lib/api.ts`'s `authedFetch` wrapper uses `getRailwayToken()` under the hood — use it from Server Components and Server Actions rather than rolling your own fetch.
+- **Backend verification** — Railway's `api/middleware/clerk_auth.py` validates the session token and reads `o.slg`/`o.rol`/`pla`/`fea` claims for tenant scoping, plan, and feature entitlements.
 
 ## Conventions
 

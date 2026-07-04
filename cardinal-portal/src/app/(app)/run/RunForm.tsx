@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Paperclip, X } from "lucide-react";
 import type {
   Agent,
+  ModelsResponse,
   Pipeline,
   Protocol,
   RouterDecision,
@@ -20,8 +21,29 @@ import { RunHeartbeat } from "@/components/run/RunHeartbeat";
 import { RunActivityLog } from "@/components/run/RunActivityLog";
 import { buildRunTimeline } from "@/components/run/runTimeline";
 import { Markdown } from "@/components/ui/markdown";
+import { UpgradeCard, type UpgradeDetail } from "@/components/billing/UpgradeCard";
 
 type SseEvent = { event: string; data: Record<string, unknown>; receivedAt: number };
+
+function parseUpgradeDetail(bodyText: string): UpgradeDetail | null {
+  try {
+    const parsed = JSON.parse(bodyText) as { detail?: Record<string, unknown> };
+    const detail = parsed.detail;
+    if (!detail || (detail.code !== "quota_exceeded" && detail.code !== "feature_required")) {
+      return null;
+    }
+    return {
+      code: String(detail.code),
+      message: String(detail.message ?? "Upgrade required."),
+      plan: typeof detail.plan === "string" ? detail.plan : undefined,
+      used: typeof detail.used === "number" ? detail.used : undefined,
+      limit: typeof detail.limit === "number" ? detail.limit : undefined,
+      feature: typeof detail.feature === "string" ? detail.feature : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
 
 type AgentTrace = {
   agent_key: string;
@@ -37,17 +59,21 @@ export default function RunForm({
   agents,
   pipelines,
   teams,
+  models,
   initialQuestion = "",
   initialProtocol = "",
   initialAgents = [],
+  hasPremium = true,
 }: {
   protocols: Protocol[];
   agents: Agent[];
   pipelines: Pipeline[];
   teams: Team[];
+  models?: ModelsResponse | null;
   initialQuestion?: string;
   initialProtocol?: string;
   initialAgents?: string[];
+  hasPremium?: boolean;
 }) {
   const hasInitialProtocol =
     initialProtocol && protocols.some((p) => p.key === initialProtocol);
@@ -67,6 +93,8 @@ export default function RunForm({
   const [userEditedAgents, setUserEditedAgents] = useState(initialAgents.length > 0);
   const [problemTypeFilter, setProblemTypeFilter] = useState<string | null>(null);
   const [rounds, setRounds] = useState<number>(2);
+  const defaultThinkingModel = models?.defaults?.thinking ?? "";
+  const [thinkingModel, setThinkingModel] = useState<string>(defaultThinkingModel);
 
   const [pipelineKey, setPipelineKey] = useState<string>(
     pipelines[0] ? String(pipelines[0].id) : "",
@@ -80,6 +108,7 @@ export default function RunForm({
 
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [upgrade, setUpgrade] = useState<UpgradeDetail | null>(null);
   const [events, setEvents] = useState<SseEvent[]>([]);
   const [traces, setTraces] = useState<Record<string, AgentTrace>>({});
   const [synthesis, setSynthesis] = useState<string>("");
@@ -210,6 +239,7 @@ export default function RunForm({
     reconcileAbortRef.current = null;
     setRunning(true);
     setError(null);
+    setUpgrade(null);
     setEvents([]);
     setTraces({});
     setSynthesis("");
@@ -239,7 +269,12 @@ export default function RunForm({
         body = fd;
       } else {
         endpoint = "/api/proxy/router/run";
-        body = { question };
+        body = {
+          question,
+          ...(thinkingModel && thinkingModel !== defaultThinkingModel
+            ? { thinking_model: thinkingModel }
+            : {}),
+        };
       }
     } else if (mode === "pipeline") {
       const selectedPipeline = pipelines.find((p) => String(p.id) === pipelineKey);
@@ -288,6 +323,9 @@ export default function RunForm({
           fd.append("rounds", String(rounds));
         }
         fd.append("no_tools", "false");
+        if (thinkingModel && thinkingModel !== defaultThinkingModel) {
+          fd.append("thinking_model", thinkingModel);
+        }
         for (const f of attachedFiles) fd.append("files", f);
         body = fd;
       } else {
@@ -298,6 +336,9 @@ export default function RunForm({
           rounds:
             selectedProtocol?.max_agents && selectedProtocol.max_agents > 0 ? rounds : undefined,
           no_tools: false,
+          ...(thinkingModel && thinkingModel !== defaultThinkingModel
+            ? { thinking_model: thinkingModel }
+            : {}),
         };
       }
     }
@@ -314,7 +355,16 @@ export default function RunForm({
       });
 
       if (!resp.ok || !resp.body) {
-        throw new Error(`HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+        const bodyText = await resp.text().catch(() => "");
+        if (resp.status === 402 || resp.status === 403) {
+          const detail = parseUpgradeDetail(bodyText);
+          if (detail) {
+            setUpgrade(detail);
+            setRunning(false);
+            return;
+          }
+        }
+        throw new Error(`HTTP ${resp.status}: ${bodyText.slice(0, 300)}`);
       }
 
       const reader = resp.body.getReader();
@@ -453,7 +503,14 @@ export default function RunForm({
         break;
       case "error":
       case "router_error":
-        setError(String(d.message ?? d.error ?? "Run failed"));
+        if (d.code === "cost_cap_exceeded") {
+          setUpgrade({
+            code: "cost_cap_exceeded",
+            message: String(d.message ?? "Run stopped: cost cap exceeded."),
+          });
+        } else {
+          setError(String(d.message ?? d.error ?? "Run failed"));
+        }
         break;
     }
   }
@@ -507,6 +564,45 @@ export default function RunForm({
         <span className="ce-label mb-2 block">Mode</span>
         <ModeSelector value={mode} onChange={setMode} />
       </div>
+
+      {models && models.models.length > 0 ? (
+        <div>
+          <label className="ce-label mb-2 block">Model (optional)</label>
+          <select
+            value={thinkingModel}
+            onChange={(e) => setThinkingModel(e.target.value)}
+            disabled={running}
+            className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <optgroup label="Claude (tools enabled)">
+              {models.models
+                .filter((m) => m.route === "anthropic")
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.display_name} · {m.tier} · ${m.input_price}/${m.output_price} per MTok
+                    {m.id === models.defaults.thinking ? " (default)" : ""}
+                  </option>
+                ))}
+            </optgroup>
+            <optgroup label="Open models via gateway (no tools)">
+              {models.models
+                .filter((m) => m.route === "gateway")
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.display_name} · {m.tier} · ${m.input_price}/${m.output_price} per MTok
+                    {m.id === models.defaults.thinking ? " (default)" : ""}
+                  </option>
+                ))}
+            </optgroup>
+          </select>
+          {thinkingModel &&
+          models.models.find((m) => m.id === thinkingModel)?.route === "gateway" ? (
+            <p className="mt-1.5 text-[10px] italic text-muted-foreground">
+              Open model: agents run without tools on this model.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <section className="rounded-xl border border-primary/30 bg-primary/5 p-5">
         <label className="ce-label mb-2 block">Strategic question</label>
@@ -619,9 +715,19 @@ export default function RunForm({
               {filteredProtocols.map((p) => (
                 <option key={p.key} value={p.key}>
                   {p.code ?? p.key.split("_")[0].toUpperCase()} — {p.name} ({p.category})
+                  {p.premium && !hasPremium ? " · Pro" : ""}
                 </option>
               ))}
             </select>
+            {selectedProtocol?.premium && !hasPremium ? (
+              <p className="mt-2 text-[10px] italic text-muted-foreground">
+                This protocol requires the Pro plan.{" "}
+                <Link href="/billing" className="text-primary hover:underline">
+                  Upgrade
+                </Link>
+                .
+              </p>
+            ) : null}
             {selectedProtocol?.description ? (
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground text-pretty">
                 {selectedProtocol.description}
@@ -887,7 +993,9 @@ export default function RunForm({
         </div>
       </div>
 
-      {reconciling ? (
+      {upgrade ? (
+        <UpgradeCard {...upgrade} />
+      ) : reconciling ? (
         <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
           <strong className="text-foreground">Connection lost.</strong> {reconcileMessage}
         </div>

@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, func, select
 
 from api.database import get_session
-from api.middleware.clerk_auth import resolve_tenant
+from api.entitlements import TenantEntitlements, get_entitlements, month_window
 from api.models import Run
 
 router = APIRouter(prefix="/api/usage", tags=["usage"])
@@ -22,9 +22,14 @@ router = APIRouter(prefix="/api/usage", tags=["usage"])
 @router.get("")
 async def tenant_usage(
     session: Session = Depends(get_session),
-    tenant_slug: str = Depends(resolve_tenant),
+    te: TenantEntitlements = Depends(get_entitlements),
 ) -> dict:
-    """Return per-tenant aggregate metrics across all runs."""
+    """Return per-tenant aggregate metrics: all-time plus current billing period.
+
+    The period fields power the portal's quota meter ("X of Y runs used this
+    month"). The period is the UTC calendar month; failed runs don't count.
+    """
+    tenant_slug = te.tenant_slug
     rows = list(
         session.exec(
             select(
@@ -51,6 +56,23 @@ async def tenant_usage(
 
     completed = by_status.get("completed", {"count": 0, "cost_usd": 0.0})
 
+    # Current billing period (UTC calendar month). Failed runs don't burn quota.
+    start, end = month_window()
+    period_row = session.exec(
+        select(
+            func.count(Run.id),
+            func.coalesce(func.sum(Run.cost_usd), 0.0),
+        )
+        .where(Run.tenant_slug == tenant_slug)
+        .where(Run.started_at >= start)
+        .where(Run.started_at < end)
+        .where(Run.status != "failed")
+    ).one()
+    period_runs = int(period_row[0])
+    period_cost = float(period_row[1])
+
+    limit = te.entitlements.runs_per_month
+
     return {
         "tenant_slug": tenant_slug,
         "total_runs": total_runs,
@@ -59,4 +81,13 @@ async def tenant_usage(
         "by_status": by_status,
         "completed_runs": completed["count"],
         "completed_cost_usd": round(completed["cost_usd"], 6),
+        "plan": te.entitlements.plan,
+        "features": sorted(te.entitlements.features),
+        "period_start": start.isoformat(),
+        "period_end": end.isoformat(),
+        "period_runs": period_runs,
+        "period_cost_usd": round(period_cost, 6),
+        "runs_limit": limit,
+        "runs_remaining": max(0, limit - period_runs) if limit is not None else None,
+        "run_cost_cap_usd": te.entitlements.run_cost_ceiling_usd,
     }

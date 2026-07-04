@@ -22,6 +22,8 @@ async def get_me(ctx: ClerkAuthContext = Depends(get_auth)) -> dict:
         "org_slug": ctx.org_slug,
         "org_role": ctx.org_role,
         "tier": ctx.tier,
+        "plan": ctx.plan,
+        "features": sorted(ctx.features),
     }
 
 
@@ -29,6 +31,7 @@ async def get_me(ctx: ClerkAuthContext = Depends(get_auth)) -> dict:
 async def auth_health() -> dict:
     """Unauthenticated endpoint to confirm the auth router is mounted."""
     import os
+
     return {
         "ok": True,
         "clerk_configured": bool(os.environ.get("CLERK_JWKS_URL")),

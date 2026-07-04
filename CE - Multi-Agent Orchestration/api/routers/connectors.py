@@ -22,6 +22,11 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
+from api.entitlements import (
+    FEATURE_KNOWLEDGE_GRAPH,
+    TenantEntitlements,
+    require_feature,
+)
 from api.middleware.clerk_auth import resolve_tenant
 
 logger = logging.getLogger(__name__)
@@ -67,25 +72,41 @@ async def connectors_status(tenant_slug: str = Depends(resolve_tenant)) -> dict:
     out: list[dict] = []
     for name in sorted(MCP_CONNECTORS | DIRECT_API_CONNECTORS):
         cfg = configured.get(name, {}) or {}
-        out.append({
-            "name": name,
-            "mode": "direct_api" if name in DIRECT_API_CONNECTORS else "mcp_driven",
-            "enabled": bool(cfg.get("enabled", False)),
-            "auth": cfg.get("auth", "mcp" if name in MCP_CONNECTORS else "token"),
-            "notes": cfg.get("notes"),
-        })
+        out.append(
+            {
+                "name": name,
+                "mode": "direct_api" if name in DIRECT_API_CONNECTORS else "mcp_driven",
+                "enabled": bool(cfg.get("enabled", False)),
+                "auth": cfg.get("auth", "mcp" if name in MCP_CONNECTORS else "token"),
+                "notes": cfg.get("notes"),
+            }
+        )
     return {"tenant_slug": tenant_slug, "connectors": out}
 
 
 async def _run_cegraph_backfill(
-    tenant_slug: str, connector: str, since: str | None, limit: int | None, dry_run: bool,
+    tenant_slug: str,
+    connector: str,
+    since: str | None,
+    limit: int | None,
+    dry_run: bool,
 ) -> None:
-    repo_root = os.environ.get("CE_REPO_ROOT", "/Users/scottewalt/Documents/CE - AGENTS")
+    repo_root = os.environ.get(
+        "CE_REPO_ROOT", "/Users/scottewalt/Documents/CE - AGENTS"
+    )
     venv_python = f"{repo_root}/ce-graph/venv/bin/python"
     if not os.path.exists(venv_python):
-        logger.warning("ce-graph venv missing; cannot run direct-API backfill for %s", tenant_slug)
+        logger.warning(
+            "ce-graph venv missing; cannot run direct-API backfill for %s", tenant_slug
+        )
         return
-    args = [venv_python, "-m", f"ce_graph.scripts.backfill_{connector}", "--tenant", tenant_slug]
+    args = [
+        venv_python,
+        "-m",
+        f"ce_graph.scripts.backfill_{connector}",
+        "--tenant",
+        tenant_slug,
+    ]
     if since:
         args += ["--since", since]
     if limit:
@@ -103,25 +124,30 @@ async def _run_cegraph_backfill(
     if proc.returncode == 0:
         logger.info("Backfill %s completed for %s", connector, tenant_slug)
     else:
-        logger.error("Backfill %s failed for %s: %s", connector, tenant_slug, err.decode()[:500])
+        logger.error(
+            "Backfill %s failed for %s: %s", connector, tenant_slug, err.decode()[:500]
+        )
 
 
 @router.post("/start")
 async def start_connector(
     payload: BackfillRequest,
     tenant_slug: str = Depends(resolve_tenant),
+    _feature: TenantEntitlements = Depends(require_feature(FEATURE_KNOWLEDGE_GRAPH)),
 ) -> BackfillResponse:
     name = payload.connector.lower()
     if name not in (MCP_CONNECTORS | DIRECT_API_CONNECTORS):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown connector: {name}. Supported: "
-                   f"{sorted(MCP_CONNECTORS | DIRECT_API_CONNECTORS)}",
+            f"{sorted(MCP_CONNECTORS | DIRECT_API_CONNECTORS)}",
         )
 
     if name in DIRECT_API_CONNECTORS:
         asyncio.create_task(
-            _run_cegraph_backfill(tenant_slug, name, payload.since, payload.limit, payload.dry_run)
+            _run_cegraph_backfill(
+                tenant_slug, name, payload.since, payload.limit, payload.dry_run
+            )
         )
         return BackfillResponse(
             mode="direct_api",
@@ -136,7 +162,7 @@ async def start_connector(
     dry_clause = ", dry-run" if payload.dry_run else ""
     runbook = (
         f"In Claude Code, invoke:\n"
-        f'  Task tool, subagent_type: ce-graph-backfill\n'
+        f"  Task tool, subagent_type: ce-graph-backfill\n"
         f'  Prompt: "backfill {name} for tenant {tenant_slug}{since_clause}{limit_clause}{dry_clause}"\n'
     )
     return BackfillResponse(

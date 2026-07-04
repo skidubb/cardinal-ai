@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html as _html_lib
 import logging
+import os
 import re
 from typing import Literal
 
@@ -23,8 +24,8 @@ from api.context_pipeline import (
     _extract_text_from_docx,
     _extract_text_from_pdf,
 )
+from api.entitlements import TenantEntitlements, require_run_admission
 from api.manifest import get_protocol_manifest
-from api.middleware.clerk_auth import resolve_tenant
 from protocols.config import ORCHESTRATION_MODEL, THINKING_MODEL
 from protocols.llm import extract_text, llm_complete, parse_json_object
 
@@ -60,6 +61,26 @@ class ProtocolMatch(BaseModel):
     rationale: str = ""
 
 
+class SuggestedNewAgent(BaseModel):
+    """LLM-designed agent spec; field-compatible with POST /api/agents."""
+
+    key: str
+    name: str
+    category: str = "custom"
+    model: str = ""
+    temperature: float = 1.0
+    system_prompt: str
+    tools: list[str] = Field(default_factory=list)
+    kb_namespaces: list[str] = Field(default_factory=list)
+    rationale: str = ""
+
+
+class SuggestedTeam(BaseModel):
+    name: str
+    description: str = ""
+    agent_keys: list[str] = Field(default_factory=list)
+
+
 class DiscoveredQuestion(BaseModel):
     text: str
     category: QuestionCategory
@@ -68,6 +89,9 @@ class DiscoveredQuestion(BaseModel):
     suggested_protocol: str  # back-compat: top match key
     suggested_protocol_name: str | None = None
     suggested_protocols: list[ProtocolMatch] = Field(default_factory=list)
+    suggested_agents: list[dict] = Field(default_factory=list)
+    suggested_new_agents: list[SuggestedNewAgent] = Field(default_factory=list)
+    suggested_team: SuggestedTeam | None = None
 
 
 class DiscoverResult(BaseModel):
@@ -97,9 +121,33 @@ MAX_URL_BYTES = 10_000_000  # 10 MB per URL
 MAX_URLS = 5
 
 # Block elements whose content is typically chrome, not article text.
-_HTML_STRIP_TAGS = ("script", "style", "nav", "footer", "aside", "header", "form", "svg", "noscript")
+_HTML_STRIP_TAGS = (
+    "script",
+    "style",
+    "nav",
+    "footer",
+    "aside",
+    "header",
+    "form",
+    "svg",
+    "noscript",
+)
 # Block-level elements we want to preserve as paragraph breaks in the output.
-_HTML_BLOCK_TAGS = ("p", "div", "br", "h1", "h2", "h3", "h4", "h5", "h6", "li", "tr", "section", "article")
+_HTML_BLOCK_TAGS = (
+    "p",
+    "div",
+    "br",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "li",
+    "tr",
+    "section",
+    "article",
+)
 _HTML_BLOCK_RE = re.compile(
     r"</?(?:" + "|".join(_HTML_BLOCK_TAGS) + r")[^>]*>", re.IGNORECASE
 )
@@ -161,7 +209,9 @@ async def _fetch_url_text(url: str) -> str:
     content_type = (resp.headers.get("content-type") or "").lower()
 
     # PDF URLs
-    if "application/pdf" in content_type or url.lower().split("?", 1)[0].endswith(".pdf"):
+    if "application/pdf" in content_type or url.lower().split("?", 1)[0].endswith(
+        ".pdf"
+    ):
         text = _extract_text_from_pdf(raw_bytes)
     else:
         # Treat everything else as text-ish; best-effort decode.
@@ -169,7 +219,9 @@ async def _fetch_url_text(url: str) -> str:
             body = raw_bytes.decode(resp.encoding or "utf-8", errors="replace")
         except (LookupError, UnicodeDecodeError):
             body = raw_bytes.decode("utf-8", errors="replace")
-        if "html" in content_type or body.lstrip().lower().startswith(("<!doctype", "<html")):
+        if "html" in content_type or body.lstrip().lower().startswith(
+            ("<!doctype", "<html")
+        ):
             text = _extract_text_from_html(body)
         else:
             text = body
@@ -191,13 +243,15 @@ def _build_protocol_catalog() -> list[dict]:
     manifest = get_protocol_manifest()
     catalog = []
     for p in manifest:
-        catalog.append({
-            "key": p["key"],
-            "name": p["name"],
-            "category": p["category"],
-            "when_to_use": p.get("when_to_use") or p.get("description") or "",
-            "problem_types": p.get("problem_types") or [],
-        })
+        catalog.append(
+            {
+                "key": p["key"],
+                "name": p["name"],
+                "category": p["category"],
+                "when_to_use": p.get("when_to_use") or p.get("description") or "",
+                "problem_types": p.get("problem_types") or [],
+            }
+        )
     return catalog
 
 
@@ -343,7 +397,9 @@ async def _discover_questions(
     try:
         return parse_json_object(raw)
     except Exception as exc:
-        _log.warning("discover_questions JSON parse failed: %s\nRAW=%s", exc, raw[:1000])
+        _log.warning(
+            "discover_questions JSON parse failed: %s\nRAW=%s", exc, raw[:1000]
+        )
         raise HTTPException(
             status_code=502,
             detail="LLM returned unparseable JSON. Try a different document or retry.",
@@ -371,51 +427,89 @@ def _validate_questions(raw: dict, catalog: list[dict]) -> list[DiscoveredQuesti
                 score = float(entry.get("score", 0.0))
             except (TypeError, ValueError):
                 score = 0.0
-            ranked.append(ProtocolMatch(
-                key=ekey,
-                name=name_by_key.get(ekey),
-                score=max(0.0, min(1.0, score)),
-                rationale=str(entry.get("rationale") or "").strip(),
-            ))
+            ranked.append(
+                ProtocolMatch(
+                    key=ekey,
+                    name=name_by_key.get(ekey),
+                    score=max(0.0, min(1.0, score)),
+                    rationale=str(entry.get("rationale") or "").strip(),
+                )
+            )
             if len(ranked) >= 5:
                 break
 
         if not ranked:
             scalar_key = (q.get("suggested_protocol") or "").strip()
             if scalar_key in valid_keys:
-                ranked = [ProtocolMatch(
-                    key=scalar_key,
-                    name=name_by_key.get(scalar_key),
-                    score=1.0,
-                    rationale="",
-                )]
+                ranked = [
+                    ProtocolMatch(
+                        key=scalar_key,
+                        name=name_by_key.get(scalar_key),
+                        score=1.0,
+                        rationale="",
+                    )
+                ]
 
         if not ranked:
             # Silently drop questions with no valid protocol match.
             continue
 
         try:
-            out.append(DiscoveredQuestion(
-                text=str(q.get("text", "")).strip(),
-                category=q.get("category"),
-                severity=q.get("severity"),
-                rationale=str(q.get("rationale", "")).strip(),
-                suggested_protocol=ranked[0].key,
-                suggested_protocol_name=ranked[0].name,
-                suggested_protocols=ranked,
-            ))
+            out.append(
+                DiscoveredQuestion(
+                    text=str(q.get("text", "")).strip(),
+                    category=q.get("category"),
+                    severity=q.get("severity"),
+                    rationale=str(q.get("rationale", "")).strip(),
+                    suggested_protocol=ranked[0].key,
+                    suggested_protocol_name=ranked[0].name,
+                    suggested_protocols=ranked,
+                )
+            )
         except Exception as exc:
             _log.info("dropped malformed question: %s (%s)", q, exc)
             continue
     return out
 
 
+async def _attach_agent_suggestions(
+    questions: list[DiscoveredQuestion],
+    document: str,
+    client: anthropic.AsyncAnthropic,
+) -> None:
+    """Best-effort: one batched designer call attaches agent/team suggestions.
+
+    Any failure leaves the questions untouched — discover never fails because
+    the designer did.
+    """
+    try:
+        from protocols.agent_designer import suggest_agents_batch
+
+        suggestions = await suggest_agents_batch(
+            [q.text for q in questions],
+            context=document[:20_000],
+            client=client,
+        )
+        for q, s in zip(questions, suggestions):
+            q.suggested_agents = s.get("existing_agents", [])
+            q.suggested_new_agents = [
+                SuggestedNewAgent(**spec) for spec in s.get("new_agents", [])
+            ]
+            team = s.get("team")
+            q.suggested_team = SuggestedTeam(**team) if team else None
+    except Exception as exc:
+        _log.warning("discover: agent suggestions skipped: %s", exc)
+
+
 @router.post("/discover-questions", response_model=DiscoverResult)
 async def discover_questions(
     files: list[UploadFile] = File(default=[]),
     urls: list[str] = Form(default=[]),
-    tenant_slug: str = Depends(resolve_tenant),
+    # Discovery spends LLM tokens: admission checks quota headroom but does
+    # not increment it (no Run row is created) -- documented v1 tradeoff.
+    te: TenantEntitlements = Depends(require_run_admission),
 ) -> DiscoverResult:
+    tenant_slug = te.tenant_slug
     # Filter out empty URL strings coming from the form (e.g. trailing input).
     cleaned_urls = [u.strip() for u in urls if u and u.strip()]
 
@@ -477,7 +571,9 @@ async def discover_questions(
         if files:
             parts.append(f"{len(files)} file{'s' if len(files) != 1 else ''}")
         if cleaned_urls:
-            parts.append(f"{len(cleaned_urls)} URL{'s' if len(cleaned_urls) != 1 else ''}")
+            parts.append(
+                f"{len(cleaned_urls)} URL{'s' if len(cleaned_urls) != 1 else ''}"
+            )
         source_filename = " + ".join(parts)
 
     client = anthropic.AsyncAnthropic()
@@ -498,6 +594,9 @@ async def discover_questions(
             status_code=502,
             detail="No valid questions returned. Try a different document or retry.",
         )
+
+    if os.getenv("DISCOVER_SUGGEST_AGENTS", "true").lower() in ("1", "true", "yes"):
+        await _attach_agent_suggestions(questions, document, client)
 
     _log.info(
         "discover: tenant=%s filename=%s tokens=%d truncated=%s questions=%d",

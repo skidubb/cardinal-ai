@@ -4,9 +4,16 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Query, UploadFile, File
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 
+from api.entitlements import (
+    FEATURE_KNOWLEDGE_GRAPH,
+    TenantEntitlements,
+    require_feature,
+)
 from api.tool_registry import ROLE_KB_NAMESPACES
+
+_require_graph = require_feature(FEATURE_KNOWLEDGE_GRAPH)
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 
@@ -41,11 +48,13 @@ def _build_namespace_list() -> list[dict]:
                     item["vector_count"] = ns_data.get("vector_count", 0)
             for ns_name, ns_data in ns_stats.items():
                 if not any(r["name"] == ns_name for r in result):
-                    result.append({
-                        "name": ns_name,
-                        "vector_count": ns_data.get("vector_count", 0),
-                        "assigned_roles": [],
-                    })
+                    result.append(
+                        {
+                            "name": ns_name,
+                            "vector_count": ns_data.get("vector_count", 0),
+                            "assigned_roles": [],
+                        }
+                    )
     except Exception:
         pass
 
@@ -53,12 +62,18 @@ def _build_namespace_list() -> list[dict]:
 
 
 @router.get("/namespaces")
-def list_namespaces() -> list[dict]:
+def list_namespaces(
+    _feature: TenantEntitlements = Depends(_require_graph),
+) -> list[dict]:
     return _build_namespace_list()
 
 
 @router.get("/namespaces/{ns}/search")
-def search_namespace(ns: str, q: str = Query(..., min_length=1)):
+def search_namespace(
+    ns: str,
+    q: str = Query(..., min_length=1),
+    _feature: TenantEntitlements = Depends(_require_graph),
+):
     try:
         from pinecone import Pinecone
 
@@ -98,7 +113,10 @@ def search_namespace(ns: str, q: str = Query(..., min_length=1)):
 
 
 @router.get("/namespaces/{ns}/stats")
-def namespace_stats(ns: str):
+def namespace_stats(
+    ns: str,
+    _feature: TenantEntitlements = Depends(_require_graph),
+):
     try:
         from pinecone import Pinecone
 
@@ -117,7 +135,11 @@ def namespace_stats(ns: str):
 
 
 @router.post("/namespaces/{ns}/upload")
-async def upload_to_namespace(ns: str, file: UploadFile = File(...)):
+async def upload_to_namespace(
+    ns: str,
+    file: UploadFile = File(...),
+    _feature: TenantEntitlements = Depends(_require_graph),
+):
     content = await file.read()
     filename = file.filename or "unknown"
     size = len(content)

@@ -5,15 +5,12 @@
 // is protocols + agents + runs + reports — the knowledge graph is one of the
 // stores backing the agents, not the front door.
 
-import { auth } from "@clerk/nextjs/server";
-
-const API_BASE = process.env.NEXT_PUBLIC_RAILWAY_API_URL ?? "http://localhost:8000";
+import { getRailwayToken, RAILWAY_API_BASE } from "@/lib/railway";
 
 async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const { getToken } = await auth();
-  const token = await getToken({ template: "ce-railway" }).catch(() => null);
+  const token = await getRailwayToken();
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${RAILWAY_API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -38,6 +35,8 @@ export type AuthMe = {
   org_slug?: string;
   org_role?: string;
   tier?: number;
+  plan?: string | null;
+  features?: string[];
 };
 
 export async function fetchAuthMe(): Promise<AuthMe> {
@@ -170,6 +169,7 @@ export type Protocol = {
     | "hybrid_matrix"
     | "decentralized";
   recommended_agents?: string[];
+  premium?: boolean;
 };
 
 export async function fetchProtocols(): Promise<Protocol[]> {
@@ -216,6 +216,36 @@ export type Agent = {
 
 export async function fetchAgents(): Promise<Agent[]> {
   return authedFetch<Agent[]>("/api/agents");
+}
+
+// ---- Models (catalog of thinking/orchestration models) ----
+
+export type ModelInfo = {
+  id: string;
+  display_name: string;
+  provider: string;
+  route: "anthropic" | "gateway";
+  litellm_id: string;
+  tier: string;
+  input_price: number;
+  output_price: number;
+  supports_anthropic_tool_loop: boolean;
+  context_window: number;
+  notes: string;
+};
+
+export type ModelsResponse = {
+  models: ModelInfo[];
+  defaults: {
+    thinking: string;
+    orchestration: string;
+    balanced: string;
+  };
+  tiers: string[];
+};
+
+export async function fetchModels(): Promise<ModelsResponse> {
+  return authedFetch<ModelsResponse>("/api/models");
 }
 
 // ---- Knowledge graph stats (the fuel layer, not the front door) ----
@@ -272,6 +302,15 @@ export type Usage = {
   by_status: Record<string, { count: number; cost_usd: number }>;
   completed_runs: number;
   completed_cost_usd: number;
+  plan: string;
+  features: string[];
+  period_start: string;
+  period_end: string;
+  period_runs: number;
+  period_cost_usd: number;
+  runs_limit: number | null;
+  runs_remaining: number | null;
+  run_cost_cap_usd: number | null;
 };
 
 export async function fetchUsage(): Promise<Usage> {
