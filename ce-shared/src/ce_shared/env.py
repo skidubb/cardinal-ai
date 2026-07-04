@@ -181,7 +181,19 @@ KEY_REGISTRY: dict[str, KeyMeta] = {
         name="CE_DEV_TENANT",
         required_by=[],
         category="auth",
-        description="Optional local-dev tenant slug used by API when no JWT is present. Defaults to 'cardinal-element'.",
+        description="Optional local-dev tenant slug used by API when no JWT is present. If unset, defaults to 'local-dev' (safe) or 'cardinal-element' when CE_ALLOW_PROD=1.",
+    ),
+    "CE_ALLOW_PROD": KeyMeta(
+        name="CE_ALLOW_PROD",
+        required_by=[],
+        category="auth",
+        description="Set to '1' to allow unauth'd callers (CLI, no-JWT API) to fall back to the production 'cardinal-element' tenant. Railway sets this; local dev should not.",
+    ),
+    "CE_QUIET": KeyMeta(
+        name="CE_QUIET",
+        required_by=[],
+        category="auth",
+        description="Set to '1' to suppress the CLI preflight banner (tenant/postgres/langfuse state). Use in CI or stdout-parsing scripts.",
     ),
     # ---- Search ----
     "BRAVE_API_KEY": KeyMeta(

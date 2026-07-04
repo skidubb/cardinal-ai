@@ -39,6 +39,7 @@ export default function RunForm({
   teams,
   initialQuestion = "",
   initialProtocol = "",
+  initialAgents = [],
 }: {
   protocols: Protocol[];
   agents: Agent[];
@@ -46,6 +47,7 @@ export default function RunForm({
   teams: Team[];
   initialQuestion?: string;
   initialProtocol?: string;
+  initialAgents?: string[];
 }) {
   const hasInitialProtocol =
     initialProtocol && protocols.some((p) => p.key === initialProtocol);
@@ -57,7 +59,13 @@ export default function RunForm({
       ? initialProtocol
       : protocols.find((p) => p.key === "p04_multi_round_debate")?.key ?? protocols[0]?.key ?? "",
   );
-  const [agentKeys, setAgentKeys] = useState<string[]>(["ceo", "cfo", "cto"]);
+  const [agentKeys, setAgentKeys] = useState<string[]>(
+    initialAgents.length > 0 ? initialAgents : ["ceo", "cfo", "cto"],
+  );
+  // If the caller passed initialAgents, treat them as user-set so the
+  // recommended-agents auto-apply effect doesn't immediately overwrite them.
+  const [userEditedAgents, setUserEditedAgents] = useState(initialAgents.length > 0);
+  const [problemTypeFilter, setProblemTypeFilter] = useState<string | null>(null);
   const [rounds, setRounds] = useState<number>(2);
 
   const [pipelineKey, setPipelineKey] = useState<string>(
@@ -97,6 +105,40 @@ export default function RunForm({
 
   const selectedProtocol = protocols.find((p) => p.key === protocolKey);
 
+  const availableProblemTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of protocols) for (const pt of p.problem_types ?? []) set.add(pt);
+    return Array.from(set).sort();
+  }, [protocols]);
+
+  const filteredProtocols = useMemo(() => {
+    if (!problemTypeFilter) return protocols;
+    return protocols.filter((p) => (p.problem_types ?? []).includes(problemTypeFilter));
+  }, [protocols, problemTypeFilter]);
+
+  // If the active filter excludes the currently selected protocol, fall back
+  // to the first match so the picker stays valid.
+  useEffect(() => {
+    if (mode !== "protocol") return;
+    if (filteredProtocols.length === 0) return;
+    if (!filteredProtocols.some((p) => p.key === protocolKey)) {
+      setProtocolKey(filteredProtocols[0].key);
+      setUserEditedAgents(false);
+    }
+  }, [mode, filteredProtocols, protocolKey]);
+
+  // Auto-apply protocol's recommended agents when the protocol changes,
+  // unless the user has manually edited the agent set (toggling, team load,
+  // or save-as).
+  useEffect(() => {
+    if (mode !== "protocol") return;
+    if (userEditedAgents) return;
+    const recommended = selectedProtocol?.recommended_agents;
+    if (recommended && recommended.length > 0) {
+      setAgentKeys(recommended);
+    }
+  }, [mode, protocolKey, selectedProtocol, userEditedAgents]);
+
   useEffect(() => {
     if (mode !== "smart") {
       setDecision(null);
@@ -133,13 +175,17 @@ export default function RunForm({
   }, [mode, question]);
 
   function toggleAgent(key: string) {
+    setUserEditedAgents(true);
     setAgentKeys((curr) => (curr.includes(key) ? curr.filter((k) => k !== key) : [...curr, key]));
   }
 
   function applyTeam(teamId: string) {
     if (!teamId) return;
     const t = teams.find((t) => String(t.id) === teamId);
-    if (t) setAgentKeys(t.agent_keys);
+    if (t) {
+      setAgentKeys(t.agent_keys);
+      setUserEditedAgents(true);
+    }
   }
 
   async function saveAsTeam() {
@@ -213,12 +259,13 @@ export default function RunForm({
       body = {
         question,
         agent_keys: agentKeys,
+        // Always send the legacy fields with their defaults — Railway may be
+        // running the older PipelineStepRequest where question_template has
+        // no default and is required.
         steps: selectedPipeline.steps.map((s) => ({
           protocol_key: s.protocol_key,
-          question_template: s.question_template,
-          thinking_model: s.thinking_model,
-          orchestration_model: s.orchestration_model,
           rounds: s.rounds,
+          question_template: s.question_template ?? "",
           output_passthrough: s.output_passthrough ?? true,
           no_tools: s.no_tools ?? false,
         })),
@@ -452,7 +499,7 @@ export default function RunForm({
     question.trim().length > 0 &&
     (mode === "smart" ||
       (mode === "protocol" && protocolKey && agentKeys.length > 0) ||
-      (mode === "pipeline" && !!pipelineKey));
+      (mode === "pipeline" && !!pipelineKey && agentKeys.length > 0));
 
   return (
     <div className="space-y-6">
@@ -526,15 +573,50 @@ export default function RunForm({
         <div className="grid gap-6 md:grid-cols-2">
           <section className="rounded-xl border border-border bg-card p-4">
             <label className="ce-label mb-2 block">
-              Protocol ({protocols.length} available)
+              Protocol ({filteredProtocols.length} of {protocols.length}
+              {problemTypeFilter ? ` · ${problemTypeFilter}` : ""})
             </label>
+            {availableProblemTypes.length > 0 ? (
+              <div className="mb-2 flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  onClick={() => setProblemTypeFilter(null)}
+                  disabled={running}
+                  className={`rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
+                    problemTypeFilter === null
+                      ? "border-primary/40 bg-primary/15 text-primary"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                  } disabled:opacity-50`}
+                >
+                  All
+                </button>
+                {availableProblemTypes.map((pt) => (
+                  <button
+                    key={pt}
+                    type="button"
+                    onClick={() => setProblemTypeFilter(pt)}
+                    disabled={running}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
+                      problemTypeFilter === pt
+                        ? "border-primary/40 bg-primary/15 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                    } disabled:opacity-50`}
+                  >
+                    {pt}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <select
               value={protocolKey}
-              onChange={(e) => setProtocolKey(e.target.value)}
+              onChange={(e) => {
+                setProtocolKey(e.target.value);
+                setUserEditedAgents(false);
+              }}
               className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               disabled={running}
             >
-              {protocols.map((p) => (
+              {filteredProtocols.map((p) => (
                 <option key={p.key} value={p.key}>
                   {p.code ?? p.key.split("_")[0].toUpperCase()} — {p.name} ({p.category})
                 </option>
@@ -582,36 +664,47 @@ export default function RunForm({
           </section>
 
           <section className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <label className="ce-label">
                 Agents ({agentKeys.length} selected)
               </label>
-              <div className="flex items-center gap-2">
-                {teams.length > 0 ? (
-                  <select
-                    onChange={(e) => applyTeam(e.target.value)}
-                    defaultValue=""
-                    disabled={running}
-                    className="rounded border border-input bg-background px-2 py-1 text-[10px] text-foreground"
-                  >
-                    <option value="">Load team…</option>
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={saveAsTeam}
-                  disabled={running || agentKeys.length === 0}
-                  className="rounded border border-border px-2 py-1 text-[10px] transition-colors hover:bg-secondary disabled:opacity-50"
-                >
-                  Save team
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={saveAsTeam}
+                disabled={running || agentKeys.length === 0}
+                className="rounded border border-border px-2 py-1 text-[10px] transition-colors hover:bg-secondary disabled:opacity-50"
+              >
+                Save as team
+              </button>
             </div>
+            {teams.length > 0 ? (
+              <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+                <label className="ce-label mb-1.5 block text-[10px]">Load a team</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {teams.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => applyTeam(String(t.id))}
+                      disabled={running}
+                      className="rounded-full border border-primary/30 bg-background px-2.5 py-0.5 text-[11px] text-foreground transition-colors hover:border-primary hover:bg-primary/10 disabled:opacity-50"
+                      title={t.agent_keys.join(", ")}
+                    >
+                      {t.name}
+                      <span className="ml-1 text-muted-foreground">·{t.agent_keys.length}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {selectedProtocol?.recommended_agents &&
+            selectedProtocol.recommended_agents.length > 0 &&
+            !userEditedAgents ? (
+              <p className="mb-2 text-[10px] italic text-muted-foreground">
+                Auto-applied {selectedProtocol.protocol_id ?? selectedProtocol.key}&apos;s
+                recommended agents. Edit or load a team to override.
+              </p>
+            ) : null}
             <div className="max-h-60 space-y-3 overflow-y-auto pr-1">
               {sortedCategories.map((cat) => (
                 <div key={cat}>
@@ -641,59 +734,124 @@ export default function RunForm({
       ) : null}
 
       {mode === "pipeline" ? (
-        <section className="rounded-xl border border-border bg-card p-4">
-          <label className="ce-label mb-2 block">
-            Pipeline ({pipelines.length} saved)
-          </label>
-          {pipelines.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              No pipelines saved yet.{" "}
-              <a href="/pipelines" className="text-primary underline-offset-4 hover:underline">
-                Build one →
-              </a>
-            </div>
-          ) : (
-            <>
-              <select
-                value={pipelineKey}
-                onChange={(e) => setPipelineKey(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                disabled={running}
+        <div className="grid gap-6 md:grid-cols-2">
+          <section className="rounded-xl border border-border bg-card p-4">
+            <label className="ce-label mb-2 block">
+              Pipeline ({pipelines.length} saved)
+            </label>
+            {pipelines.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                No pipelines saved yet.{" "}
+                <a href="/pipelines" className="text-primary underline-offset-4 hover:underline">
+                  Build one →
+                </a>
+              </div>
+            ) : (
+              <>
+                <select
+                  value={pipelineKey}
+                  onChange={(e) => setPipelineKey(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  disabled={running}
+                >
+                  {pipelines.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.steps.length} steps)
+                    </option>
+                  ))}
+                </select>
+                {(() => {
+                  const selected = pipelines.find((p) => String(p.id) === pipelineKey);
+                  if (!selected) return null;
+                  return (
+                    <div className="mt-3 space-y-2 text-xs">
+                      {selected.description ? (
+                        <p className="text-muted-foreground text-pretty">{selected.description}</p>
+                      ) : null}
+                      <ol className="space-y-1">
+                        {selected.steps.map((s, i) => (
+                          <li
+                            key={s.id ?? i}
+                            className="flex items-center gap-2 rounded border border-border bg-background px-2 py-1.5 font-mono"
+                          >
+                            <span className="text-muted-foreground">{i + 1}.</span>
+                            <span className="text-foreground">{s.protocol_key}</span>
+                            {s.rounds ? (
+                              <span className="text-muted-foreground">· {s.rounds} rounds</span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <label className="ce-label">
+                Agents ({agentKeys.length} selected)
+              </label>
+              <button
+                type="button"
+                onClick={saveAsTeam}
+                disabled={running || agentKeys.length === 0}
+                className="rounded border border-border px-2 py-1 text-[10px] transition-colors hover:bg-secondary disabled:opacity-50"
               >
-                {pipelines.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.steps.length} steps)
-                  </option>
-                ))}
-              </select>
-              {(() => {
-                const selected = pipelines.find((p) => String(p.id) === pipelineKey);
-                if (!selected) return null;
-                return (
-                  <div className="mt-3 space-y-2 text-xs">
-                    {selected.description ? (
-                      <p className="text-muted-foreground text-pretty">{selected.description}</p>
-                    ) : null}
-                    <ol className="space-y-1">
-                      {selected.steps.map((s, i) => (
-                        <li
-                          key={s.id ?? i}
-                          className="flex items-center gap-2 rounded border border-border bg-background px-2 py-1.5 font-mono"
-                        >
-                          <span className="text-muted-foreground">{i + 1}.</span>
-                          <span className="text-foreground">{s.protocol_key}</span>
-                          {s.rounds ? (
-                            <span className="text-muted-foreground">· {s.rounds} rounds</span>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ol>
+                Save as team
+              </button>
+            </div>
+            {teams.length > 0 ? (
+              <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+                <label className="ce-label mb-1.5 block text-[10px]">Load a team</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {teams.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => applyTeam(String(t.id))}
+                      disabled={running}
+                      className="rounded-full border border-primary/30 bg-background px-2.5 py-0.5 text-[11px] text-foreground transition-colors hover:border-primary hover:bg-primary/10 disabled:opacity-50"
+                      title={t.agent_keys.join(", ")}
+                    >
+                      {t.name}
+                      <span className="ml-1 text-muted-foreground">·{t.agent_keys.length}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <p className="mb-2 text-[10px] italic text-muted-foreground">
+              Same agent set runs every step in the pipeline.
+            </p>
+            <div className="max-h-60 space-y-3 overflow-y-auto pr-1">
+              {sortedCategories.map((cat) => (
+                <div key={cat}>
+                  <div className="ce-label mb-1">{cat}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {agentsByCategory[cat].map((a) => (
+                      <button
+                        key={a.key}
+                        type="button"
+                        onClick={() => toggleAgent(a.key)}
+                        disabled={running}
+                        className={`rounded border px-2 py-1 text-xs transition-colors ${
+                          agentKeys.includes(a.key)
+                            ? "border-primary/40 bg-primary/15 text-primary"
+                            : "border-border bg-background text-foreground hover:border-primary/50"
+                        } disabled:opacity-50`}
+                      >
+                        {a.key}
+                      </button>
+                    ))}
                   </div>
-                );
-              })()}
-            </>
-          )}
-        </section>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
       ) : null}
 
       <div className="flex items-center justify-between">

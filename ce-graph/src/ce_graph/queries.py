@@ -108,6 +108,71 @@ class GraphQueries:
                 out[label] = 0
         return out
 
+    def subgraph(self, limit: int = 500) -> dict[str, list[dict[str, Any]]]:
+        """Return up to ``limit`` highest-degree nodes plus the edges between them.
+
+        Used to render the interactive knowledge graph in the portal. Sorting
+        by degree (most-connected first) keeps the visible subgraph
+        information-dense even when the full graph is much larger.
+        """
+        # Pull the highest-degree nodes first so the visible subgraph stays
+        # informative even on large tenants.
+        nodes_query = """
+        MATCH (n)
+        OPTIONAL MATCH (n)-[r]-()
+        WITH n, count(r) AS degree
+        ORDER BY degree DESC
+        LIMIT $limit
+        RETURN id(n) AS id, labels(n) AS labels, properties(n) AS props,
+               degree
+        """
+        node_rows = _rows(self.client.query(nodes_query, {"limit": int(limit)}))
+
+        nodes: list[dict[str, Any]] = []
+        node_ids: set[int] = set()
+        for row in node_rows:
+            nid = row.get("id")
+            if nid is None:
+                continue
+            labels = row.get("labels") or []
+            label = labels[0] if labels else "Node"
+            props = row.get("props") or {}
+            display = (
+                props.get("name")
+                or props.get("title")
+                or props.get("summary")
+                or props.get("statement")
+                or props.get("text")
+                or props.get("code")
+                or str(nid)
+            )
+            nodes.append({
+                "id": int(nid),
+                "label": label,
+                "name": str(display)[:120],
+                "props": props,
+                "degree": int(row.get("degree") or 0),
+            })
+            node_ids.add(int(nid))
+
+        edges: list[dict[str, Any]] = []
+        if node_ids:
+            edges_query = """
+            MATCH (a)-[r]->(b)
+            WHERE id(a) IN $ids AND id(b) IN $ids
+            RETURN id(a) AS source, id(b) AS target, type(r) AS type
+            """
+            for row in _rows(
+                self.client.query(edges_query, {"ids": list(node_ids)})
+            ):
+                edges.append({
+                    "source": int(row["source"]),
+                    "target": int(row["target"]),
+                    "type": row.get("type") or "RELATED",
+                })
+
+        return {"nodes": nodes, "edges": edges}
+
     # ------------------------------------------------------------------
     # M5 — context assembly helpers
     # ------------------------------------------------------------------

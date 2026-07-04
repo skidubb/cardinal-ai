@@ -1,10 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Link2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Link2, Sparkles } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import type { Agent, Protocol } from "@/lib/api";
 
 type Severity = "high" | "medium" | "low";
+
+type ProtocolMatch = {
+  key: string;
+  name?: string | null;
+  score: number;
+  rationale: string;
+};
 
 type DiscoveredQuestion = {
   text: string;
@@ -13,6 +22,7 @@ type DiscoveredQuestion = {
   rationale: string;
   suggested_protocol: string;
   suggested_protocol_name?: string | null;
+  suggested_protocols?: ProtocolMatch[];
 };
 
 type DiscoverResult = {
@@ -36,7 +46,15 @@ const CATEGORY_ORDER = [
 
 const SEVERITY_RANK: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
 
-export function DiscoverForm() {
+const FALLBACK_AGENTS = ["ceo", "cfo", "cto"];
+
+export function DiscoverForm({
+  protocols,
+  agents,
+}: {
+  protocols: Protocol[];
+  agents: Agent[];
+}) {
   const [files, setFiles] = useState<File[]>([]);
   const [urls, setUrls] = useState<string[]>([]);
   const [urlDraft, setUrlDraft] = useState("");
@@ -107,6 +125,11 @@ export function DiscoverForm() {
 
   const questions = result?.questions ?? [];
   const byCategory = groupByCategory(questions);
+  const protocolByKey = useMemo(() => {
+    const map = new Map<string, Protocol>();
+    for (const p of protocols) map.set(p.key, p);
+    return map;
+  }, [protocols]);
 
   return (
     <div className="space-y-6">
@@ -271,9 +294,15 @@ export function DiscoverForm() {
                     {byCategory[cat].length} question{byCategory[cat].length === 1 ? "" : "s"}
                   </span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {byCategory[cat].map((q, i) => (
-                    <QuestionCard key={`${cat}-${i}`} q={q} />
+                    <QuestionCard
+                      key={`${cat}-${i}`}
+                      q={q}
+                      protocols={protocols}
+                      protocolByKey={protocolByKey}
+                      agents={agents}
+                    />
                   ))}
                 </div>
               </div>
@@ -297,31 +326,245 @@ function groupByCategory(qs: DiscoveredQuestion[]): Record<string, DiscoveredQue
   return out;
 }
 
-function QuestionCard({ q }: { q: DiscoveredQuestion }) {
-  const href = `/run?question=${encodeURIComponent(q.text)}&protocol=${encodeURIComponent(q.suggested_protocol)}`;
+function rankedMatches(q: DiscoveredQuestion): ProtocolMatch[] {
+  if (q.suggested_protocols && q.suggested_protocols.length > 0) {
+    return q.suggested_protocols;
+  }
+  return [
+    {
+      key: q.suggested_protocol,
+      name: q.suggested_protocol_name ?? null,
+      score: 1.0,
+      rationale: "",
+    },
+  ];
+}
+
+function defaultAgentsFor(p: Protocol | undefined): string[] {
+  if (!p) return FALLBACK_AGENTS;
+  if (p.recommended_agents && p.recommended_agents.length > 0) return p.recommended_agents;
+  if (p.max_agents === 1) return ["ceo"];
+  return FALLBACK_AGENTS;
+}
+
+function QuestionCard({
+  q,
+  protocols,
+  protocolByKey,
+  agents,
+}: {
+  q: DiscoveredQuestion;
+  protocols: Protocol[];
+  protocolByKey: Map<string, Protocol>;
+  agents: Agent[];
+}) {
+  const matches = rankedMatches(q);
+  const [selectedKey, setSelectedKey] = useState(matches[0]?.key ?? "");
+  const selectedProtocol = protocolByKey.get(selectedKey);
+  const [agentKeys, setAgentKeys] = useState<string[]>(() => defaultAgentsFor(selectedProtocol));
+  const [userEdited, setUserEdited] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+  const router = useRouter();
+
+  function pickProtocol(key: string) {
+    setSelectedKey(key);
+    if (!userEdited) {
+      const p = protocolByKey.get(key);
+      setAgentKeys(defaultAgentsFor(p));
+    }
+  }
+
+  function toggleAgent(key: string) {
+    setUserEdited(true);
+    setAgentKeys((curr) =>
+      curr.includes(key) ? curr.filter((k) => k !== key) : [...curr, key],
+    );
+  }
+
+  function startRun() {
+    if (!selectedKey) {
+      setRunError("Pick a protocol first.");
+      return;
+    }
+    if (agentKeys.length === 0) {
+      setRunError("Pick at least one agent.");
+      return;
+    }
+    setRunError(null);
+    const params = new URLSearchParams({
+      question: q.text,
+      protocol: selectedKey,
+      agents: agentKeys.join(","),
+    });
+    router.push(`/run?${params.toString()}`);
+  }
+
+  // Group agents by category for the picker — same shape as RunForm.
+  const agentsByCategory: Record<string, Agent[]> = {};
+  for (const a of agents) {
+    const cat = (a as Agent & { category?: string }).category ?? a.layer ?? "other";
+    if (!agentsByCategory[cat]) agentsByCategory[cat] = [];
+    agentsByCategory[cat].push(a);
+  }
+  const categoryOrder = [
+    "executive",
+    "c_suite",
+    "cfo-team",
+    "cto-team",
+    "cmo-team",
+    "cpo-team",
+    "coo-team",
+    "cro-team",
+    "gtm-sales",
+    "gtm-marketing",
+    "direct_report",
+    "functional",
+    "other",
+  ];
+  const sortedCategories = Object.keys(agentsByCategory).sort(
+    (a, b) =>
+      (categoryOrder.indexOf(a) >= 0 ? categoryOrder.indexOf(a) : 999) -
+      (categoryOrder.indexOf(b) >= 0 ? categoryOrder.indexOf(b) : 999),
+  );
+
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <p className="text-sm leading-relaxed text-foreground">{q.text}</p>
         <SeverityBadge severity={q.severity} />
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{q.rationale}</p>
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-[11px] text-muted-foreground">
-          <span className="ce-label mr-1.5">Protocol:</span>
-          <span className="font-mono text-foreground">{q.suggested_protocol}</span>
-          {q.suggested_protocol_name ? (
-            <span className="ml-2 text-muted-foreground">— {q.suggested_protocol_name}</span>
+      <p className="text-xs leading-relaxed text-muted-foreground">{q.rationale}</p>
+
+      <div className="space-y-1.5">
+        <div className="ce-label text-[10px]">
+          Top {matches.length} protocols ranked
+        </div>
+        <div className="space-y-1">
+          {matches.map((m, idx) => {
+            const proto = protocolByKey.get(m.key);
+            const isSelected = m.key === selectedKey;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => pickProtocol(m.key)}
+                className={`flex w-full items-start gap-3 rounded-lg border p-2.5 text-left text-xs transition-colors ${
+                  isSelected
+                    ? "border-primary/60 bg-primary/10"
+                    : "border-border bg-background hover:border-primary/40"
+                }`}
+              >
+                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary font-mono text-[10px] font-bold text-muted-foreground">
+                  {idx + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline gap-2">
+                    <span className="font-mono text-[11px] text-foreground">
+                      {proto?.code ?? m.key}
+                    </span>
+                    <span className="truncate font-medium text-foreground">
+                      {m.name ?? proto?.name ?? m.key}
+                    </span>
+                  </span>
+                  {m.rationale ? (
+                    <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground text-pretty">
+                      {m.rationale}
+                    </span>
+                  ) : null}
+                </span>
+                <ScoreBar score={m.score} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="ce-label text-[10px]">
+            Agents ({agentKeys.length} selected)
+          </span>
+          {!userEdited && selectedProtocol?.recommended_agents?.length ? (
+            <span className="inline-flex items-center gap-1 text-[10px] italic text-muted-foreground">
+              <Sparkles size={10} /> using {selectedProtocol.protocol_id ?? selectedProtocol.key} default
+            </span>
           ) : null}
+        </div>
+        <div className="max-h-32 space-y-2 overflow-y-auto pr-1">
+          {sortedCategories.length === 0 ? (
+            <p className="text-[11px] italic text-muted-foreground">
+              No agents available — visit{" "}
+              <Link href="/agents" className="underline">
+                /agents
+              </Link>
+              .
+            </p>
+          ) : (
+            sortedCategories.map((cat) => (
+              <div key={cat}>
+                <div className="ce-label mb-1 text-[10px]">{cat}</div>
+                <div className="flex flex-wrap gap-1">
+                  {agentsByCategory[cat].map((a) => (
+                    <button
+                      key={a.key}
+                      type="button"
+                      onClick={() => toggleAgent(a.key)}
+                      className={`rounded border px-2 py-0.5 font-mono text-[10px] transition-colors ${
+                        agentKeys.includes(a.key)
+                          ? "border-primary/40 bg-primary/15 text-primary"
+                          : "border-border bg-background text-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {a.key}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] text-muted-foreground">
+          <span className="ce-label mr-1.5">Will run:</span>
+          <span className="font-mono text-foreground">{selectedKey}</span>
+          <span className="ml-2">with</span>
+          <span className="ml-1 font-mono text-foreground">
+            {agentKeys.length > 0 ? agentKeys.join(", ") : "(no agents)"}
+          </span>
         </span>
-        <Link
-          href={href}
-          className="rounded-md border border-primary/40 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+        <button
+          type="button"
+          onClick={startRun}
+          disabled={!selectedKey || agentKeys.length === 0}
+          className="rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-[rgb(var(--ce-indigo-500))] disabled:opacity-50"
         >
           Run this →
-        </Link>
+        </button>
       </div>
+      {runError ? (
+        <div className="text-[11px] text-destructive">{runError}</div>
+      ) : null}
     </div>
+  );
+}
+
+function ScoreBar({ score }: { score: number }) {
+  const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tabular-nums text-muted-foreground"
+      title={`Fit score ${pct}/100`}
+    >
+      <span className="h-1 w-12 overflow-hidden rounded-full bg-secondary">
+        <span
+          className="block h-full rounded-full bg-primary"
+          style={{ width: `${pct}%` }}
+        />
+      </span>
+      {pct}
+    </span>
   );
 }
 

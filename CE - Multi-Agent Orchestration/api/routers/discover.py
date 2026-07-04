@@ -7,10 +7,8 @@ and get back a list of questions pre-mapped to the best-fit protocol.
 from __future__ import annotations
 
 import html as _html_lib
-import json
 import logging
 import re
-from io import BytesIO
 from typing import Literal
 
 import anthropic
@@ -55,13 +53,21 @@ QuestionCategory = Literal[
 QuestionSeverity = Literal["high", "medium", "low"]
 
 
+class ProtocolMatch(BaseModel):
+    key: str
+    name: str | None = None
+    score: float = 0.0
+    rationale: str = ""
+
+
 class DiscoveredQuestion(BaseModel):
     text: str
     category: QuestionCategory
     severity: QuestionSeverity
     rationale: str
-    suggested_protocol: str
+    suggested_protocol: str  # back-compat: top match key
     suggested_protocol_name: str | None = None
+    suggested_protocols: list[ProtocolMatch] = Field(default_factory=list)
 
 
 class DiscoverResult(BaseModel):
@@ -215,8 +221,9 @@ ANALYTICALLY VEXING questions a decision-maker should ask — not obvious
 questions, not table-of-contents questions, but the ones where a wrong answer
 costs real money or optionality.
 
-For each question, also pick the single best-fit coordination protocol from the
-catalog. The protocol you pick MUST be a `key` present in the catalog.
+For each question, rank the **top 5 best-fit coordination protocols** from the
+catalog (or fewer if the catalog is small). Every key you pick MUST appear in
+the catalog. Order from best-fit to weaker alternative.
 
 CATEGORIES (pick exactly one per question):
 strategic | financial | operational | competitive | legal | technical | market | people
@@ -226,8 +233,8 @@ high   — core to the decision; wrong answer materially changes the outcome
 medium — shapes execution; wrong answer causes meaningful rework
 low    — worth tracking; not decision-critical alone
 
-CATEGORY → PROTOCOL GUIDANCE (use as strong prior; override only when a
-specific protocol's `when_to_use` clearly fits better):
+CATEGORY → PROTOCOL GUIDANCE (strong prior for the #1 pick; the next 4 should
+add genuinely different reasoning shapes — not minor variants):
 - strategic    → p04_multi_round_debate (decisions with opposing valid views)
 - financial    → p39_popper_falsification (testable/falsifiable claim) OR
                  p32_tetlock_forecast (probabilistic forecast / scenarios)
@@ -260,11 +267,18 @@ OUTPUT FORMAT — return exactly this JSON shape, no prose:
       "category": "strategic",
       "severity": "high",
       "rationale": "one sentence — why this is load-bearing",
-      "suggested_protocol": "p06_triz"
+      "protocols": [
+        {{"key": "p06_triz", "score": 0.92, "rationale": "8-10 word fit reason"}},
+        {{"key": "p17_red_blue_white", "score": 0.81, "rationale": "..."}},
+        {{"key": "p16_ach", "score": 0.74, "rationale": "..."}},
+        {{"key": "p04_multi_round_debate", "score": 0.62, "rationale": "..."}},
+        {{"key": "p32_tetlock_forecast", "score": 0.55, "rationale": "..."}}
+      ]
     }}
   ]
 }}
 
+Score is a 0.0-1.0 float reflecting fit confidence (1.0 = obvious match).
 Return 5-12 questions. Prefer fewer, sharper questions over padding.
 
 DOCUMENT:
@@ -344,18 +358,51 @@ def _validate_questions(raw: dict, catalog: list[dict]) -> list[DiscoveredQuesti
     for q in raw.get("questions", []):
         if not isinstance(q, dict):
             continue
-        key = (q.get("suggested_protocol") or "").strip()
-        if key not in valid_keys:
-            # Silently drop hallucinated protocol keys rather than hard-failing.
+
+        # New shape: ranked list of protocols. Back-compat: scalar suggested_protocol.
+        ranked: list[ProtocolMatch] = []
+        for entry in q.get("protocols") or []:
+            if not isinstance(entry, dict):
+                continue
+            ekey = (entry.get("key") or "").strip()
+            if ekey not in valid_keys:
+                continue
+            try:
+                score = float(entry.get("score", 0.0))
+            except (TypeError, ValueError):
+                score = 0.0
+            ranked.append(ProtocolMatch(
+                key=ekey,
+                name=name_by_key.get(ekey),
+                score=max(0.0, min(1.0, score)),
+                rationale=str(entry.get("rationale") or "").strip(),
+            ))
+            if len(ranked) >= 5:
+                break
+
+        if not ranked:
+            scalar_key = (q.get("suggested_protocol") or "").strip()
+            if scalar_key in valid_keys:
+                ranked = [ProtocolMatch(
+                    key=scalar_key,
+                    name=name_by_key.get(scalar_key),
+                    score=1.0,
+                    rationale="",
+                )]
+
+        if not ranked:
+            # Silently drop questions with no valid protocol match.
             continue
+
         try:
             out.append(DiscoveredQuestion(
                 text=str(q.get("text", "")).strip(),
                 category=q.get("category"),
                 severity=q.get("severity"),
                 rationale=str(q.get("rationale", "")).strip(),
-                suggested_protocol=key,
-                suggested_protocol_name=name_by_key.get(key),
+                suggested_protocol=ranked[0].key,
+                suggested_protocol_name=ranked[0].name,
+                suggested_protocols=ranked,
             ))
         except Exception as exc:
             _log.info("dropped malformed question: %s (%s)", q, exc)

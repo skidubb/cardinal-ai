@@ -79,6 +79,15 @@ export type RunAudit = {
   overall_advice: string | null;
 };
 
+export type ToolCall = {
+  tool: string;
+  input_summary?: string;
+  result_summary?: string;
+  elapsed_ms?: number;
+  iteration?: number;
+  id?: string;
+};
+
 export type ProtocolReport = {
   participants: string[];
   executive_summary: string;
@@ -110,6 +119,7 @@ export async function fetchRun(id: string): Promise<Run & {
     cost_usd?: number;
     input_tokens?: number;
     output_tokens?: number;
+    tool_calls?: ToolCall[];
   }>;
   steps?: Array<{ id: number; step_order: number; protocol_key: string; status: string }>;
   error_message?: string | null;
@@ -152,10 +162,40 @@ export type Protocol = {
   cost_tier?: "low" | "medium" | "high";
   supports_rounds?: boolean;
   problem_types?: string[];
+  orchestration_pattern?:
+    | "single_agent"
+    | "sequence"
+    | "parallel"
+    | "hub_and_spoke"
+    | "hybrid_matrix"
+    | "decentralized";
+  recommended_agents?: string[];
 };
 
 export async function fetchProtocols(): Promise<Protocol[]> {
   return authedFetch<Protocol[]>("/api/protocols");
+}
+
+export type ProtocolStage = {
+  key: string;
+  name: string;
+  stage_type?: string;
+  description?: string;
+  depends_on?: string[];
+  agents_filter?: string | null;
+};
+
+export type ProtocolStagesResponse = {
+  protocol_id: string;
+  protocol_name: string;
+  stages: ProtocolStage[];
+  source?: "yaml" | "source" | "fallback";
+};
+
+export async function fetchProtocolStages(key: string): Promise<ProtocolStagesResponse> {
+  return authedFetch<ProtocolStagesResponse>(
+    `/api/protocols/${encodeURIComponent(key)}/stages`,
+  );
 }
 
 // ---- Agents (the C-Suite + functional reports) ----
@@ -190,6 +230,36 @@ export type GraphStatsResponse = {
 
 export async function fetchGraphStats(): Promise<GraphStatsResponse> {
   return authedFetch<GraphStatsResponse>("/api/graph/stats");
+}
+
+export type GraphNode = {
+  id: number;
+  label: string;
+  name: string;
+  props: Record<string, unknown>;
+  degree: number;
+};
+
+export type GraphEdge = {
+  source: number;
+  target: number;
+  type: string;
+};
+
+export type GraphSubgraphResponse = {
+  tenant_slug: string;
+  graph_name: string;
+  limit: number;
+  node_count: number;
+  edge_count: number;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+};
+
+export async function fetchGraphSubgraph(
+  limit: number = 500,
+): Promise<GraphSubgraphResponse> {
+  return authedFetch<GraphSubgraphResponse>(`/api/graph/nodes?limit=${limit}`);
 }
 
 // ---- Usage (per-tenant cost + run totals) ----

@@ -7,9 +7,11 @@ import {
   Users,
   Zap,
   Plug,
-  Database,
+  Network,
+  Share2,
   BookOpen,
   FileSearch,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 import { NavGroup, type NavItem } from "./nav-group";
@@ -18,11 +20,10 @@ type Group = { label: string; items: NavItem[] };
 
 const GROUPS: Group[] = [
   {
-    label: "Work",
+    label: "",
     items: [
       { href: "/discover", label: "Discover", icon: FileSearch as LucideIcon },
       { href: "/run", label: "Ask", icon: Sparkles as LucideIcon },
-      { href: "/runs", label: "Runs", icon: FolderClock as LucideIcon },
     ],
   },
   {
@@ -30,6 +31,7 @@ const GROUPS: Group[] = [
     items: [
       { href: "/agents", label: "Agents", icon: Users as LucideIcon },
       { href: "/teams", label: "Teams", icon: Zap as LucideIcon },
+      { href: "/protocols", label: "Protocols", icon: BookOpen as LucideIcon },
       { href: "/pipelines", label: "Pipelines", icon: Workflow as LucideIcon },
     ],
   },
@@ -37,14 +39,15 @@ const GROUPS: Group[] = [
     label: "Connect",
     items: [
       { href: "/integrations", label: "Tools", icon: Plug as LucideIcon },
-      { href: "/knowledge", label: "Graph", icon: Database as LucideIcon },
-      { href: "/protocols", label: "Protocols", icon: BookOpen as LucideIcon },
+      { href: "/knowledge", label: "Knowledge Graph", icon: Network as LucideIcon },
+      { href: "/knowledge/graph", label: "Graph map", icon: Share2 as LucideIcon },
     ],
   },
   {
-    label: "Learn",
+    label: "History",
     items: [
-      { href: "/corrections", label: "Corrections", icon: BookOpen as LucideIcon },
+      { href: "/runs", label: "Runs", icon: FolderClock as LucideIcon },
+      { href: "/corrections", label: "Corrections", icon: GraduationCap as LucideIcon },
     ],
   },
 ];

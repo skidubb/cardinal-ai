@@ -18,7 +18,10 @@ import traceback
 _log = logging.getLogger(__name__)
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from api.context_pipeline import RunContext
 
 
 # ── Active task registry ──────────────────────────────────────────────────────
@@ -241,7 +244,7 @@ async def run_protocol_stream(
     is correctly tenant-scoped. Defaults to ``cardinal-element`` for CLI/local
     callers that don't have an auth context.
     """
-    from api.context_pipeline import RunContext, build_effective_question, cleanup_run_context
+    from api.context_pipeline import build_effective_question, cleanup_run_context
 
     yield _sse_event("run_start", {"run_id": run_id, "protocol_key": protocol_key})
 
@@ -543,8 +546,11 @@ async def run_protocol_stream(
             except Exception:
                 pass
             await write_decision(tenant_slug=tenant_slug, envelope=envelope, run_id_source=str(run_id))
-        except Exception:
-            pass
+        except Exception as graph_err:
+            _log.warning(
+                "graph_writer.invoke_failed run_id=%s tenant=%s err=%s",
+                run_id, tenant_slug, graph_err,
+            )
 
         if persist_outcome.telemetry_degraded:
             for warning in persist_outcome.warnings:

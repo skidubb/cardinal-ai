@@ -10,12 +10,16 @@ import RunForm from "./RunForm";
 export default async function RunPage({
   searchParams,
 }: {
-  searchParams: Promise<{ question?: string; protocol?: string }>;
+  searchParams: Promise<{ question?: string; protocol?: string; agents?: string }>;
 }) {
   const { orgSlug } = await auth();
   const sp = await searchParams;
   const initialQuestion = typeof sp.question === "string" ? sp.question : "";
   const initialProtocol = typeof sp.protocol === "string" ? sp.protocol : "";
+  const initialAgents =
+    typeof sp.agents === "string" && sp.agents.trim().length > 0
+      ? sp.agents.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
 
   const [protocolsR, agentsR, pipelinesR, teamsR] = await Promise.allSettled([
     fetchProtocols(),
@@ -67,6 +71,7 @@ export default async function RunPage({
           teams={teams}
           initialQuestion={initialQuestion}
           initialProtocol={initialProtocol}
+          initialAgents={initialAgents}
         />
       )}
     </div>

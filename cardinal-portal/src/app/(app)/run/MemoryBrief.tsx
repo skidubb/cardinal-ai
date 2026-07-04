@@ -42,14 +42,10 @@ export default function MemoryBrief({ question }: { question: string }) {
     return () => clearTimeout(handle);
   }, [question]);
 
+  // Memory brief is decorative. When the graph is unreachable / not
+  // provisioned, render nothing rather than a noisy error — the /knowledge
+  // and /knowledge/graph pages are the right surface for graph health.
   if (!preview || !preview.available) {
-    if (question.trim().length >= 10 && preview?.reason) {
-      return (
-        <div className="text-xs text-muted-foreground italic">
-          Memory brief unavailable: {preview.reason}
-        </div>
-      );
-    }
     return null;
   }
 

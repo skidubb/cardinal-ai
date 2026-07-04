@@ -1,7 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { fetchRun, type StageAudit, type StageAuditStatus } from "@/lib/api";
+import { Wrench } from "lucide-react";
+import { fetchRun, type StageAudit, type StageAuditStatus, type ToolCall } from "@/lib/api";
 import NewCorrectionForm from "../../corrections/NewCorrectionForm";
 import { DeleteRunButton } from "./DeleteRunButton";
 import { Markdown } from "@/components/ui/markdown";
@@ -150,6 +151,12 @@ export default async function RunDetailPage({
             </section>
 
             {run.outputs && run.outputs.filter((o) => o.agent_key !== "_synthesis").length > 0 ? (
+              <ToolsPanel
+                outputs={run.outputs.filter((o) => o.agent_key !== "_synthesis")}
+              />
+            ) : null}
+
+            {run.outputs && run.outputs.filter((o) => o.agent_key !== "_synthesis").length > 0 ? (
               <section className="space-y-3">
                 <h2 className="ce-label">Agent transcripts · Working notes</h2>
                 {run.outputs
@@ -181,6 +188,131 @@ export default async function RunDetailPage({
             ) : null}
           </>
         ) : null}
+    </div>
+  );
+}
+
+type AgentOutputForTools = {
+  id: number;
+  agent_key: string;
+  tool_calls?: ToolCall[];
+};
+
+function ToolsPanel({ outputs }: { outputs: AgentOutputForTools[] }) {
+  const totalCalls = outputs.reduce(
+    (sum, o) => sum + (o.tool_calls?.length ?? 0),
+    0,
+  );
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="ce-label flex items-center gap-2">
+          <Wrench size={12} /> Tools used
+        </h2>
+        <span className="text-[11px] tabular-nums text-muted-foreground">
+          {totalCalls} {totalCalls === 1 ? "call" : "calls"} across {outputs.length}{" "}
+          {outputs.length === 1 ? "agent" : "agents"}
+        </span>
+      </div>
+
+      {totalCalls === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-background px-3 py-2 text-xs italic text-muted-foreground">
+          No tools invoked. Agents answered from prompt + memory only.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {outputs.map((o) => {
+            const calls = o.tool_calls ?? [];
+            if (calls.length === 0) {
+              return (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-1.5 text-[11px]"
+                >
+                  <span className="font-mono text-foreground">{o.agent_key}</span>
+                  <span className="italic text-muted-foreground">no tools invoked</span>
+                </div>
+              );
+            }
+            return (
+              <details key={o.id} className="rounded-lg border border-border bg-background">
+                <summary className="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                  <span className="font-mono text-foreground">{o.agent_key}</span>
+                  <span className="flex items-center gap-2 tabular-nums text-muted-foreground">
+                    <span>
+                      {calls.length} {calls.length === 1 ? "call" : "calls"}
+                    </span>
+                    <ToolNameStack calls={calls} />
+                  </span>
+                </summary>
+                <div className="space-y-2 border-t border-border p-3">
+                  {calls.map((c, i) => (
+                    <ToolCallRow key={`${o.id}-${i}`} call={c} index={i} />
+                  ))}
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ToolNameStack({ calls }: { calls: ToolCall[] }) {
+  const counts = new Map<string, number>();
+  for (const c of calls) counts.set(c.tool, (counts.get(c.tool) ?? 0) + 1);
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {Array.from(counts.entries())
+        .slice(0, 4)
+        .map(([tool, n]) => (
+          <span
+            key={tool}
+            className="rounded-full border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+          >
+            {tool}
+            {n > 1 ? <span className="ml-0.5 text-foreground">×{n}</span> : null}
+          </span>
+        ))}
+    </span>
+  );
+}
+
+function ToolCallRow({ call, index }: { call: ToolCall; index: number }) {
+  return (
+    <div className="rounded border border-border bg-card p-2 text-[11px]">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-secondary font-mono text-[9px] text-muted-foreground">
+          {index + 1}
+        </span>
+        <span className="font-mono text-foreground">{call.tool}</span>
+        {call.iteration != null ? (
+          <span className="text-muted-foreground">iter {call.iteration}</span>
+        ) : null}
+        {call.elapsed_ms != null ? (
+          <span className="ml-auto tabular-nums text-muted-foreground">
+            {call.elapsed_ms.toFixed(0)} ms
+          </span>
+        ) : null}
+      </div>
+      {call.input_summary ? (
+        <div className="mb-1">
+          <div className="ce-label text-[9px]">input</div>
+          <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded bg-secondary/40 p-1.5 font-mono text-[10px] text-foreground">
+            {call.input_summary}
+          </pre>
+        </div>
+      ) : null}
+      {call.result_summary ? (
+        <div>
+          <div className="ce-label text-[9px]">result</div>
+          <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded bg-secondary/40 p-1.5 font-mono text-[10px] text-foreground">
+            {call.result_summary}
+          </pre>
+        </div>
+      ) : null}
     </div>
   );
 }

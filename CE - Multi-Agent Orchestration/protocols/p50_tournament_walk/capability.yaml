@@ -12,6 +12,13 @@ description: Walk variant with elimination tournament — shallow passes qualify
 when_to_use: Many candidate angles, needing winnowing + deep exploration of survivors.
 when_not_to_use: Narrow questions with few candidate angles.
 tools_enabled: true
+recommended_agents:
+  - ceo
+  - cfo
+  - cto
+  - cmo
+  - coo
+  - cpo
 
 stages:
   - name: "Frame the tournament"

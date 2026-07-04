@@ -12,6 +12,11 @@ description: Generate hypotheses, score evidence for/against, eliminate least su
 when_to_use: Root cause analysis, competing explanations with evidence.
 when_not_to_use: Creative ideation, consensus building.
 tools_enabled: true
+recommended_agents:
+  - ceo
+  - cfo
+  - cto-audit-architect
+  - ceo-competitive-intel
 stages:
   - key: hypotheses
     name: Generate Hypotheses

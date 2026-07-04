@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import agent_complete, extract_text, filter_exceptions, llm_complete
+from protocols.llm import agent_complete, filter_exceptions, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (

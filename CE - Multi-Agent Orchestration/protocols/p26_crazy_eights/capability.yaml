@@ -11,6 +11,12 @@ description: Rapid ideation — 8 ideas in 8 minutes from each agent.
 when_to_use: Divergent thinking, creative solution generation.
 when_not_to_use: Convergent decisions, quantitative estimation.
 tools_enabled: true
+recommended_agents:
+  - cmo
+  - cpo-service-designer
+  - cmo-distribution-strategist
+  - ceo
+  - cto
 
 stages:
   - name: "Rapid ideation"

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,18 +23,21 @@ def _clear_router_decision_cache():
     """Reset the adaptive router's in-process decision cache before/after each test."""
     try:
         from protocols.adaptive_router import orchestrator as _om
+
         _om._router_cache.clear()
     except Exception:
         pass
     yield
     try:
         from protocols.adaptive_router import orchestrator as _om
+
         _om._router_cache.clear()
     except Exception:
         pass
 
 
 # ── In-memory SQLite engine ───────────────────────────────────────────────────
+
 
 @pytest.fixture(name="engine")
 def engine_fixture():
@@ -45,6 +48,7 @@ def engine_fixture():
         poolclass=StaticPool,
     )
     import api.models  # noqa: F401 — registers models with SQLModel metadata
+
     SQLModel.metadata.create_all(test_engine)
     yield test_engine
     SQLModel.metadata.drop_all(test_engine)
@@ -58,6 +62,7 @@ def session_fixture(engine):
 
 
 # ── TestClient fixture ────────────────────────────────────────────────────────
+
 
 @pytest.fixture(name="client")
 def client_fixture(engine):
@@ -73,13 +78,14 @@ def client_fixture(engine):
     async def noop_lifespan(app):
         # Create tables in the test engine instead of the production engine
         import api.models  # noqa: F401
+
         SQLModel.metadata.create_all(engine)
         yield
 
     with (
         patch("api.server.lifespan", noop_lifespan),
         patch("api.database.engine", engine),
-        patch("api.routers.runs.engine", engine),
+        patch("api.routers.runs.engine", engine, create=True),
         patch("api.routers.protocols.engine", engine, create=True),
         patch("api.routers.pipelines.engine", engine, create=True),
         patch("api.runner.engine", engine),
@@ -96,6 +102,7 @@ def client_fixture(engine):
 
 
 # ── SSE async generator helpers ───────────────────────────────────────────────
+
 
 async def _mock_protocol_stream(*args, **kwargs) -> AsyncGenerator[str, None]:
     """Mock run_protocol_stream that yields minimal SSE events."""

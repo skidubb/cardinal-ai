@@ -135,6 +135,28 @@ def _infer_orchestration_pattern(cap: dict) -> str:
     return _infer_pattern_from_metadata(cap)
 
 
+_DEFAULT_RECOMMENDED_AGENTS = ["ceo", "cfo", "cto"]
+
+
+def _resolve_recommended_agents(cap: dict) -> list[str]:
+    """Return curated agents from capability.yaml, or a sensible default.
+
+    Single-agent protocols (max_agents=1) get [ceo] as a default — the
+    [ceo, cfo, cto] fallback is only meaningful for multi-agent protocols.
+    Router/dispatcher protocols (min=max=0) return an empty list.
+    """
+    declared = cap.get("recommended_agents")
+    if declared:
+        return list(declared)
+    max_a = cap.get("max_agents")
+    min_a = cap.get("min_agents") or 0
+    if max_a == 0 and min_a == 0:
+        return []
+    if max_a == 1:
+        return ["ceo"]
+    return list(_DEFAULT_RECOMMENDED_AGENTS)
+
+
 def get_protocol_manifest() -> list[dict]:
     """Scan all protocol directories and return metadata list."""
     protocols = []
@@ -165,6 +187,7 @@ def get_protocol_manifest() -> list[dict]:
             "tools_enabled": cap.get("tools_enabled", True),
             "has_stage_manifest": bool(cap.get("stages")),
             "orchestration_pattern": _infer_orchestration_pattern(cap),
+            "recommended_agents": _resolve_recommended_agents(cap),
         })
 
     return protocols

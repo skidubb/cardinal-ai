@@ -11,6 +11,11 @@ description: Calibrated probability estimates using superforecasting methodology
 when_to_use: Probability assessment, calibrated predictions.
 when_not_to_use: Creative ideation, qualitative strategy.
 tools_enabled: true
+recommended_agents:
+  - cfo-cash-flow-forecaster
+  - ceo-competitive-intel
+  - cfo
+  - ceo
 stages:
   - key: decompose
     name: Decompose into Sub-Forecasts

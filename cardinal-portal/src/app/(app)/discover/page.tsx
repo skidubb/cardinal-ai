@@ -1,8 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
+import { fetchAgents, fetchProtocols } from "@/lib/api";
 import { DiscoverForm } from "./DiscoverForm";
 
 export default async function DiscoverPage() {
   const { orgSlug } = await auth();
+  const [protocols, agents] = await Promise.all([
+    fetchProtocols().catch(() => []),
+    fetchAgents().catch(() => []),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl px-8 py-10 space-y-6">
@@ -19,7 +24,7 @@ export default async function DiscoverPage() {
         </p>
       </header>
 
-      <DiscoverForm />
+      <DiscoverForm protocols={protocols} agents={agents} />
     </div>
   );
 }

@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, col, select
 from sse_starlette.sse import EventSourceResponse
 
-from api.database import engine, get_session
+from api.database import get_session
 from api.middleware.clerk_auth import resolve_tenant
 from api.models import AgentOutput, Run, RunStep
 from api.report_helpers import build_envelope_from_db
@@ -51,7 +51,7 @@ class ProtocolRunRequest(BaseModel):
 
 class PipelineStepRequest(BaseModel):
     protocol_key: str
-    question_template: str
+    question_template: str = ""
     thinking_model: str = THINKING_MODEL
     orchestration_model: str = ORCHESTRATION_MODEL
     rounds: int | None = None

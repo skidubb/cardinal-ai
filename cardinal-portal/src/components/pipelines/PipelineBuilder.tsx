@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowDown, ArrowUp, Plus, Trash2, Info } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, Plus, Trash2 } from "lucide-react";
 import type { Protocol } from "@/lib/api";
 
 type StepDraft = {
   protocol_key: string;
   rounds: number | null;
-  question_template: string;
-  output_passthrough: boolean;
-  no_tools: boolean;
 };
 
 function emptyStep(protocols: Protocol[]): StepDraft {
@@ -18,9 +15,6 @@ function emptyStep(protocols: Protocol[]): StepDraft {
     protocol_key:
       protocols.find((p) => p.key === "p04_multi_round_debate")?.key ?? protocols[0]?.key ?? "",
     rounds: null,
-    question_template: "",
-    output_passthrough: true,
-    no_tools: false,
   };
 }
 
@@ -75,9 +69,9 @@ export function PipelineBuilder({ protocols }: { protocols: Protocol[] }) {
       steps: steps.map((s) => ({
         protocol_key: s.protocol_key,
         rounds: s.rounds,
-        question_template: s.question_template.trim() || null,
-        output_passthrough: s.output_passthrough,
-        no_tools: s.no_tools,
+        question_template: "",
+        output_passthrough: true,
+        no_tools: false,
       })),
     };
 
@@ -132,144 +126,99 @@ export function PipelineBuilder({ protocols }: { protocols: Protocol[] }) {
 
       {/* Steps */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-baseline justify-between">
           <div>
             <span className="ce-eyebrow">Chain</span>
             <h2 className="mt-1 text-base font-bold tracking-tight">
               Steps{" "}
               <span className="text-sm font-normal text-muted-foreground">({steps.length})</span>
             </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              One question runs through every step. Each step receives the previous step&apos;s
+              output as context.
+            </p>
           </div>
         </div>
 
-        <div className="flex items-start gap-3 rounded-xl border border-[rgb(var(--ce-yellow-500))]/30 bg-[rgb(var(--ce-yellow-500))]/5 p-3 text-xs">
-          <Info size={14} className="mt-0.5 shrink-0 text-[rgb(var(--ce-yellow-500))]" />
-          <div className="text-muted-foreground">
-            Each step receives the previous step&apos;s output as context. Use{" "}
-            <code className="rounded bg-secondary px-1 font-mono">{`{{previous.output}}`}</code> in
-            a question template to reference it explicitly. Leave template empty to use the
-            pipeline&apos;s top-level question.
-          </div>
-        </div>
-
-        <ol className="space-y-3">
+        <ol className="space-y-2">
           {steps.map((step, i) => {
             const protocol = protocols.find((p) => p.key === step.protocol_key);
             const supportsRounds = (protocol?.max_agents ?? 0) > 1;
             return (
-              <li
-                key={i}
-                className="relative rounded-xl border border-border bg-card p-5"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+              <li key={i} className="space-y-2">
+                <div className="relative rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                       {i + 1}
                     </span>
-                    <span className="ce-label">Step {i + 1}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <IconBtn onClick={() => move(i, -1)} disabled={i === 0} label="Move up">
-                      <ArrowUp size={14} />
-                    </IconBtn>
-                    <IconBtn
-                      onClick={() => move(i, 1)}
-                      disabled={i === steps.length - 1}
-                      label="Move down"
-                    >
-                      <ArrowDown size={14} />
-                    </IconBtn>
-                    <IconBtn
-                      onClick={() => remove(i)}
-                      disabled={steps.length === 1}
-                      label="Delete step"
-                      tone="destructive"
-                    >
-                      <Trash2 size={14} />
-                    </IconBtn>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Protocol">
-                    <select
-                      value={step.protocol_key}
-                      onChange={(e) => updateStep(i, { protocol_key: e.target.value })}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    >
-                      {protocols.map((p) => (
-                        <option key={p.key} value={p.key}>
-                          {p.code ?? p.key.split("_")[0].toUpperCase()} — {p.name}
-                        </option>
-                      ))}
-                    </select>
-                    {protocol?.description ? (
-                      <p className="text-[10px] leading-relaxed text-muted-foreground text-pretty">
-                        {protocol.description}
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <select
+                        value={step.protocol_key}
+                        onChange={(e) => updateStep(i, { protocol_key: e.target.value })}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      >
+                        {protocols.map((p) => (
+                          <option key={p.key} value={p.key}>
+                            {p.code ?? p.key.split("_")[0].toUpperCase()} — {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      {protocol?.description ? (
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground text-pretty">
+                          {protocol.description}
+                        </p>
+                      ) : null}
+                    </div>
+                    {supportsRounds ? (
+                      <div className="shrink-0">
+                        <label className="ce-label block text-[10px]">Rounds</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={5}
+                          value={step.rounds ?? ""}
+                          onChange={(e) =>
+                            updateStep(i, {
+                              rounds: e.target.value ? Number(e.target.value) : null,
+                            })
+                          }
+                          className="w-16 rounded border border-input bg-background px-2 py-1 text-sm tabular-nums text-foreground"
+                          placeholder="2"
+                        />
+                      </div>
                     ) : null}
-                  </Field>
-
-                  {supportsRounds ? (
-                    <Field label="Rounds" hint="For multi-round protocols (debate, synthesis)">
-                      <input
-                        type="number"
-                        min={1}
-                        max={5}
-                        value={step.rounds ?? ""}
-                        onChange={(e) =>
-                          updateStep(i, {
-                            rounds: e.target.value ? Number(e.target.value) : null,
-                          })
-                        }
-                        className="w-24 rounded border border-input bg-background px-2 py-1.5 text-sm tabular-nums text-foreground"
-                        placeholder="2"
-                      />
-                    </Field>
-                  ) : (
-                    <div />
-                  )}
-                </div>
-
-                <div className="mt-4 space-y-4">
-                  <Field
-                    label="Question template"
-                    hint={`Optional. Use {{previous.output}} to chain step ${i}'s result. Empty = pipeline question.`}
-                  >
-                    <textarea
-                      value={step.question_template}
-                      onChange={(e) => updateStep(i, { question_template: e.target.value })}
-                      rows={2}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                      placeholder={
-                        i === 0
-                          ? "(leave empty to use the pipeline's top-level question)"
-                          : "Given this analysis: {{previous.output}}\n\nWhat are the three biggest risks?"
-                      }
-                    />
-                  </Field>
-
-                  <div className="flex flex-wrap gap-4 text-xs">
-                    <label className="flex items-center gap-2 text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={step.output_passthrough}
-                        onChange={(e) => updateStep(i, { output_passthrough: e.target.checked })}
-                        className="h-4 w-4 rounded border-input accent-[rgb(var(--ce-indigo-600))]"
-                      />
-                      Pass output to next step
-                    </label>
-                    <label className="flex items-center gap-2 text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={step.no_tools}
-                        onChange={(e) => updateStep(i, { no_tools: e.target.checked })}
-                        className="h-4 w-4 rounded border-input accent-[rgb(var(--ce-indigo-600))]"
-                      />
-                      Disable tool use (faster, no external data)
-                    </label>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <IconBtn onClick={() => move(i, -1)} disabled={i === 0} label="Move up">
+                        <ArrowUp size={14} />
+                      </IconBtn>
+                      <IconBtn
+                        onClick={() => move(i, 1)}
+                        disabled={i === steps.length - 1}
+                        label="Move down"
+                      >
+                        <ArrowDown size={14} />
+                      </IconBtn>
+                      <IconBtn
+                        onClick={() => remove(i)}
+                        disabled={steps.length === 1}
+                        label="Delete step"
+                        tone="destructive"
+                      >
+                        <Trash2 size={14} />
+                      </IconBtn>
+                    </div>
                   </div>
                 </div>
+
+                {i < steps.length - 1 ? (
+                  <div className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <span className="h-px w-6 bg-border" />
+                    <ArrowDown size={12} />
+                    <span>output → context</span>
+                    <ArrowDown size={12} />
+                    <span className="h-px w-6 bg-border" />
+                  </div>
+                ) : null}
               </li>
             );
           })}

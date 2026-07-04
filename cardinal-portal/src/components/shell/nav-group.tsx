@@ -21,9 +21,11 @@ export function NavGroup({ label, items }: NavGroupProps) {
 
   return (
     <div className="mb-5">
-      <div className="px-3 pb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-        {label}
-      </div>
+      {label ? (
+        <div className="px-3 pb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          {label}
+        </div>
+      ) : null}
       <ul className="space-y-0.5">
         {items.map((item) => {
           const active = item.match

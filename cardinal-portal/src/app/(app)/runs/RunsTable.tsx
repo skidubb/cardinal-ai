@@ -50,14 +50,28 @@ export function RunsTable({ runs }: Props) {
     });
   }
 
+  const flashTone = flash?.startsWith("Delete failed")
+    ? "border-destructive/50 bg-destructive/10 text-destructive"
+    : flash?.includes("skipped")
+    ? "border-[rgb(var(--ce-yellow-500))]/40 bg-[rgb(var(--ce-yellow-500))]/10 text-foreground"
+    : "border-[rgb(var(--ce-green-500))]/40 bg-[rgb(var(--ce-green-500))]/10 text-foreground";
+
   return (
     <>
       {flash ? (
         <div
-          className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-muted-foreground"
+          className={`sticky top-0 z-20 flex items-center justify-between gap-3 rounded-lg border px-4 py-2 text-sm ${flashTone}`}
           role="status"
         >
-          {flash}
+          <span>{flash}</span>
+          <button
+            type="button"
+            onClick={() => setFlash(null)}
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
         </div>
       ) : null}
 

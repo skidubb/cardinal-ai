@@ -63,15 +63,18 @@ async def write_decision(
         from ce_graph.queries import GraphQueries
         from ce_graph.tenancy import load_tenant
     except ImportError as e:
-        logger.debug("ce-graph unavailable; skipping Decision write for %s: %s", tenant_slug, e)
+        logger.warning(
+            "graph_writer.import_failed tenant=%s err=%s",
+            tenant_slug, e,
+        )
         return
 
     try:
         tenant = load_tenant(tenant_slug)
     except FileNotFoundError:
-        logger.info(
-            "Tenant %s not provisioned in ce-graph; skipping Decision write. "
-            "Run cegraph init --tenant %s to enable compounding memory.",
+        logger.warning(
+            "graph_writer.tenant_not_provisioned tenant=%s "
+            "hint='run cegraph init --tenant %s'",
             tenant_slug, tenant_slug,
         )
         return
@@ -103,11 +106,16 @@ async def write_decision(
             run_source_id=str(run_source_id) if run_source_id else None,
         )
         logger.info(
-            "Decision %s written to graph %s (protocol=%s agents=%s eval=%s)",
-            decision_id, tenant.graph_name, protocol_code, agent_keys, eval_score,
+            "graph_writer.write_decision_ok decision_id=%s graph=%s "
+            "tenant=%s protocol=%s agents=%s eval=%s",
+            decision_id, tenant.graph_name, tenant_slug, protocol_code,
+            agent_keys, eval_score,
         )
     except Exception as e:
-        logger.warning("write_decision failed for %s: %s", tenant_slug, e)
+        logger.warning(
+            "graph_writer.write_decision_failed tenant=%s err=%s",
+            tenant_slug, e,
+        )
 
 
 __all__ = ["write_decision"]
