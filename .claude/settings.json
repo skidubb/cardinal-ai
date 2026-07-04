@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ruff check:*)",
+      "Bash(ruff format:*)",
+      "Bash(pytest:*)",
+      "Bash(mypy:*)",
+      "Bash(python Scripts/check-doc-drift.py:*)",
+      "Bash(python3 Scripts/check-doc-drift.py:*)",
+      "Bash(npx tsc --noEmit:*)",
+      "Bash(npx vite build:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/ruff-on-edit.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/Scripts/check-doc-drift.py\" --fs-only --quiet"
+          }
+        ]
+      }
+    ]
+  }
+}

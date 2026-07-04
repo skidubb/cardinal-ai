@@ -1,6 +1,6 @@
 protocol_id: P22
 name: Sequential Pipeline
-category: Org Theory
+category: Baselines
 problem_types:
 - General Analysis
 cost_tier: low
@@ -11,3 +11,7 @@ description: Chain agents sequentially — each builds on the previous output.
 when_to_use: 'When order matters: research→analysis→recommendation.'
 when_not_to_use: When parallel perspectives are more valuable.
 tools_enabled: true
+recommended_agents:
+  - ceo-competitive-intel
+  - cfo
+  - ceo

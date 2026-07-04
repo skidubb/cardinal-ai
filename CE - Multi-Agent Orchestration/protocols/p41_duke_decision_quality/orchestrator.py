@@ -102,7 +102,7 @@ class DecisionQualityOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
             agent_name="process_evaluation",
         )

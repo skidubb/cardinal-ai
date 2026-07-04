@@ -108,7 +108,7 @@ def main() -> None:
     parser.add_argument(
         "--thinking-model",
         default=None,
-        help="Override the thinking model (default: claude-opus-4-6).",
+        help="Override the thinking model (default: claude-opus-4-7).",
     )
     parser.add_argument(
         "--orchestration-model",
@@ -191,9 +191,9 @@ def main() -> None:
                 for v in result.variables
             ],
             "causal_links": [
-                {"from": l.from_var, "to": l.to_var, "polarity": l.polarity,
-                 "reasoning": l.reasoning}
-                for l in result.causal_links
+                {"from": link.from_var, "to": link.to_var, "polarity": link.polarity,
+                 "reasoning": link.reasoning}
+                for link in result.causal_links
             ],
             "reinforcing_loops": [
                 {"id": lp.id, "path": lp.path, "polarities": lp.polarities}

@@ -4,6 +4,7 @@
 
 - ✅ **v1.0 Critical Debt Remediation** - Phases 1-3 (shipped 2026-03-09)
 - 🚧 **v1.1 Full-Stack Integration** - Phases 4-8 (in progress)
+- 📋 **v1.2 Fair Academic Bench** - Phases 9-12 (planned)
 
 ---
 
@@ -62,7 +63,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: Fix agent provider absolute path and add startup production assertion
+- [x] 04-01: Fix agent provider absolute path and add startup production assertion
 
 ### Phase 5: API Wiring
 **Goal**: Every protocol is executable from a single HTTP call; run history, agent list, and cost data are retrievable; SSE streams live progress; client disconnect cancels the run
@@ -77,8 +78,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Canonical URL routing, SSE headers, trace_id, stream replay, and test infrastructure
-- [ ] 05-02: Client disconnect cancellation, context var isolation, and pipeline presets
+- [x] 05-01: Canonical URL routing, SSE headers, trace_id, stream replay, and test infrastructure
+- [x] 05-02: Client disconnect cancellation, context var isolation, and pipeline presets
 
 ### Phase 6: Structured Output and Reports
 **Goal**: Protocol results display as executive-readable ProtocolReports with scannable sections, disagreement highlighting, and confidence indicators; PDF export produces a client-deliverable document
@@ -93,8 +94,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — ProtocolReport dataclass, from_envelope transform, judge_verdict persistence, DB helpers
-- [ ] 06-02-PLAN.md — Jinja2 template, PDF endpoint, shareable HTML route, React report component
+- [x] 06-01-PLAN.md — ProtocolReport dataclass, from_envelope transform, judge_verdict persistence, DB helpers
+- [x] 06-02-PLAN.md — Jinja2 template, PDF endpoint, shareable HTML route, React report component
 
 ### Phase 7: Frontend and Auth
 **Goal**: The React UI is fully connected to the live API with no mock data; login gate protects all routes; SSE streaming works through auth; CORS is environment-configured
@@ -130,18 +131,84 @@ Plans:
 
 ---
 
+## v1.2 Fair Academic Bench (planned, not started)
+
+**Milestone Goal:** Give every decisioning family a fair chance in the eval harness. Debate and negotiation protocols currently dominate scores because of structural advantages in the harness (generous token budgets, debate-shaped test questions, generic rubric). Other protocols likely underperform for harness reasons, not protocol reasons. Prove or disprove this by giving every family category-appropriate tokens, questions, and rubrics — then re-run.
+
+**Why this matters:** The adaptive router thesis depends on having real, comparable scores per protocol. Right now the scores are contaminated by the harness. Fixing this is a prerequisite for any protocol-selection learning.
+
+### Phase 9: Token Cap Audit
+**Goal**: Every max_tokens site in the orchestration layer is classified as mechanical or reasoning, with reasoning steps raised to 6k minimum and mechanical steps annotated with a justifying comment. The inline eval scorer and judge backends get real rationale headroom.
+**Depends on**: v1.1 complete
+**Success Criteria**:
+  1. `docs/token-cap-audit.md` ledger exists with one row per cap site: file:line, old value, new value, classification, rationale
+  2. `protocols/multiagent_evals.py:144` raised from 500 → 4096+ with thinking enabled
+  3. `CE - Evals/src/ce_evals/core/judge_backends.py` — Anthropic/OpenAI/Gemini backends raised from 4096 → 8192
+  4. Every remaining `max_tokens < 4096` site has an inline comment explaining why it stays small (mechanical step)
+  5. Six Hats, Crazy Eights, Cynefin Probe, and other flagged creative/systems protocols have their reasoning steps raised to 6k+
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-01: Full cap audit + ledger + per-site changes across 49 protocols
+
+### Phase 10: Decisioning Taxonomy and Test Bank
+**Goal**: The 49 non-meta protocols are grouped into 8 decisioning families, each with 3 canonical test questions designed to let that family shine. No more using debate-shaped questions to test creative or systems protocols.
+**Depends on**: Phase 9
+**Success Criteria**:
+  1. 8 decisioning families defined: adversarial, intelligence, forecasting, creative, systems, facilitation, abductive, wicked
+  2. `benchmark-questions-v2.json` exists with 24 new questions (3 per family), each tagged with `decisioning_family`
+  3. Every protocol in `protocols/agents.py` is mapped to a family in a new `protocols/families.py`
+  4. The new questions are demonstrably different in shape from the existing debate-centric Q-series
+**Plans**: 1 plan
+
+Plans:
+- [ ] 10-01: Family taxonomy + 24 new test questions + protocol-to-family mapping
+
+### Phase 11: Family-Aware Rubrics
+**Goal**: The eval judge scores each protocol against dimensions that match its decisioning family. Creative protocols are scored on novelty and recombination, not on stakeholder coverage. Systems protocols are scored on loop identification, not on preference aggregation.
+**Depends on**: Phase 10
+**Success Criteria**:
+  1. 8 YAML rubric files under `CE - Evals/rubrics/{family}.yaml`, each with common dimensions + family-specific dimensions
+  2. `CE - Evals/src/ce_evals/core/rubric.py` has a `load_family_rubric(family)` dispatch
+  3. `scripts/evaluate.py` accepts `--family` flag and routes to the right rubric
+  4. A dry-run against each family loads its rubric without error
+**Plans**: 1 plan
+
+Plans:
+- [ ] 11-01: 8 family rubrics + rubric loader + eval harness --family flag
+
+### Phase 12: Fair Bench Run and Comparison Report
+**Goal**: The academic test bench is run twice (baseline + fair bench) and a public comparison report shows which protocols were harness-handicapped and which are genuinely weaker. This is the evidence that earns the "adaptive router" narrative.
+**Depends on**: Phase 11
+**Success Criteria**:
+  1. Baseline run (current code + scorer fix only) completes against all 49 protocols on the new test bank, persisted to Postgres with Langfuse traces
+  2. Fair bench run (cap raises + family rubrics) completes against the same protocols and questions
+  3. `CE - Evals/research/fair-bench-apr-2026.md` exists with per-protocol score deltas
+  4. At least one previously-underperforming protocol shows a statistically meaningful gain under the fair bench (proof the bench isn't broken)
+  5. Protocols that still underperform after fair treatment are explicitly called out as genuinely weaker (not harness artifacts)
+**Plans**: 1 plan
+
+Plans:
+- [ ] 12-01: Baseline run + fair bench run + comparison report
+
+---
+
 ## Progress
 
 **Execution Order:**
-4 → 5 → 6 → 7 → 8
+4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Shared Package and Pricing Unification | v1.0 | 3/3 | Complete | 2026-03-09 |
 | 2. Environment Consolidation | v1.0 | 5/5 | Complete | 2026-03-09 |
 | 3. Token Estimation and Documentation | v1.0 | 4/4 | Complete | 2026-03-09 |
-| 4. Agent Provider | 1/1 | Complete   | 2026-03-10 | - |
-| 5. API Wiring | 2/2 | Complete   | 2026-03-10 | - |
-| 6. Structured Output and Reports | 2/2 | Complete   | 2026-03-11 | - |
+| 4. Agent Provider | v1.1 | 1/1 | Complete | 2026-03-10 |
+| 5. API Wiring | v1.1 | 2/2 | Complete | 2026-03-10 |
+| 6. Structured Output and Reports | v1.1 | 2/2 | Complete | 2026-03-11 |
 | 7. Frontend and Auth | v1.1 | 0/3 | Not started | - |
 | 8. Deployment | v1.1 | 0/2 | Not started | - |
+| 9. Token Cap Audit | v1.2 | 0/1 | Not started | - |
+| 10. Decisioning Taxonomy and Test Bank | v1.2 | 0/1 | Not started | - |
+| 11. Family-Aware Rubrics | v1.2 | 0/1 | Not started | - |
+| 12. Fair Bench Run and Comparison Report | v1.2 | 0/1 | Not started | - |

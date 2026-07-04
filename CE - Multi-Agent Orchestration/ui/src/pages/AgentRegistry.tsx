@@ -69,7 +69,7 @@ export default function AgentRegistry() {
     key: '',
     name: '',
     category: 'executive',
-    model: 'claude-opus-4-6',
+    model: 'claude-opus-4-7',
     temperature: 1.0,
     system_prompt: '',
     constraints: [],

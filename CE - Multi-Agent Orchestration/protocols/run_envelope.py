@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 MAX_TEXT_LEN = 10_000
-MAX_RESULT_STR_LEN = 5_000
+MAX_RESULT_STR_LEN = 50_000  # Per-agent narrative can be long; don't truncate to 5k.
 
 
 def _utc_now() -> datetime:
@@ -62,6 +62,11 @@ class AgentOutputEnvelope:
     text: str
     agent_name: str = ""
     round_number: int = 0
+    # Slugified stage name (matches `key` in /api/protocols/{key}/stages).
+    # Linear protocols with 2+ agent stages (P38, P39, P48, P52) set this so
+    # the UI's ProtocolDiagram can advance the active-step cursor mid-run.
+    # Other protocols leave it blank and the frontend falls back to round_number.
+    stage_key: str = ""
     model: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
@@ -77,6 +82,7 @@ class AgentOutputEnvelope:
             "agent_name": self.agent_name,
             "text": self.text,
             "round_number": self.round_number,
+            "stage_key": self.stage_key,
             "model": self.model,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
@@ -95,6 +101,8 @@ class AgentOutputEnvelope:
         }
         if self.round_number:
             payload["round"] = self.round_number
+        if self.stage_key:
+            payload["stage_key"] = self.stage_key
         if self.cost_usd:
             payload["cost_usd"] = self.cost_usd
         return payload
@@ -203,20 +211,20 @@ def _result_to_dict(result: Any) -> dict[str, Any]:
     return {"raw": _trim_text(result, MAX_RESULT_STR_LEN)}
 
 
-def extract_synthesis(result: Any) -> str:
-    """Extract a concise synthesis from common result shapes."""
-    for attr in ("synthesis", "final_synthesis", "final_output", "recommendation", "summary", "conclusion"):
-        val = getattr(result, attr, None)
-        if isinstance(val, str) and val.strip():
-            return _trim_text(val, 2_000)
+def extract_synthesis(result: Any, protocol_key: str = "") -> str:
+    """Extract a concise synthesis from a protocol Result.
 
-    if isinstance(result, dict):
-        for key in ("synthesis", "final_synthesis", "final_output", "recommendation", "summary", "conclusion"):
-            val = result.get(key)
-            if isinstance(val, str) and val.strip():
-                return _trim_text(val, 2_000)
+    Delegates to `protocols.result_adapter.adapt_result()` which handles
+    the 27 protocols with non-standard Result shapes via explicit overrides
+    and the 23 happy-path protocols via an introspection fallback.
 
-    return ""
+    `protocol_key` is optional for backward compatibility; when absent,
+    falls through to the generic introspection fallback.
+    """
+    from protocols.result_adapter import adapt_result
+
+    adapted = adapt_result(protocol_key, result)
+    return adapted.result_summary or ""
 
 
 def name_to_key(name: str, agent_keys: list[str]) -> str:
@@ -324,6 +332,21 @@ def extract_agent_outputs(result: Any, agent_keys: list[str]) -> list[AgentOutpu
             )
         if outputs:
             return outputs
+
+    # Klein Premortem-style: {agent_name: markdown_text} dict under known attrs
+    for attr in ("narratives", "per_agent_outputs", "agent_narratives", "responses_by_agent"):
+        val = getattr(result, attr, None)
+        if isinstance(val, dict) and val:
+            for name, text in val.items():
+                add_once(
+                    AgentOutputEnvelope(
+                        agent_key=name_to_key(str(name), agent_keys),
+                        agent_name=str(name),
+                        text=_trim_text(_value_text(text), MAX_RESULT_STR_LEN),
+                    )
+                )
+            if outputs:
+                return outputs
 
     # Stage-heavy outputs
     if hasattr(result, "stages") and isinstance(result.stages, list):
@@ -470,6 +493,9 @@ def build_run_envelope(
     metadata: dict[str, Any] | None = None,
 ) -> RunEnvelope:
     """Build a canonical run envelope from a protocol result."""
+    from protocols.result_adapter import adapt_result
+    from protocols.run_auditor import audit_run
+
     result_dict = _result_to_dict(result)
     outputs = extract_agent_outputs(result, agent_keys)
 
@@ -477,6 +503,31 @@ def build_run_envelope(
         attach_tool_events(outputs, tool_events, agent_keys)
     if cost_summary:
         attach_cost_summary(outputs, cost_summary, agent_keys)
+
+    # Adapt the protocol-specific Result into a uniform summary + metadata.
+    # Falls back to generic introspection for protocols without an override.
+    adapted = adapt_result(protocol_key, result)
+    if not adapted.result_summary and isinstance(result_dict, dict):
+        # Last-resort: try adapting the dict form (handles results passed as dicts)
+        adapted_from_dict = adapt_result(protocol_key, result_dict)
+        if adapted_from_dict.result_summary:
+            adapted = adapted_from_dict
+
+    # Audit: prefer the declarative stage manifest from capability.yaml when
+    # present; fall back to auto-detection from the result dataclass fields.
+    manifest_stages: list[dict] | None = None
+    try:
+        from api.manifest import get_protocol_stages
+        manifest_stages = get_protocol_stages(protocol_key) or None
+    except Exception:
+        manifest_stages = None
+    run_audit = audit_run(protocol_key, result, manifest_stages=manifest_stages)
+
+    merged_metadata: dict[str, Any] = dict(metadata or {})
+    if adapted.metadata:
+        merged_metadata.update(adapted.metadata)
+    if not run_audit.is_empty:
+        merged_metadata["audit"] = run_audit.as_dict()
 
     envelope = RunEnvelope(
         protocol_key=protocol_key,
@@ -489,16 +540,18 @@ def build_run_envelope(
         trace_id=trace_id,
         run_id=run_id,
         result_json=result_dict,
-        result_summary=extract_synthesis(result) or extract_synthesis(result_dict),
+        result_summary=adapted.result_summary,
         cost=cost_summary or {"total_usd": 0.0, "calls": 0, "by_model": {}},
         agent_outputs=outputs,
         steps=steps or [],
         attachments=attachments or [],
-        metadata=metadata or {},
+        metadata=merged_metadata,
     )
 
     if warnings:
         for warning in warnings:
             envelope.add_warning(warning)
+    for w in adapted.warnings:
+        envelope.add_warning(w)
 
     return envelope

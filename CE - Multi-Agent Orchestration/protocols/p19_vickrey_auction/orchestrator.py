@@ -24,6 +24,60 @@ from .prompts import (
 
 
 # ---------------------------------------------------------------------------
+# Shared helper — option extraction for p19/p20 when API runner omits options
+# ---------------------------------------------------------------------------
+
+
+async def _extract_options(
+    client: "anthropic.AsyncAnthropic",
+    orchestration_model: str,
+    question: str,
+) -> list[str]:
+    """Extract 3-6 options from a question. Cheap bullet parse, Haiku fallback."""
+    parsed: list[str] = []
+    for line in question.splitlines():
+        stripped = line.strip()
+        for prefix in ("- ", "* ", "• "):
+            if stripped.startswith(prefix):
+                item = stripped[len(prefix):].strip()
+                if item:
+                    parsed.append(item)
+                break
+        else:
+            if stripped and stripped[0].isdigit():
+                for sep in (". ", ") "):
+                    idx = stripped.find(sep)
+                    if 0 < idx <= 3:
+                        item = stripped[idx + len(sep):].strip()
+                        if item:
+                            parsed.append(item)
+                        break
+    if 2 <= len(parsed) <= 10:
+        return parsed
+
+    prompt = (
+        "You will receive a strategic question asking the reader to choose "
+        "between options. Extract 3-6 concrete options/candidates implied by "
+        "the question. Respond with JSON only: "
+        '{"options": ["option one", "option two", ...]}.\n\n'
+        f"QUESTION:\n{question}"
+    )
+    resp = await llm_complete(
+        client,
+        model=orchestration_model,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+        agent_name="extract_options",
+    )
+    data = parse_json_object(extract_text(resp))
+    items = data.get("options", [])
+    if not isinstance(items, list) or not items:
+        return [question.strip()[:120] or "Option A", "Alternative"]
+    cleaned = [str(i).strip() for i in items if str(i).strip()]
+    return cleaned[:6] if cleaned else [question.strip()[:120], "Alternative"]
+
+
+# ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
 
@@ -80,7 +134,15 @@ class VickreyOrchestrator:
     # ------------------------------------------------------------------
 
     @trace_protocol("p19_vickrey_auction")
-    async def run(self, question: str, options: list[str]) -> VickreyResult:
+    async def run(
+        self,
+        question: str,
+        options: list[str] | None = None,
+    ) -> VickreyResult:
+        # When the API runner doesn't supply options, extract 3-6 from the
+        # question text via bullet parsing then Haiku fallback.
+        if options is None or len(options) == 0:
+            options = await _extract_options(self.client, self.orchestration_model, question)
         timings: dict[str, float] = {}
 
         # Phase 1 — Sealed Bidding

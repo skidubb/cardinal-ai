@@ -1,0 +1,46 @@
+protocol_id: P55
+name: Gossip Consensus
+category: Decentralized Coordination
+problem_types:
+- Estimation
+- Forecasting
+cost_tier: medium
+min_agents: 3
+max_agents: null
+supports_rounds: true
+description: Random-pair pairwise convergence for numeric/probability estimates. Termination via variance predicate.
+when_to_use: Numeric or probability estimates, organic convergence, belief aggregation without a judge.
+when_not_to_use: Categorical/binary decisions (use P20), adversarial agents, fewer than 3 agents.
+tools_enabled: true
+
+decentralization_scorecard:
+  control: "partially centralized — orchestrator performs random pairing (structural to gossip)"
+  information: "peer-local — agents see only their own and their partner's last estimate, not the full pool"
+  communication: "decentralized — pairwise exchanges written to Blackboard per round"
+  termination: "distributed predicate — population variance < epsilon on Blackboard-held state"
+
+stages:
+  - name: "Initial estimate"
+    produces: estimates_round_0
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent emits initial estimate in parallel. No peer information yet."
+  - name: "Gossip rounds"
+    produces: estimates_round_N
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Repeated pairwise exchange. Random pairing by orchestrator (structural). Agents exchange estimates peer-to-peer."
+  - name: "Variance termination"
+    produces: termination_flag
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Population variance check against epsilon. Deterministic predicate. No LLM."
+  - name: "Confidence-weighted mean"
+    produces: consensus
+    kind: mechanical
+    required: true
+    summary_role: primary_summary
+    description: "Final value = weighted mean of last-round estimates. No synthesis agent."

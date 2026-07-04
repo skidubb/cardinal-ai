@@ -44,7 +44,7 @@ def main() -> None:
     parser.add_argument("--agents", nargs="+", default=["ceo", "cfo", "cto", "cmo"])
     parser.add_argument(
         "--judge-models", nargs="+",
-        default=["claude-opus-4-6", "gpt-5.2", "gemini-3.1-pro-preview"],
+        default=["claude-opus-4-7", "gpt-5.2", "gemini-3.1-pro-preview"],
     )
     parser.add_argument("--title", default=None, help="Report title (default: derived from data filename)")
     parser.add_argument("--dry-run", action="store_true")

@@ -8,6 +8,7 @@ import { useRunStream, type CostSummary, type AgentOutputEvent, type JudgeVerdic
 import { ProtocolReport } from '../components/ProtocolReport'
 import type { ProtocolReportData } from '../components/ProtocolReport'
 import { getApiKey } from '../api'
+import { EXAMPLE_QUESTIONS } from '../constants/exampleQuestions'
 
 export default function RunView() {
   const { protocols, fetch: fetchProtocols } = useProtocolStore()
@@ -144,6 +145,22 @@ export default function RunView() {
               rows={3}
               className="w-full px-3 py-2 rounded-lg bg-white border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             />
+            {!question && (
+              <div className="mt-2">
+                <p className="text-[10px] text-text-muted mb-1.5">Try an example:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {EXAMPLE_QUESTIONS.map(eq => (
+                    <button
+                      key={eq.label}
+                      onClick={() => setQuestion(eq.question)}
+                      className="px-2.5 py-1 rounded-full text-[11px] bg-primary/5 text-primary border border-primary/15 hover:bg-primary/10 transition"
+                    >
+                      {eq.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Context files upload */}

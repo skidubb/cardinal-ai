@@ -12,3 +12,28 @@ description: Classify complexity domain, then probe/sense/respond appropriately.
 when_to_use: Uncertain situations needing complexity-aware approach.
 when_not_to_use: Clear-cut decisions with known best practices.
 tools_enabled: true
+recommended_agents:
+  - ceo
+  - coo
+  - cto
+  - cfo
+
+stages:
+  - name: "Classify Cynefin domain"
+    produces: [domain_votes, domain_responses]
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent classifies the situation into one of Clear / Complicated / Complex / Chaotic"
+  - name: "Consensus + contest detection"
+    produces: [consensus_domain, was_contested]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Tally domain votes; flag when agents disagreed"
+  - name: "Domain-appropriate action plan"
+    produces: action_plan
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Produce a domain-appropriate response (best practice / analysis / probe / stabilize)"

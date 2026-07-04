@@ -12,14 +12,49 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, parse_json_array, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, filter_exceptions_aligned, llm_complete, parse_json_array, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
+import re
+
 from .prompts import (
     EVIDENCE_SEARCH_PROMPT,
     GENERATE_CONDITIONS_PROMPT,
     VERDICT_PROMPT,
 )
+
+
+def _extract_conditions_from_prose(text: str) -> list[str]:
+    """Fallback extractor: pull numbered/bulleted items from raw agent prose.
+
+    Each agent is prompted to produce a numbered list of falsification
+    conditions. If Haiku's dedup step returns unparseable JSON, we recover by
+    parsing the raw agent outputs directly.
+    """
+    candidates: list[str] = []
+    # Numbered lists: "1. ...", "1) ..."
+    for match in re.finditer(r"^\s*\d+[\.\)]\s+(.+?)(?=\n\s*\d+[\.\)]|\n\n|\Z)", text, re.DOTALL | re.MULTILINE):
+        line = match.group(1).strip().splitlines()[0].strip()
+        if 30 <= len(line) <= 400:
+            candidates.append(line)
+    # Bulleted lists fallback
+    if not candidates:
+        for match in re.finditer(r"^\s*[-*•]\s+(.+?)$", text, re.MULTILINE):
+            line = match.group(1).strip()
+            if 30 <= len(line) <= 400:
+                candidates.append(line)
+    # Dedup while preserving order, take first 5
+    seen: set[str] = set()
+    out: list[str] = []
+    for c in candidates:
+        key = c.lower()[:80]
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+        if len(out) >= 5:
+            break
+    return out
 
 
 @dataclass
@@ -88,34 +123,38 @@ class FalsificationOrchestrator:
 
         return result
 
-    async def _generate_conditions(self, recommendation: str, context: str) -> list[str]:
+    async def _generate_conditions(self, recommendation: str, context: str) -> list[str]:  # noqa: E501
         """Phase 1: Agents generate falsification conditions in parallel."""
         prompt = GENERATE_CONDITIONS_PROMPT.format(
             recommendation=recommendation, context=context
         )
 
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return extract_text(response)
+            return response
 
         raw_outputs = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        raw_outputs = filter_exceptions(raw_outputs, label="p39_popper_falsification")
+        raw_outputs = filter_exceptions_aligned(
+            raw_outputs,
+            label="p39_popper_falsification",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
 
         # Combine all agent outputs and deduplicate via orchestration model
         combined = "\n\n".join(
             f"=== {agent['name']} ===\n{output}"
             for agent, output in zip(self.agents, raw_outputs)
+            if output is not None
         )
         response = await llm_complete(
             self.client,
@@ -124,14 +163,38 @@ class FalsificationOrchestrator:
             messages=[{
                 "role": "user",
                 "content": (
-                    "Below are falsification conditions from multiple analysts. "
-                    "Merge duplicates and return a JSON array of 3-5 unique condition "
-                    "strings, each a single sentence.\n\n" + combined
+                    "Below are falsification conditions from multiple analysts.\n"
+                    "Merge duplicates and return 3-5 unique condition strings, each a "
+                    "single sentence.\n\n"
+                    "OUTPUT FORMAT — return ONLY a JSON array of strings, no prose, "
+                    "no markdown, no wrapping object. Example:\n"
+                    '["The commission structure is forced to <10% by regulatory action in Q2 2026",\n'
+                    ' "Epic v. Apple injunction extends to all 3rd-party payment flows",\n'
+                    ' "DMA Article 6 compliance requires zero-fee sideloading in EU"]\n\n'
+                    + combined
                 ),
             }],
             agent_name="dedup",
         )
-        return parse_json_array(extract_text(response))
+        raw = response
+        try:
+            parsed = parse_json_array(raw)
+        except ValueError:
+            # Fallback: if Haiku returned prose, extract numbered/bulleted items
+            # from the combined agent output directly.
+            parsed = _extract_conditions_from_prose(combined)
+        # Normalize to flat list of strings (handles both ["str", ...] and [{"condition": "str"}, ...])
+        normalized: list[str] = []
+        for item in parsed:
+            if isinstance(item, str) and item.strip():
+                normalized.append(item.strip())
+            elif isinstance(item, dict):
+                val = item.get("condition") or item.get("text") or item.get("statement")
+                if isinstance(val, str) and val.strip():
+                    normalized.append(val.strip())
+        if not normalized:
+            normalized = _extract_conditions_from_prose(combined)
+        return normalized[:5] or ["(no falsification conditions extracted)"]
 
     async def _search_evidence(
         self, recommendation: str, context: str, conditions: list[dict]
@@ -147,28 +210,32 @@ class FalsificationOrchestrator:
             )
 
             async def query_agent(agent: dict) -> str:
-                response = await llm_complete(
-                    self.client,
-                    model=self.thinking_model,
+                response = await agent_complete(
+                    agent,
+                    fallback_model=self.thinking_model,
+                    anthropic_client=self.client,
+                    thinking_budget=self.thinking_budget,
                     max_tokens=self.thinking_budget + 4096,
-                    thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-                    system=agent["system_prompt"],
                     messages=[{"role": "user", "content": prompt}],
-                    agent_name=agent["name"],
                 )
-                return extract_text(response)
+                return response
 
             results = await asyncio.gather(
                 *(query_agent(agent) for agent in self.agents),
                 return_exceptions=True,
             )
-            results = filter_exceptions(results, label="p39_popper_falsification")
+            results = filter_exceptions_aligned(
+                results,
+                label="p39_popper_falsification",
+                labels=[a.get("name", "?") for a in self.agents],
+            )
             condition_dict["evidence_for"] = []
             condition_dict["evidence_against"] = []
             condition_dict["assessment"] = ""
             condition_dict["agent_analyses"] = {
                 agent["name"]: result
                 for agent, result in zip(self.agents, results)
+                if result is not None
             }
 
         await asyncio.gather(*(search_condition(c) for c in conditions), return_exceptions=True)
@@ -200,7 +267,7 @@ class FalsificationOrchestrator:
             }],
             agent_name="verdict",
         )
-        data = parse_json_object(extract_text(response))
+        data = parse_json_object(response)
 
         # Update conditions with verdict info
         for verdict_cond in data.get("conditions", []):

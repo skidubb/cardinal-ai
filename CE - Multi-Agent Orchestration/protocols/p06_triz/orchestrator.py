@@ -10,7 +10,11 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_array, filter_exceptions
+import logging
+
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_array
+
+_log = logging.getLogger(__name__)
 from protocols.synthesis import SynthesisEngine
 from protocols.tracing import make_client
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
@@ -97,11 +101,22 @@ class TRIZOrchestrator:
         span = create_span("stage:failure_generation", {"agent_count": len(self.agents)})
         try:
             raw_failures = await self._generate_failures(question)
+            # raw_failures is positionally aligned with self.agents; entries
+            # for failed agents are None. Keep only the surviving pairs.
+            survivors = [
+                (agent, raw)
+                for agent, raw in zip(self.agents, raw_failures)
+                if raw is not None
+            ]
+            if not survivors:
+                raise RuntimeError(
+                    "p06_triz: all agents failed during failure_generation; "
+                    "check agent logs for API errors"
+                )
             result.agent_contributions = {
-                agent["name"]: raw_failures[i]
-                for i, agent in enumerate(self.agents)
+                agent["name"]: raw for agent, raw in survivors
             }
-            end_span(span, output=f"{len(raw_failures)} failure sets")
+            end_span(span, output=f"{len(survivors)}/{len(self.agents)} agent outputs")
         except Exception:
             end_span(span, error="failure_generation failed")
             raise
@@ -112,7 +127,7 @@ class TRIZOrchestrator:
         try:
             all_text = "\n\n".join(
                 f"=== {agent['name']} ===\n{raw}"
-                for agent, raw in zip(self.agents, raw_failures)
+                for agent, raw in survivors
             )
             failures = await self._deduplicate(all_text)
             result.failure_modes = failures
@@ -157,8 +172,14 @@ class TRIZOrchestrator:
 
         return result
 
-    async def _generate_failures(self, question: str) -> list[str]:
-        """Stage 2: All agents generate failure modes in parallel."""
+    async def _generate_failures(self, question: str) -> list[str | None]:
+        """Stage 2: All agents generate failure modes in parallel.
+
+        Returns a list positionally aligned with ``self.agents``. Each entry
+        is the agent's raw text output, or ``None`` if that agent's call
+        raised. Preserving alignment lets the caller skip failed agents
+        without silently dropping them out of the index.
+        """
         prompt = FAILURE_GENERATION_PROMPT.format(question=question)
 
         async def query_agent(agent: dict) -> str:
@@ -170,12 +191,21 @@ class TRIZOrchestrator:
                 anthropic_client=self.client,
             )
 
-        _results = await asyncio.gather(
+        raw = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        _results = filter_exceptions(_results, label="p06_triz")
-        return _results
+        aligned: list[str | None] = []
+        for agent, r in zip(self.agents, raw):
+            if isinstance(r, BaseException):
+                _log.warning(
+                    "p06_triz: agent %s failed during failure_generation: %s: %s",
+                    agent.get("name", "?"), type(r).__name__, r,
+                )
+                aligned.append(None)
+            else:
+                aligned.append(r)
+        return aligned
 
     async def _deduplicate(self, all_failures: str) -> list[FailureMode]:
         """Stage 3: Deduplicate and categorize failure modes."""

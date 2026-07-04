@@ -73,8 +73,8 @@ class BaseAgent(ABC):
         else:
             self.session = self.session_manager.create_session(self.ROLE)
 
-        # Initialize Anthropic client
-        self.client = anthropic.Anthropic(api_key=self.settings.anthropic_api_key)
+        # Initialize Anthropic client (async for proper event loop concurrency)
+        self.client = anthropic.AsyncAnthropic(api_key=self.settings.anthropic_api_key)
 
         # Load business context from CLAUDE.md if available
         self.business_context = self._load_business_context()
@@ -270,9 +270,9 @@ class BaseAgent(ABC):
                         tool_results = []
                         for block in response.content:
                             if block.type == "tool_use":
-                                block.input["_agent_role"] = self.ROLE
+                                tool_input = {**block.input, "_agent_role": self.ROLE}
                                 result = await execute_tool(
-                                    block.name, block.input, self.settings,
+                                    block.name, tool_input, self.settings,
                                     cost_tracker=self.cost_tracker,
                                 )
                                 tool_results.append({
@@ -364,7 +364,7 @@ class BaseAgent(ABC):
         )
 
         async def _create() -> Any:
-            return self.client.messages.create(**api_kwargs)
+            return await self.client.messages.create(**api_kwargs)
 
         return await retry_async(
             _create,
@@ -435,19 +435,19 @@ class BaseAgent(ABC):
             output_tokens = 0
             model_used = self.config.model or self.settings.default_model
 
-            with self.client.messages.stream(
+            async with self.client.messages.stream(
                 model=self.config.model or self.settings.default_model,
                 max_tokens=self.config.max_tokens,
                 temperature=self.config.temperature,
                 system=self._build_system_prompt(query=user_message),
                 messages=messages,  # type: ignore[arg-type]
             ) as stream:
-                for text in stream.text_stream:
+                async for text in stream.text_stream:
                     full_response += text
                     yield text
 
                 # Get final message for usage stats
-                final_message = stream.get_final_message()
+                final_message = await stream.get_final_message()
                 if final_message:
                     input_tokens = final_message.usage.input_tokens
                     output_tokens = final_message.usage.output_tokens
@@ -505,15 +505,15 @@ class BaseAgent(ABC):
             except Exception:
                 logger.warning("Post-response memory storage failed", exc_info=True)
 
-        # Self-evaluate artifact quality (closed-loop learning)
-        self._self_evaluate(assistant_message)
+        # Self-evaluate artifact quality (closed-loop learning, non-blocking)
+        asyncio.ensure_future(self._self_evaluate(assistant_message))
 
-    def _self_evaluate(self, artifact_text: str) -> None:
+    async def _self_evaluate(self, artifact_text: str) -> None:
         """Run self-evaluation on artifact and store score in feedback loop."""
         try:
             from csuite.learning.feedback_loop import FeedbackStore, SelfEvaluator
             evaluator = SelfEvaluator()
-            score = evaluator.evaluate(
+            score = await evaluator.evaluate(
                 artifact_text=artifact_text,
                 event_type="agent_response",
                 agent_role=self.ROLE,

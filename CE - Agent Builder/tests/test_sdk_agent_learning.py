@@ -33,14 +33,14 @@ class _SdkPatchContext:
 
         # Settings
         s = MagicMock()
-        s.default_model = "claude-opus-4-6"
+        s.default_model = "claude-opus-4-7"
         s.project_root = MagicMock()
         s.project_root.__str__ = lambda _: "/tmp/fake"
         self.mocks["settings"].return_value = s
 
         # Agent config
         cfg = MagicMock()
-        cfg.model = "claude-opus-4-6"
+        cfg.model = "claude-opus-4-7"
         cfg.name = "CEO - Test"
         self.mocks["agent_config"].return_value = cfg
 

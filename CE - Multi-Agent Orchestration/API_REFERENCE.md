@@ -53,7 +53,7 @@ curl -N -X POST http://localhost:8000/api/runs/protocol \
   "key": "custom-analyst",
   "name": "Custom Analyst",
   "category": "executive",
-  "model": "claude-opus-4-6",
+  "model": "claude-opus-4-7",
   "temperature": 1.0,
   "max_tokens": 8192,
   "system_prompt": "You are a strategic analyst...",
@@ -208,7 +208,7 @@ curl -X DELETE http://localhost:8000/api/teams/1
     {
       "protocol_key": "p03_parallel_synthesis",
       "question_template": "What are the key strategic options for {question}?",
-      "thinking_model": "claude-opus-4-6",
+      "thinking_model": "claude-opus-4-7",
       "orchestration_model": "claude-haiku-4-5-20251001",
       "rounds": null,
       "output_passthrough": true,
@@ -241,7 +241,7 @@ curl -X DELETE http://localhost:8000/api/teams/1
       "question_template": "...",
       "agent_key_override_json": "[]",
       "rounds": null,
-      "thinking_model": "claude-opus-4-6",
+      "thinking_model": "claude-opus-4-7",
       "orchestration_model": "claude-haiku-4-5-20251001",
       "output_passthrough": true
     }
@@ -277,7 +277,7 @@ curl -X POST http://localhost:8000/api/pipelines \
   "protocol_key": "p06_triz",
   "question": "Should we expand into Europe?",
   "agent_keys": ["ceo", "cfo", "cto"],
-  "thinking_model": "claude-opus-4-6",
+  "thinking_model": "claude-opus-4-7",
   "orchestration_model": "claude-haiku-4-5-20251001",
   "rounds": null,
   "no_tools": false
@@ -340,7 +340,7 @@ curl -X POST http://localhost:8000/api/pipelines \
     {
       "id": 1,
       "agent_key": "ceo",
-      "model": "claude-opus-4-6",
+      "model": "claude-opus-4-7",
       "output_text": "...",
       "tool_calls": [],
       "input_tokens": 0,
@@ -350,7 +350,7 @@ curl -X POST http://localhost:8000/api/pipelines \
     {
       "id": 4,
       "agent_key": "_synthesis",
-      "model": "claude-opus-4-6",
+      "model": "claude-opus-4-7",
       "output_text": "Final synthesis..."
     }
   ]

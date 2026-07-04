@@ -426,28 +426,77 @@ def record_generation(
 # Manual span helpers (for stages, not individual LLM calls)
 # ---------------------------------------------------------------------------
 
+def _emit_stage_event(event_type: str, name: str, **extra: Any) -> None:
+    """Push a stage lifecycle event onto the live SSE queue (no-op if no queue).
+
+    Only names prefixed with ``stage:`` are emitted — sub-spans and round spans
+    are internal. Stripping the prefix gives the frontend a clean stage name
+    that it can substring-match against the YAML stage manifest.
+    """
+    if not name.startswith("stage:"):
+        return
+    try:
+        from protocols.llm import get_event_queue
+
+        eq = get_event_queue()
+        if eq is None:
+            return
+        payload = {"event": event_type, "stage_name": name[len("stage:") :], **extra}
+        try:
+            eq.put_nowait(payload)
+        except Exception:
+            pass
+    except Exception as e:
+        _log.debug("stage event emit failed: %s", e)
+
+
 def create_span(name: str, metadata: dict | None = None) -> Any:
-    """Create a child span under the current trace. Returns span or None."""
+    """Create a child span under the current trace. Returns span or None.
+
+    Side effect: if ``name`` is prefixed with ``stage:`` and an SSE event queue
+    is active, pushes a ``stage_start`` event so the portal's ProtocolDiagram
+    can advance its live cursor as the run progresses.
+    """
+    _emit_stage_event("stage_start", name)
     if not _langfuse_available:
-        return None
+        return _StageHandle(name)
     trace_id = _current_trace_id.get()
     if not trace_id:
-        return None
+        return _StageHandle(name)
     try:
-        return _langfuse_client.start_observation(
+        span = _langfuse_client.start_observation(
             as_type="span",
             name=name,
             trace_context={"trace_id": trace_id},
             metadata=metadata or {},
         )
+        return _StageHandle(name, span)
     except Exception as e:
         _log.debug("create_span failed: %s", e)
-        return None
+        return _StageHandle(name)
 
 
 def end_span(span: Any, output: str | None = None, error: str | None = None) -> None:
-    """End a span with optional output or error."""
+    """End a span with optional output or error.
+
+    Side effect: emits a ``stage_complete`` (or ``stage_error``) SSE event if
+    the span name was prefixed with ``stage:``. Safe on any input — accepts
+    legacy raw Langfuse spans (no name), new ``_StageHandle`` wrappers, or None.
+    """
     if span is None:
+        return
+    # Extract name + inner span for flexibility with legacy callers.
+    if isinstance(span, _StageHandle):
+        stage_name = span.name
+        inner = span.span
+        _emit_stage_event(
+            "stage_error" if error else "stage_complete",
+            stage_name,
+            **({"error": error[:200]} if error else {}),
+        )
+    else:
+        inner = span
+    if inner is None:
         return
     kwargs: dict = {}
     if output:
@@ -456,8 +505,28 @@ def end_span(span: Any, output: str | None = None, error: str | None = None) -> 
         kwargs["level"] = "ERROR"
         kwargs["status_message"] = error[:500]
     if kwargs:
-        span.update(**kwargs)
-    span.end()
+        try:
+            inner.update(**kwargs)
+        except Exception:
+            pass
+    try:
+        inner.end()
+    except Exception:
+        pass
+
+
+class _StageHandle:
+    """Thin wrapper so end_span knows which stage name to emit on completion.
+
+    Replaces the raw Langfuse span object returned from create_span. Orchestrators
+    treat it opaquely — they only pass it back to end_span.
+    """
+
+    __slots__ = ("name", "span")
+
+    def __init__(self, name: str, span: Any = None) -> None:
+        self.name = name
+        self.span = span
 
 
 def score_trace(

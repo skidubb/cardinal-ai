@@ -126,7 +126,7 @@ def main() -> None:
     parser.add_argument("--no-dataset", action="store_true", help="Skip Langfuse dataset linking")
     parser.add_argument("--dataset-name", default=DATASET_NAME, help="Langfuse dataset name")
     parser.add_argument("--judge", action="store_true", help="Auto-run blind judge after protocol execution")
-    parser.add_argument("--judge-model", default=THINKING_MODEL, help="Model for judge (default: claude-opus-4-6)")
+    parser.add_argument("--judge-model", default=THINKING_MODEL, help="Model for judge (default: claude-opus-4-7)")
     args = parser.parse_args()
 
     # Load question

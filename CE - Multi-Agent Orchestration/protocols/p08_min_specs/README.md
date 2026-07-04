@@ -50,8 +50,8 @@ The result includes full lineage for transparency:
 
 | Phase | Model | Calls | Purpose |
 |---|---|---|---|
-| Generate Specs | `claude-opus-4-6` | N | Independent spec generation with extended thinking |
+| Generate Specs | `claude-opus-4-7` | N | Independent spec generation with extended thinking |
 | Deduplicate | `claude-haiku-4-5-20251001` | 1 | Merge and consolidate overlapping specs |
 | Elimination Test | `claude-haiku-4-5-20251001` | S | Test each spec for essentiality (S = number of specs) |
 | Borderline Vote | `claude-haiku-4-5-20251001` | B x N | Agents vote on borderline specs (B = borderline count) |
-| Final Synthesis | `claude-opus-4-6` | 1 | Definitive min spec set with rationale |
+| Final Synthesis | `claude-opus-4-7` | 1 | Definitive min spec set with rationale |

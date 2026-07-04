@@ -1,0 +1,59 @@
+protocol_id: P50
+name: Tournament Walk
+category: Reasoning Methods
+problem_types:
+- Exploration
+- Prioritization
+cost_tier: high
+min_agents: 4
+max_agents: null
+supports_rounds: false
+description: Walk variant with elimination tournament — shallow passes qualify for deep walks; losers eliminated.
+when_to_use: Many candidate angles, needing winnowing + deep exploration of survivors.
+when_not_to_use: Narrow questions with few candidate angles.
+tools_enabled: true
+recommended_agents:
+  - ceo
+  - cfo
+  - cto
+  - cmo
+  - coo
+  - cpo
+
+stages:
+  - name: "Frame the tournament"
+    produces: frame
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Define the walk frame and tournament parameters"
+  - name: "Shallow walk (qualifier round)"
+    produces: shallow_outputs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent's shallow pass is scored; top N qualify for deep walk"
+  - name: "Deep walk (survivors)"
+    produces: deep_outputs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Qualifying agents produce deep walks on their strongest angle"
+  - name: "Cross-examination"
+    produces: cross_exam
+    kind: agent
+    required: false
+    summary_role: working_notes
+    description: "Survivors cross-examine each other's deep walks"
+  - name: "Collision fusion"
+    produces: collisions
+    kind: mechanical
+    required: false
+    summary_role: structured_prelude
+    description: "Detect cross-walk collisions between deep walks"
+  - name: "Synthesis"
+    produces: [synthesis_text, synthesis]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Produce the tournament-narrowed walk synthesis"

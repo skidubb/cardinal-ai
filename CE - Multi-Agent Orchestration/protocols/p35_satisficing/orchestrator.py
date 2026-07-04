@@ -145,7 +145,7 @@ class SatisficingOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": THRESHOLD_PROMPT.format(question=question),
@@ -173,7 +173,7 @@ class SatisficingOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": GENERATE_OPTION_PROMPT.format(
@@ -194,7 +194,7 @@ class SatisficingOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": EVALUATE_OPTION_PROMPT.format(
@@ -220,7 +220,7 @@ class SatisficingOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": SYNTHESIS_PROMPT.format(

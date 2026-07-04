@@ -449,7 +449,7 @@ class BenchmarkRunner:
 def _estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     """Estimate cost in dollars using Feb 2026 Anthropic pricing."""
     pricing = {
-        "claude-opus-4-6": (5.0, 25.0),
+        "claude-opus-4-7": (5.0, 25.0),
         "claude-sonnet-4-5-20250929": (3.0, 15.0),
         "claude-haiku-4-5-20251001": (1.0, 5.0),
     }

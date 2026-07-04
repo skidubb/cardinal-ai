@@ -200,7 +200,7 @@ class Settings(BaseSettings):
     )
 
     anthropic_api_key: str = Field(..., description="Anthropic API key")
-    default_model: str = Field(default="claude-opus-4-6")
+    default_model: str = Field(default="claude-opus-4-7")
 ```
 
 `extra="ignore"` is standard -- unknown env vars are silently ignored.
@@ -324,7 +324,7 @@ Prompt files are exempt from line-length limits (`per-file-ignores` in ruff conf
 
 ## 10. Model Policy
 
-- **Executive agents**: `claude-opus-4-6` (mandatory for strategic thinking)
+- **Executive agents**: `claude-opus-4-7` (mandatory for strategic thinking)
 - **Orchestration/mechanical steps**: `claude-haiku-4-5-20251001` (dedup, ranking, extraction)
 - **Temperature varies by role**: CFO=0.5 (precise), CEO/CTO/COO/CPO=0.6 (balanced), CMO=0.8 (creative)
 

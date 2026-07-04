@@ -120,7 +120,7 @@ def test_blackboard_smoke(protocol_dir_name: str) -> None:
             question=_TEST_QUESTION,
             agents=_TEST_AGENTS,
             client=mock_client,
-            thinking_model="claude-opus-4-6",
+            thinking_model="claude-opus-4-7",
             orchestration_model="claude-haiku-4-5-20251001",
             thinking_budget=1000,
             no_tools=True,

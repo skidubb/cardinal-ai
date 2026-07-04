@@ -763,7 +763,9 @@ async def _handle_write_deliverable(tool_input: dict, settings: Any) -> str:
 
     output_dir = settings.reports_dir / directory
     output_dir.mkdir(parents=True, exist_ok=True)
-    filepath = output_dir / filename
+    filepath = (output_dir / filename).resolve()
+    if not str(filepath).startswith(str(output_dir.resolve())):
+        return json.dumps({"error": "Invalid filename: path traversal detected"})
     filepath.write_text(content)
 
     result: dict[str, Any] = {"path": str(filepath), "bytes": len(content.encode())}

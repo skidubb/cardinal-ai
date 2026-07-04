@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, filter_exceptions
+from protocols.llm import agent_complete, filter_exceptions
 from protocols.synthesis import SynthesisEngine
 
 from protocols.scoping import build_context_blocks, filter_context_for_agent, get_primary_scope
@@ -156,18 +156,17 @@ class DebateOrchestrator:
                     prior_arguments=scoped_args,
                 )
 
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
             return DebateArgument(
                 name=agent["name"],
-                content=extract_text(response),
+                content=response,
                 round_number=round_number,
                 scope=get_primary_scope(agent),
             )

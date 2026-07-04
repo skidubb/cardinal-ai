@@ -192,7 +192,7 @@ def synthesis_stage(
         response = await client.messages.create(
             model=thinking_model,
             max_tokens=thinking_budget + 4096,
-            thinking={"type": "adaptive", "budget_tokens": thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
         )
         text = extract_text(response)

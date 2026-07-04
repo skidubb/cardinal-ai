@@ -118,7 +118,7 @@ Defined in `protocols/config.py`. Four levels map stage types to models, inspire
 | L1 | `claude-haiku-4-5-20251001` | dedup, classify, extract, format, parse | Fast pattern matching |
 | L2 | `claude-haiku-4-5-20251001` | score, rank, filter, vote, matrix | Rule-based evaluation |
 | L3 | `claude-sonnet-4-6` | assess, compare, analyze, evaluate | Structured analytical reasoning |
-| L4 | `claude-opus-4-6` | synthesize, ideate, debate, reframe, generate | Creative and strategic synthesis |
+| L4 | `claude-opus-4-7` | synthesize, ideate, debate, reframe, generate | Creative and strategic synthesis |
 
 Usage in an orchestrator:
 ```python

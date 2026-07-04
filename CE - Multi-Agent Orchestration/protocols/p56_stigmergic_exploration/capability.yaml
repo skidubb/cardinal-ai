@@ -1,0 +1,52 @@
+protocol_id: P56
+name: Stigmergic Exploration
+category: Decentralized Coordination
+problem_types:
+- Ideation
+- Open-Ended
+cost_tier: high
+min_agents: 3
+max_agents: null
+supports_rounds: true
+description: Pheromone-biased path convergence — agents reinforce, explore, or halt on a shared map of candidate strategies.
+when_to_use: Large solution spaces, strategy exploration, research-style questions where path-dependent reasoning matters.
+when_not_to_use: Small option sets (use P20 Borda), single-shot decisions, budget-sensitive work.
+tools_enabled: true
+
+decentralization_scorecard:
+  control: "decentralized — agents self-select reinforce / explore / halt each tick"
+  information: "decentralized — full pheromone map shared with every agent"
+  communication: "decentralized — all actions written to Blackboard, peer-readable"
+  termination: "distributed predicate — pheromone-dominance threshold OR all-halt (with safety ceiling)"
+
+stages:
+  - name: "Seed paths"
+    produces: seed_paths
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent proposes K distinct candidate paths in parallel. Initial pheromone 1.0 each."
+  - name: "Pheromone decay"
+    produces: decayed_map
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Deterministic multiplicative decay each tick. No LLM."
+  - name: "Agent tick"
+    produces: [reinforce, explore, halt]
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent sees pheromone map and reinforces / explores / halts. Parallel."
+  - name: "Dominance termination"
+    produces: termination_flag
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Distributed predicate: top path share > threshold OR all-halt OR max_ticks."
+  - name: "Top-K convergence report"
+    produces: convergence_report
+    kind: mechanical
+    required: true
+    summary_role: primary_summary
+    description: "Deterministic rank by final pheromone. No synthesis agent."

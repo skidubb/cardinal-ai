@@ -1,0 +1,15 @@
+protocol_id: P01
+name: Single Agent
+category: Baselines
+problem_types:
+- Role Expertise
+- Research
+- General Analysis
+cost_tier: low
+min_agents: 0
+max_agents: 1
+supports_rounds: false
+description: One ServerAgent with its full tool loop answers directly. No coordination, no synthesis. If no agent is picked, a Haiku classifier auto-selects the best-fit role from the 56-agent roster and surfaces its fit score.
+when_to_use: Question clearly fits ONE expert role (CEO, CFO, CTO, etc.) and benefits from that role's tools (web_search, etc.) but does not need multiple perspectives. Leave the agent unspecified to let P01 auto-select.
+when_not_to_use: Question needs multi-perspective synthesis, debate, structured coordination, or adversarial stress-testing. Escalate to P3+ multi-agent protocols.
+tools_enabled: true

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, filter_exceptions, llm_complete, parse_json_object
 
 from .prompts import IDEA_GENERATION_PROMPT, SCORING_PROMPT, SYNTHESIS_PROMPT
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -122,15 +122,15 @@ class TwentyFiveTenOrchestrator:
         prompt = IDEA_GENERATION_PROMPT.format(question=challenge)
 
         async def gen_idea(idx: int, agent: dict) -> IdeaCard:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=1024,
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            text = extract_text(response)
+            text = response
             return _parse_idea_card(idx, agent["name"], text)
 
         cards = await asyncio.gather(
@@ -181,20 +181,20 @@ class TwentyFiveTenOrchestrator:
         """Score a single idea card (anonymized)."""
         # Anonymize the card
         card_text = f"TITLE: {idea.title}\nIDEA: {idea.idea}\nBOLD BECAUSE: {idea.bold_because}"
-        response = await llm_complete(
-            self.client,
-            model=self.orchestration_model,
+        response = await agent_complete(
+            agent,
+            fallback_model=self.orchestration_model,
+            anthropic_client=self.client,
+            thinking_budget=self.thinking_budget,
             max_tokens=256,
-            system=agent["system_prompt"],
             messages=[{
                 "role": "user",
                 "content": SCORING_PROMPT.format(
                     question=challenge, idea_card=card_text
                 ),
             }],
-            agent_name=agent["name"],
         )
-        text = extract_text(response)
+        text = response
         try:
             score_data = parse_json_object(text)
             idea.scores.append({
@@ -263,7 +263,7 @@ class TwentyFiveTenOrchestrator:
             }],
             agent_name="synthesis",
         )
-        return extract_text(response)
+        return response
 
 
 

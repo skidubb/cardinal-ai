@@ -325,7 +325,7 @@ class Airport5GPipelineOrchestrator:
             agent_name="ach_synthesis",
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": synthesis_prompt}],
         )
         synthesis_text = extract_text(resp)
@@ -357,7 +357,7 @@ class Airport5GPipelineOrchestrator:
             agent_name=agent.get("name"),
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
@@ -436,7 +436,7 @@ class Airport5GPipelineOrchestrator:
             agent_name="negotiation_synthesis",
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             system="You are a strategic synthesizer producing actionable conclusions from multi-stakeholder constraint negotiations.",
             messages=[{"role": "user", "content": synthesis_prompt}],
         )
@@ -466,7 +466,7 @@ class Airport5GPipelineOrchestrator:
             agent_name=agent.get("name"),
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
@@ -488,7 +488,7 @@ class Airport5GPipelineOrchestrator:
             agent_name=agent.get("name"),
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
@@ -601,7 +601,7 @@ class Airport5GPipelineOrchestrator:
             agent_name=agent["name"],
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
         )
         return extract_text(resp)
@@ -621,7 +621,7 @@ class Airport5GPipelineOrchestrator:
             agent_name=agent["name"],
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
         )
         return extract_text(resp)
@@ -641,7 +641,7 @@ class Airport5GPipelineOrchestrator:
             agent_name="white_adjudication",
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
@@ -658,7 +658,7 @@ class Airport5GPipelineOrchestrator:
             agent_name=agent.get("name"),
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             system=agent.get("system_prompt", ""),
             messages=[{"role": "user", "content": prompt}],
         )
@@ -671,7 +671,7 @@ class Airport5GPipelineOrchestrator:
             agent_name="synthesis",
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 8192,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
         )
         return extract_text(resp)

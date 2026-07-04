@@ -1,0 +1,52 @@
+protocol_id: P53
+name: Contract Net Protocol
+category: Decentralized Coordination
+problem_types:
+- Task Allocation
+- Multi-Stakeholder
+cost_tier: medium
+min_agents: 3
+max_agents: null
+supports_rounds: false
+description: Decentralized task allocation — agents bid on sub-tasks, Hungarian assignment picks winners, each owns their piece.
+when_to_use: Task allocation, heterogeneous agents, multi-part questions. "Who should own what?"
+when_not_to_use: Equally capable agents (use P3), single-agent problems, non-decomposable questions.
+tools_enabled: true
+
+decentralization_scorecard:
+  control: "decentralized — agents self-select tasks via bidding"
+  information: "decentralized — full task board shared on the Blackboard"
+  communication: "decentralized — agents exchange via Blackboard entries"
+  termination: "deterministic quorum — protocol ends when all awarded tasks have deliverables"
+
+stages:
+  - name: "Task decomposition"
+    produces: task_board
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Cheap parse-only LLM splits question into 2-5 sub-tasks. Structure extraction, not content judgment."
+  - name: "Sealed bidding"
+    produces: bids
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent bids on tasks that match its specialty. Parallel. JSON actions."
+  - name: "Hungarian assignment"
+    produces: awards
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Deterministic greedy fit-maximizing assignment. No LLM."
+  - name: "Execute awards"
+    produces: deliverables
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Awarded agents execute their assigned task. Parallel."
+  - name: "Mechanical assembly"
+    produces: final_report
+    kind: mechanical
+    required: true
+    summary_role: primary_summary
+    description: "Deliverables concatenated in task-board order. No synthesis agent."

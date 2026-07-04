@@ -12,3 +12,33 @@ description: N rounds of structured debate with opening, rebuttals, and synthesi
 when_to_use: Contested decisions where positions need to evolve through argument.
 when_not_to_use: Simple factual questions, estimation tasks.
 tools_enabled: true
+recommended_agents:
+  - ceo
+  - cfo
+  - cto
+  - cmo
+stages:
+  - key: opening
+    name: Opening Statements
+    stage_type: agent
+    agents_filter: all
+    depends_on: []
+    description: Each agent states their position and reasoning on the question.
+  - key: rebuttals
+    name: Rebuttals
+    stage_type: agent
+    agents_filter: all
+    depends_on: [opening]
+    description: Each agent responds to every other agent's position, challenging weak assumptions.
+  - key: closing
+    name: Closing Arguments
+    stage_type: agent
+    agents_filter: all
+    depends_on: [rebuttals]
+    description: Final position refinement after hearing all rebuttals.
+  - key: synthesis
+    name: Synthesis
+    stage_type: synthesis
+    agents_filter: null
+    depends_on: [closing]
+    description: Synthesizer integrates positions, surfaces cruxes, names the decision.

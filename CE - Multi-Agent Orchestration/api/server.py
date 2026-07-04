@@ -2,23 +2,28 @@
 
 from __future__ import annotations
 
+# Load .env BEFORE importing routers/protocols — langfuse_tracing + clerk_auth
+# read env at module import time, so the .env must be in os.environ before the
+# router graph is built.
+from ce_shared.env import find_and_load_dotenv
+
+find_and_load_dotenv()
+
 import logging
 import os
-import sys
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from ce_shared.env import find_and_load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.database import create_db_and_tables
-from api.routers import agents, integrations, knowledge, pipelines, protocols, reports, runs, teams
+from api.middleware.clerk_auth import get_auth
+from api.routers import agents, auth as auth_router, connectors as connectors_router, context_preview, corrections as corrections_router, discover as discover_router, graph as graph_router, integrations, knowledge, pipelines, protocols, reports, router as adaptive_router, runs, teams, usage as usage_router, webhooks_clerk
 from api.routers.agents import tools_router
-
-find_and_load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -27,22 +32,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     create_db_and_tables()
 
-    # Verify production agents are importable (AGNT-02)
+    # Verify production agents are importable
     try:
-        from protocols.agent_provider import _resolve_agent_builder_src
-        agent_src = _resolve_agent_builder_src()
-        if str(agent_src) not in sys.path:
-            sys.path.insert(0, str(agent_src))
-        from csuite.agents.sdk_agent import SdkAgent  # noqa: F401
-        logger.info("Production agent provider verified: SdkAgent importable from %s", agent_src)
+        from protocols.server_agent import ServerAgent  # noqa: F401
+        logger.info("Production agent provider verified: ServerAgent (direct API + tools)")
     except ImportError as exc:
         raise RuntimeError(
-            f"FATAL: Production agent import failed: {exc}\n"
-            "The API requires production-mode agents (SdkAgent from Agent Builder).\n"
-            "Fix options:\n"
-            "  1. cd 'CE - Agent Builder' && pip install -e '.[sdk]'\n"
-            "  2. Set CE_AGENT_BUILDER_PATH=/absolute/path/to/CE - Agent Builder/src\n"
-            "Server cannot start without production agents."
+            f"FATAL: ServerAgent import failed: {exc}\n"
+            "The API requires protocols/server_agent.py and anthropic SDK."
         ) from exc
 
     yield
@@ -58,32 +55,50 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
 # ── Simple API key auth (skippable in dev) ────────────────────────────────────
 
 API_KEY = os.getenv("API_KEY", "")
-SKIP_AUTH = os.getenv("SKIP_AUTH", "true").lower() in ("1", "true", "yes")
+SKIP_AUTH = os.getenv("SKIP_AUTH", "false").lower() in ("1", "true", "yes")
+PUBLIC_PATHS = ("/api/health", "/api/webhooks/clerk", "/api/webhooks/clerk/health")
+PUBLIC_PREFIXES = ("/share/",)
 
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     if SKIP_AUTH or request.method == "OPTIONS":
         return await call_next(request)
-    if request.url.path.startswith("/share/"):
+    if request.url.path in PUBLIC_PATHS or request.url.path.startswith(PUBLIC_PREFIXES):
         return await call_next(request)
+
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        try:
+            await get_auth(request)
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return await call_next(request)
+
     key = request.headers.get("X-API-Key", "")
     if not API_KEY:
         return JSONResponse(status_code=500, content={"detail": "API_KEY not configured but auth is enabled. Set API_KEY or SKIP_AUTH=true."})
-    if key != API_KEY:
+    if not secrets.compare_digest(key, API_KEY):
         return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
     return await call_next(request)
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 
+app.include_router(auth_router.router)
+app.include_router(webhooks_clerk.router)
+app.include_router(usage_router.router)
+app.include_router(graph_router.router)
+app.include_router(connectors_router.router)
+app.include_router(corrections_router.router)
+app.include_router(context_preview.router)
 app.include_router(tools_router)
 app.include_router(agents.router)
 app.include_router(integrations.router)
@@ -93,28 +108,20 @@ app.include_router(teams.router)
 app.include_router(pipelines.router)
 app.include_router(reports.router)
 app.include_router(runs.router)
+app.include_router(adaptive_router.router)
+app.include_router(discover_router.router)
 
 
 @app.get("/api/health")
-def health():
-    import os
+def health(request: Request):
     from api.database import DATABASE_URL
+    from protocols.server_agent import agent_builder_status
+
     db_type = "postgres" if "postgresql" in DATABASE_URL else "sqlite"
-    db_host = DATABASE_URL.split("@")[-1].split("/")[0] if "@" in DATABASE_URL else "local"
-    # Diagnostic: show what the server actually sees for DATABASE_URL
-    raw_env = os.environ.get("DATABASE_URL", "")
-    env_present = bool(raw_env)
-    env_scheme = raw_env.split("://")[0] if "://" in raw_env else None
-    env_host = raw_env.split("@")[-1].split("/")[0] if "@" in raw_env else None
-    return {
-        "status": "ok",
-        "db": db_type,
-        "db_host": db_host,
-        "env_DATABASE_URL_set": env_present,
-        "env_scheme": env_scheme,
-        "env_host": env_host,
-        "langfuse_key_set": bool(os.environ.get("LANGFUSE_SECRET_KEY")),
-    }
+    ab = agent_builder_status()
+    status = "ok" if ab["ok"] else "degraded"
+    body = {"status": status, "db": db_type, "agent_builder": "ok" if ab["ok"] else ab}
+    return body
 
 
 # ── Serve built frontend (production) ─────────────────────────────────────────
@@ -126,7 +133,9 @@ if _ui_dist.is_dir():
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         """Serve the React SPA for any non-API route."""
-        file = _ui_dist / full_path
+        file = (_ui_dist / full_path).resolve()
+        if not str(file).startswith(str(_ui_dist.resolve())):
+            return FileResponse(_ui_dist / "index.html")
         if file.is_file():
             return FileResponse(file)
         return FileResponse(_ui_dist / "index.html")

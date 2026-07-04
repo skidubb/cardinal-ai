@@ -6,7 +6,6 @@ structured JudgeVerdict, not prose.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 
 from protocols.config import BALANCED_MODEL
@@ -107,6 +106,11 @@ class QualityJudge:
         )
 
         agent = _get_judge_agent()
+        # no_tools=True: the judge evaluates a synthesis it has already been
+        # given in full. Tool use would invite it to go gather new context
+        # rather than score what's in front of it, corrupting the eval signal.
+        # Agent-reasoning phases keep tools on; pure evaluation phases opt out.
+        # See synthesis.py for the parallel case.
         raw = await agent_complete(
             agent=agent,
             fallback_model=self.model,

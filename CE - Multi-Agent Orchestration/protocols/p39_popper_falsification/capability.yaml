@@ -1,6 +1,6 @@
 protocol_id: P39
 name: Popper Falsification
-category: Wave 2 Research
+category: Reasoning Methods
 problem_types:
 - Diagnostic
 - Adversarial
@@ -13,3 +13,23 @@ description: Design tests that could falsify the hypothesis — strongest eviden
 when_to_use: Testing assumptions, validating hypotheses rigorously.
 when_not_to_use: Creative ideation, consensus building.
 tools_enabled: true
+
+stages:
+  - name: "Generate falsification conditions"
+    produces: conditions
+    kind: agent
+    required: true
+    summary_role: structured_prelude
+    description: "Agents enumerate the conditions under which the recommendation would be wrong"
+  - name: "Active evidence search"
+    produces: conditions
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent searches for disconfirming evidence against each condition"
+  - name: "Verdict"
+    produces: [verdict, verdict_reasoning, synthesis]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Judge renders RETAIN / RETAIN_WITH_CAVEATS / REJECT verdict with reasoning"

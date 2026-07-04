@@ -45,5 +45,5 @@ python -m protocols.p13_ecocycle_planning.run \
 | `--initiatives / -i` | Yes | — | List of initiatives to assess (nargs=+) |
 | `--agents / -a` | No | ceo cfo cto cmo | Agent keys to use |
 | `--json` | No | false | Output raw JSON |
-| `--thinking-model` | No | claude-opus-4-6 | Override thinking model |
+| `--thinking-model` | No | claude-opus-4-7 | Override thinking model |
 | `--orchestration-model` | No | claude-haiku-4-5-20251001 | Override orchestration model |

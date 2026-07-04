@@ -1,0 +1,52 @@
+protocol_id: P51
+name: Wildcard Walk
+category: Reasoning Methods
+problem_types:
+- Exploration
+- Divergent Ideation
+cost_tier: high
+min_agents: 3
+max_agents: null
+supports_rounds: false
+description: Walk variant that inserts a wildcard (contrarian / random) agent to break consensus drift.
+when_to_use: Exploratory questions where homogeneity of the agent pool is a risk.
+when_not_to_use: Convergent decisions where wildcards add noise.
+tools_enabled: true
+
+stages:
+  - name: "Frame the walk"
+    produces: frame
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Define the walk frame, including the wildcard injection point"
+  - name: "Shallow walk"
+    produces: shallow_outputs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Standard shallow pass across agents — plus the wildcard"
+  - name: "Deep walk"
+    produces: deep_outputs
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Deep pass on strongest angles — wildcard's divergence is preserved"
+  - name: "Cross-examination"
+    produces: cross_exam
+    kind: agent
+    required: false
+    summary_role: working_notes
+    description: "Agents cross-examine, with particular attention to the wildcard's angle"
+  - name: "Collision fusion"
+    produces: collisions
+    kind: mechanical
+    required: false
+    summary_role: structured_prelude
+    description: "Surface collisions between wildcard's angle and consensus angles"
+  - name: "Synthesis"
+    produces: [synthesis_text, synthesis]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Produce a synthesis that honors the wildcard's divergence"

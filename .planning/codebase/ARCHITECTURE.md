@@ -134,7 +134,7 @@ Every protocol lives in `protocols/p{NN}_{name}/` with:
 
 Defined in `protocols/config.py`:
 
-- **Thinking Model** (`claude-opus-4-6`) -- Agent reasoning, synthesis, creative stages
+- **Thinking Model** (`claude-opus-4-7`) -- Agent reasoning, synthesis, creative stages
 - **Orchestration Model** (`claude-haiku-4-5-20251001`) -- Mechanical steps (dedup, ranking, extraction)
 - **Balanced Model** (`claude-sonnet-4-6`) -- Mid-tier analytical reasoning
 

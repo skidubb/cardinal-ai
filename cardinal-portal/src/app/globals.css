@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Cardinal Element — design tokens
+ * Source of truth: /Users/scottewalt/Documents/Cardinal Element Design System/
+ * Values mirror `colors_and_type.css` (space-separated RGB triples, Tailwind 4 style).
+ * ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Brand primitives */
+  --ce-indigo-600: 79 70 229;
+  --ce-indigo-500: 99 102 241;
+  --ce-indigo-400: 129 140 248;
+  --ce-indigo-300: 165 180 252;
+  --ce-indigo-100: 224 231 255;
+  --ce-indigo-50:  238 242 255;
+  --ce-indigo-950: 30 27 75;
+
+  --ce-cyan-400:   34 211 238;
+  --ce-cyan-300:   103 232 249;
+  --ce-blue-500:   59 130 246;
+  --ce-purple-500: 139 92 246;
+  --ce-purple-400: 168 85 247;
+
+  --ce-slate-50:  248 250 252;
+  --ce-slate-100: 241 245 249;
+  --ce-slate-200: 226 232 240;
+  --ce-slate-300: 203 213 225;
+  --ce-slate-400: 148 163 184;
+  --ce-slate-500: 100 116 139;
+  --ce-slate-600: 71 85 105;
+  --ce-slate-700: 51 65 85;
+  --ce-slate-800: 30 41 59;
+  --ce-slate-900: 15 23 42;
+  --ce-slate-950: 2 6 23;
+
+  --ce-red-500:    239 68 68;
+  --ce-yellow-500: 234 179 8;
+  --ce-green-500:  34 197 94;
+  --ce-green-400:  74 222 128;
+  --ce-pink-500:   236 72 153;
+
+  /* Semantic tokens — light (default) */
+  --background: 255 255 255;
+  --foreground: var(--ce-slate-900);
+  --card: var(--ce-slate-50);
+  --card-foreground: var(--ce-slate-900);
+  --popover: 255 255 255;
+  --popover-foreground: var(--ce-slate-900);
+  --primary: var(--ce-indigo-600);
+  --primary-foreground: 255 255 255;
+  --secondary: var(--ce-slate-100);
+  --secondary-foreground: var(--ce-slate-900);
+  --muted: var(--ce-slate-50);
+  --muted-foreground: var(--ce-slate-500);
+  --accent: var(--ce-cyan-400);
+  --accent-foreground: var(--ce-slate-900);
+  --destructive: var(--ce-red-500);
+  --destructive-foreground: 255 255 255;
+  --border: var(--ce-slate-200);
+  --input: var(--ce-slate-200);
+  --ring: var(--ce-indigo-500);
+
+  /* Chart / data viz */
+  --chart-1: var(--ce-indigo-500);
+  --chart-2: var(--ce-blue-500);
+  --chart-3: var(--ce-cyan-400);
+  --chart-4: var(--ce-purple-500);
+  --chart-5: var(--ce-purple-400);
+
+  /* Radius ladder */
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+
+  /* Indigo-tinted shadow used on elevated CTA cards */
+  --shadow-indigo: 0 10px 30px -10px rgb(79 70 229 / 0.5);
+}
+
+.dark, [data-theme="dark"] {
+  --background: var(--ce-slate-950);
+  --foreground: var(--ce-slate-50);
+  --card: var(--ce-slate-900);
+  --card-foreground: var(--ce-slate-50);
+  --popover: var(--ce-slate-900);
+  --popover-foreground: var(--ce-slate-50);
+  --primary: var(--ce-indigo-600);
+  --primary-foreground: 255 255 255;
+  --secondary: var(--ce-slate-700);
+  --secondary-foreground: var(--ce-slate-50);
+  --muted: var(--ce-slate-800);
+  --muted-foreground: var(--ce-slate-400);
+  --accent: var(--ce-cyan-400);
+  --accent-foreground: var(--ce-slate-950);
+  --border: var(--ce-slate-800);
+  --input: var(--ce-slate-800);
+  --ring: var(--ce-indigo-400);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Expose tokens to Tailwind v4 utilities: bg-background, text-foreground,
+ * bg-primary, border-border, ring-ring, etc. all map through here.
+ * ─────────────────────────────────────────────────────────────────── */
+@theme inline {
+  --color-background: rgb(var(--background));
+  --color-foreground: rgb(var(--foreground));
+  --color-card: rgb(var(--card));
+  --color-card-foreground: rgb(var(--card-foreground));
+  --color-popover: rgb(var(--popover));
+  --color-popover-foreground: rgb(var(--popover-foreground));
+  --color-primary: rgb(var(--primary));
+  --color-primary-foreground: rgb(var(--primary-foreground));
+  --color-secondary: rgb(var(--secondary));
+  --color-secondary-foreground: rgb(var(--secondary-foreground));
+  --color-muted: rgb(var(--muted));
+  --color-muted-foreground: rgb(var(--muted-foreground));
+  --color-accent: rgb(var(--accent));
+  --color-accent-foreground: rgb(var(--accent-foreground));
+  --color-destructive: rgb(var(--destructive));
+  --color-destructive-foreground: rgb(var(--destructive-foreground));
+  --color-border: rgb(var(--border));
+  --color-input: rgb(var(--input));
+  --color-ring: rgb(var(--ring));
+
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Body defaults. Light by default per brand spec; dark is a toggle.
+ * ─────────────────────────────────────────────────────────────────── */
+body {
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: rgb(var(--ce-indigo-500) / 0.3);
+  color: rgb(var(--foreground));
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Semantic element classes — for static HTML and non-Tailwind contexts
+ * ─────────────────────────────────────────────────────────────────── */
+.ce-eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.875rem;
+  color: rgb(var(--primary));
+  letter-spacing: 0;
+}
+
+.ce-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ce-gradient-text {
+  background-image: linear-gradient(to right, rgb(var(--ce-indigo-400)), rgb(var(--ce-cyan-300)));
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+}
+
+.ce-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--ce-indigo-400) / 0.3);
+  background: rgb(var(--ce-indigo-500) / 0.15);
+  color: rgb(var(--ce-indigo-600));
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.dark .ce-pill { color: rgb(var(--ce-indigo-300)); }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Live-run animation primitives — used by RunHeartbeat, RunActivityLog,
+ * and the upgraded ProtocolDiagram. Designed so the user can see at a
+ * glance that work is happening (heartbeat shimmer, fading log rows,
+ * connector lines drawing between completed stages).
+ *
+ * All keyframes are gated by prefers-reduced-motion at the bottom — the
+ * static end-state remains correct for accessibility.
+ * ─────────────────────────────────────────────────────────────────── */
+
+@keyframes ce-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes ce-fade-in-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ce-draw-line {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+@keyframes ce-pulse-soft {
+  0%, 100% { opacity: 1;   transform: scale(1);    }
+  50%      { opacity: 0.5; transform: scale(1.15); }
+}
+
+@keyframes ce-spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+.anim-shimmer {
+  position: relative;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(var(--ce-indigo-400) / 0.6) 30%,
+    rgb(var(--ce-indigo-300) / 0.9) 50%,
+    rgb(var(--ce-indigo-400) / 0.6) 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: ce-shimmer 1.6s ease-in-out infinite;
+}
+
+.anim-fade-in-up {
+  animation: ce-fade-in-up 0.28s ease-out both;
+}
+
+.anim-draw-line {
+  transform-origin: top;
+  animation: ce-draw-line 0.4s ease-out both;
+}
+
+.anim-pulse-soft {
+  animation: ce-pulse-soft 1.2s ease-in-out infinite;
+}
+
+.anim-spin-slow {
+  animation: ce-spin-slow 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-shimmer,
+  .anim-fade-in-up,
+  .anim-draw-line,
+  .anim-pulse-soft,
+  .anim-spin-slow {
+    animation: none !important;
+  }
+  .anim-shimmer { background-image: none; background-color: rgb(var(--ce-indigo-400) / 0.4); }
+  .anim-draw-line { transform: scaleY(1); }
+}

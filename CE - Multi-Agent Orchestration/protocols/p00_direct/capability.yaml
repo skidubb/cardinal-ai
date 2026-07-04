@@ -1,0 +1,15 @@
+protocol_id: P00
+name: Direct LLM Response
+category: Baselines
+problem_types:
+- Factual Lookup
+- Mechanical
+- General Analysis
+cost_tier: low
+min_agents: 0
+max_agents: 0
+supports_rounds: false
+description: Single LLM completion. No agent, no tools, no coordination.
+when_to_use: Factual, mechanical, or trivially-answerable questions that don't benefit from expertise, tools, or multi-perspective reasoning.
+when_not_to_use: Questions needing tools, role expertise, web lookup, multi-step reasoning, or synthesis across perspectives. Escalate to P01 or higher.
+tools_enabled: false

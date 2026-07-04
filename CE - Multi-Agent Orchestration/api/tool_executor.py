@@ -46,14 +46,8 @@ class _SettingsProxy:
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
 
-_settings: _SettingsProxy | None = None
-
-
 def _get_settings() -> _SettingsProxy:
-    global _settings
-    if _settings is None:
-        _settings = _SettingsProxy()
-    return _settings
+    return _SettingsProxy()
 
 
 async def execute_tool(tool_name: str, tool_input: dict) -> tuple[str, float]:

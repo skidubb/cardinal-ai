@@ -1,6 +1,6 @@
 protocol_id: P32
 name: Tetlock Superforecasting
-category: Wave 2 Research
+category: Intelligence Analysis
 problem_types:
 - Estimation
 cost_tier: medium
@@ -11,3 +11,39 @@ description: Calibrated probability estimates using superforecasting methodology
 when_to_use: Probability assessment, calibrated predictions.
 when_not_to_use: Creative ideation, qualitative strategy.
 tools_enabled: true
+recommended_agents:
+  - cfo-cash-flow-forecaster
+  - ceo-competitive-intel
+  - cfo
+  - ceo
+stages:
+  - key: decompose
+    name: Decompose into Sub-Forecasts
+    stage_type: agent
+    agents_filter: all
+    depends_on: []
+    description: Break the forecast question into tractable sub-questions with base rates.
+  - key: initial_estimates
+    name: Initial Probability Estimates
+    stage_type: agent
+    agents_filter: all
+    depends_on: [decompose]
+    description: Each agent commits an initial probability with reasoning and a reference class.
+  - key: rounds
+    name: Iterative Refinement
+    stage_type: agent
+    agents_filter: all
+    depends_on: [initial_estimates]
+    description: Agents update estimates after seeing peer reasoning, explaining each move.
+  - key: calibration_check
+    name: Calibration Check
+    stage_type: mechanical
+    agents_filter: null
+    depends_on: [rounds]
+    description: Check for overconfidence, anchoring, and convergence vs groupthink.
+  - key: synthesis
+    name: Synthesis
+    stage_type: synthesis
+    agents_filter: null
+    depends_on: [calibration_check]
+    description: Emit final probability, confidence interval, and the decisive evidence.

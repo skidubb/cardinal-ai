@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, extract_text, llm_complete, parse_json_object, filter_exceptions_aligned
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -61,11 +61,17 @@ class PreMortemOrchestrator:
         span = create_span("stage:failure_narratives", {"agent_count": len(self.agents)})
         try:
             narratives = await self._generate_narratives(question, time_horizon)
-            result.narratives = {
-                agent["name"]: narratives[i]
-                for i, agent in enumerate(self.agents)
-            }
-            end_span(span, output=f"{len(narratives)} narratives generated")
+            survivors = [
+                (agent, narrative)
+                for agent, narrative in zip(self.agents, narratives)
+                if narrative is not None
+            ]
+            if not survivors:
+                raise RuntimeError(
+                    "p38_klein_premortem: all agents failed during narrative generation"
+                )
+            result.narratives = {agent["name"]: narrative for agent, narrative in survivors}
+            end_span(span, output=f"{len(survivors)}/{len(self.agents)} narratives generated")
         except Exception:
             end_span(span, error="failure_narratives failed")
             raise
@@ -76,7 +82,7 @@ class PreMortemOrchestrator:
         try:
             all_text = "\n\n".join(
                 f"=== {agent['name']} ===\n{narrative}"
-                for agent, narrative in zip(self.agents, narratives)
+                for agent, narrative in survivors
             )
             extraction = await self._extract_failure_modes(all_text)
             result.failure_modes = extraction.get("failure_modes", [])
@@ -111,23 +117,28 @@ class PreMortemOrchestrator:
             question=question, time_horizon=time_horizon
         )
 
-        async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+        async def query_agent(agent) -> str:
+            # agent_complete flows through ServerAgent.chat() which resolves
+            # per-role tools and runs the Anthropic tool-use loop. Produces
+            # evidence-grounded narratives instead of pure parametric reasoning.
+            return await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return extract_text(response)
 
         _results = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        _results = filter_exceptions(_results, label="p38_klein_premortem")
+        _results = filter_exceptions_aligned(
+            _results,
+            label="p38_klein_premortem",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return _results
 
     async def _extract_failure_modes(self, all_narratives: str) -> dict:
@@ -156,7 +167,7 @@ class PreMortemOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": MITIGATION_SYNTHESIS_PROMPT.format(

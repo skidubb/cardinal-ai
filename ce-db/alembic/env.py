@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from ce_db.models.core import Base
+from ce_db.models import runs as _runs, evals as _evals  # noqa: F401 — register tables
 
 config = context.config
 if config.config_file_name is not None:

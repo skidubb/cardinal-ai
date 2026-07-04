@@ -56,7 +56,7 @@ def sample_agent_outputs() -> list[AgentOutputEnvelope]:
             agent_key="ceo",
             agent_name="CEO",
             text="The strategic opportunity is clear.",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=100,
             output_tokens=50,
             cost_usd=0.01,
@@ -66,7 +66,7 @@ def sample_agent_outputs() -> list[AgentOutputEnvelope]:
             agent_key="cfo",
             agent_name="CFO",
             text="Revenue projections support the expansion.",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=80,
             output_tokens=40,
             cost_usd=0.008,
@@ -105,7 +105,7 @@ def sample_envelope(sample_agent_outputs) -> RunEnvelope:
         completed_at=_utc(2025, 1, 1),
         result_json={"synthesis": SAMPLE_SUMMARY},
         result_summary=SAMPLE_SUMMARY,
-        cost={"total_usd": 0.018, "calls": 5, "by_model": {"claude-opus-4-6": 0.018}},
+        cost={"total_usd": 0.018, "calls": 5, "by_model": {"claude-opus-4-7": 0.018}},
         trace_id="trace-abc-123",
         run_id=42,
         agent_outputs=sample_agent_outputs,
@@ -310,7 +310,7 @@ def test_agent_contribution_fields(sample_envelope, sample_verdict):
     ceo_contrib = next(c for c in report.agent_contributions if c.agent_key == "ceo")
     assert ceo_contrib.agent_name == "CEO"
     assert ceo_contrib.text == "The strategic opportunity is clear."
-    assert ceo_contrib.model == "claude-opus-4-6"
+    assert ceo_contrib.model == "claude-opus-4-7"
     assert ceo_contrib.cost_usd == 0.01
     assert isinstance(ceo_contrib.tool_calls, list)
 

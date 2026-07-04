@@ -1,0 +1,40 @@
+protocol_id: P54
+name: Blackboard (Pandemonium)
+category: Decentralized Coordination
+problem_types:
+- Open-Ended
+- Multi-Stakeholder
+cost_tier: medium-high
+min_agents: 3
+max_agents: null
+supports_rounds: true
+description: Self-dispatched peer contribution via shared Blackboard state. Reference implementation for four-dimension decentralization.
+when_to_use: Ill-structured problems, emergent reasoning order, heterogeneous expertise, want full audit trail.
+when_not_to_use: Linear problems (use P22 Sequential Pipeline), tight time budgets, fewer than 3 agents.
+tools_enabled: true
+
+decentralization_scorecard:
+  control: "decentralized — each agent decides each tick whether to contribute or halt"
+  information: "decentralized — full Blackboard snapshot shared with every agent each tick"
+  communication: "decentralized — agents exchange via Blackboard entries, peer-readable"
+  termination: "distributed — protocol ends when all agents emit halt (safety ceilings on ticks and entry count)"
+
+stages:
+  - name: "Self-dispatched tick"
+    produces: contributions
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Every active agent sees full Blackboard snapshot and chooses to contribute or halt. Parallel within tick."
+  - name: "Distributed termination check"
+    produces: termination_flag
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "All agents halted → terminate. Safety ceilings (max_ticks, max_entries)."
+  - name: "Mechanical assembly"
+    produces: final_report
+    kind: mechanical
+    required: true
+    summary_role: primary_summary
+    description: "Contributions grouped by topic, ordered deterministically. No synthesis agent."

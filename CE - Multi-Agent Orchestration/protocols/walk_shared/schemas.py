@@ -47,6 +47,7 @@ class SalienceScore(BaseModel):
     explanatory_power: float = Field(ge=1, le=10)
     actionability: float = Field(ge=1, le=10)
     cognitive_distance: float = Field(ge=1, le=10)
+    distinctiveness: float = Field(default=5.0, ge=1, le=10)
     composite: float
     rationale: str
 
@@ -89,19 +90,61 @@ class CrossExamEntry(BaseModel):
     concession: str
 
 
+# ── Stage 4.5: Collision Synthesis ──────────────────────────────────────────
+
+class CollisionFusion(BaseModel):
+    """One generative collision between two lenses producing an emergent idea.
+
+    Unlike CrossExamEntry (adversarial), this captures A + B → C fusion —
+    a third idea neither lens stated that dissolves a Frame tension.
+    """
+
+    lens_a_key: str
+    lens_b_key: str
+    pairing_type: str  # "core-core" | "core-periphery" | "periphery-periphery"
+    collision_insight: str
+    emergent_idea: str
+    frame_tension_resolved: str = ""
+    surprise_score: float = Field(ge=1, le=10)
+    resolution_power: float = Field(ge=1, le=10)
+    composite: float = 0.0
+
+
 # ── Stage 5: Synthesis ──────────────────────────────────────────────────────
 
 class WalkSynthesis(BaseModel):
     """Structured synthesis integrating all walk stages."""
 
-    best_current_interpretation: str
+    strongest_unresolved_tension: str
     competing_interpretations: list[str]
+    minority_report: str
+    action_divergence: list[str]
+    redundancy_assessment: str
     walk_added_value: str
     decision_changes: list[str]
     experiments: list[str]
     success_signals: list[str]
     kill_criteria: list[str]
     what_would_change_view: str
+
+
+# ── Stage 6: Provocation (walk-back-to-desk bridge) ─────────────────────────
+
+class WalkProvocation(BaseModel):
+    """The walk-back-to-desk artifact. NOT a summary. A provocation.
+
+    Designed to keep the walk's energy alive long enough for the walker to
+    write at the desk. Pulls verbatim sharpest statements, names contradictions
+    between them, and identifies the one thread with highest latent energy
+    that the walk abandoned.
+    """
+
+    sharpest_statements: list[str]
+    statement_sources: list[str]
+    contradictions: list[str]
+    underdeveloped_thread: str
+    why_underdeveloped: str
+    follow_up_prompt: str
 
 
 # ── Full Result ─────────────────────────────────────────────────────────────
@@ -116,5 +159,7 @@ class WalkResult(BaseModel):
     salience: SalienceArtifact
     deep_outputs: list[DeepWalkOutput]
     cross_exam: list[CrossExamEntry]
+    collisions: list[CollisionFusion] = []
     synthesis: WalkSynthesis | None = None
     synthesis_text: str = ""
+    provocation: WalkProvocation | None = None

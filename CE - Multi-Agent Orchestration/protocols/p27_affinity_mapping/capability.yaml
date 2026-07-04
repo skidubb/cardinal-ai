@@ -12,3 +12,29 @@ description: Cluster ideas by affinity to discover emergent themes.
 when_to_use: Organizing many ideas into actionable themes.
 when_not_to_use: Small option sets, binary decisions.
 tools_enabled: true
+
+stages:
+  - name: "Generate items"
+    produces: raw_items
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent enumerates items (ideas, observations, concerns) relevant to the question"
+  - name: "Cluster by affinity"
+    produces: clusters
+    kind: mechanical
+    required: true
+    summary_role: working_notes
+    description: "Use semantic similarity to group items into natural clusters"
+  - name: "Label and validate themes"
+    produces: themed_clusters
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Name each cluster with a theme; validate coherence"
+  - name: "Hierarchy synthesis"
+    produces: [hierarchy, strategic_insights]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Organize themes into a hierarchy; surface strategic insights from the structure"

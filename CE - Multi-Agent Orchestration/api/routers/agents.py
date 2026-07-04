@@ -18,6 +18,12 @@ from api.tool_registry import (
 )
 from protocols.agents import AGENT_CATEGORIES, BUILTIN_AGENTS
 
+# Import rich production prompts from Agent Builder (the real system prompts)
+try:
+    from csuite.agents.sdk_agent import _ROLE_PROMPTS
+except ImportError:
+    _ROLE_PROMPTS = {}
+
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 tools_router = APIRouter(prefix="/api", tags=["tools"])
 
@@ -62,7 +68,7 @@ def _builtin_to_dict(key: str, data: dict) -> dict:
         "model": data.get("model", ""),
         "temperature": 1.0,
         "max_tokens": 8192,
-        "system_prompt": data.get("system_prompt", ""),
+        "system_prompt": _ROLE_PROMPTS.get(key, "") or data.get("system_prompt", ""),
         "context_scope": data.get("context_scope", []),
         "is_builtin": True,
         "tools": ROLE_TOOL_MAP.get(role, []),
@@ -193,8 +199,28 @@ def update_agent(key: str, body: dict, session: Session = Depends(get_session)) 
     return _db_agent_to_dict(agent)
 
 
+@router.delete("/{key}")
+def delete_agent(key: str, session: Session = Depends(get_session)) -> dict:
+    if key in BUILTIN_AGENTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Agent '{key}' is a builtin and cannot be deleted. Use PUT to override it.",
+        )
+    agent = session.exec(select(Agent).where(Agent.key == key)).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent '{key}' not found")
+    if agent.is_builtin:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Agent '{key}' is flagged as builtin and cannot be deleted.",
+        )
+    session.delete(agent)
+    session.commit()
+    return {"deleted": key}
+
+
 @router.post("/import-rich")
-def import_rich(session: Session = Depends(get_session)):
+def import_rich_endpoint(session: Session = Depends(get_session)):
     from api.import_rich_agents import import_rich_agents
     stats = import_rich_agents()
     return {"status": "ok", **stats}

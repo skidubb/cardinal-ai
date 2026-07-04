@@ -12,3 +12,59 @@ description: Generate hypotheses, score evidence for/against, eliminate least su
 when_to_use: Root cause analysis, competing explanations with evidence.
 when_not_to_use: Creative ideation, consensus building.
 tools_enabled: true
+recommended_agents:
+  - ceo
+  - cfo
+  - cto-audit-architect
+  - ceo-competitive-intel
+stages:
+  - key: hypotheses
+    name: Generate Hypotheses
+    stage_type: agent
+    agents_filter: all
+    depends_on: []
+    description: Each agent proposes candidate hypotheses that could explain the evidence.
+    produces: hypotheses
+    kind: agent
+    required: true
+    summary_role: structured_prelude
+  - key: evidence
+    name: Gather Evidence
+    stage_type: agent
+    agents_filter: all
+    depends_on: [hypotheses]
+    description: Each agent enumerates the evidence (observations, facts, data) relevant to any hypothesis.
+    produces: evidence
+    kind: agent
+    required: true
+    summary_role: working_notes
+  - key: scoring
+    name: Score Evidence × Hypothesis Matrix
+    stage_type: agent
+    agents_filter: all
+    depends_on: [evidence]
+    description: For every (evidence, hypothesis) pair, score consistency (+) / inconsistency (-) / neutral.
+    produces: matrix
+    kind: agent
+    required: true
+    summary_role: working_notes
+  - key: elimination
+    name: Eliminate Weak Hypotheses
+    stage_type: mechanical
+    agents_filter: null
+    depends_on: [scoring]
+    description: Rank hypotheses by net support; flag those inconsistent with the strongest evidence.
+    produces: [eliminated, surviving]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+  - key: synthesis
+    name: Synthesis
+    stage_type: synthesis
+    agents_filter: null
+    depends_on: [elimination]
+    description: Name the best-supported hypothesis, its diagnostic evidence, and remaining uncertainty.
+    produces: synthesis
+    kind: synthesis
+    required: true
+    summary_role: primary_summary

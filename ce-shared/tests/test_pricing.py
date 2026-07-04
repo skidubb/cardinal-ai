@@ -38,7 +38,7 @@ def test_all_public_symbols_importable():
 
 def test_opus_cost():
     """Opus 4.6: 1M input + 1M output = $5 + $25 = $30."""
-    result = cost_for_model("claude-opus-4-6", 1_000_000, 1_000_000)
+    result = cost_for_model("claude-opus-4-7", 1_000_000, 1_000_000)
     assert result == 30.00
 
 
@@ -61,8 +61,8 @@ def test_haiku_cost():
 
 def test_substring_fallback_resolves_to_opus():
     """A model string containing 'opus' resolves to Opus pricing."""
-    result = cost_for_model("anthropic/claude-opus-4-6", 1000, 1000)
-    expected = cost_for_model("claude-opus-4-6", 1000, 1000)
+    result = cost_for_model("anthropic/claude-opus-4-7", 1000, 1000)
+    expected = cost_for_model("claude-opus-4-7", 1000, 1000)
     assert result == expected
 
 
@@ -74,7 +74,7 @@ def test_substring_fallback_resolves_to_opus():
 def test_unknown_model_defaults_to_opus():
     """Unknown model strings default to current Opus-tier pricing."""
     result = cost_for_model("some-unknown-model", 1_000_000, 1_000_000)
-    opus_result = cost_for_model("claude-opus-4-6", 1_000_000, 1_000_000)
+    opus_result = cost_for_model("claude-opus-4-7", 1_000_000, 1_000_000)
     assert result == opus_result
 
 
@@ -85,11 +85,11 @@ def test_unknown_model_defaults_to_opus():
 
 def test_cache_read_multiplier():
     """Cache read tokens are charged at 10% of normal input rate."""
-    input_rate, _ = get_pricing("claude-opus-4-6")
+    input_rate, _ = get_pricing("claude-opus-4-7")
     per_token = input_rate / 1_000_000
 
     # 1000 cache_read_tokens at 0.10x input rate
-    result = cost_for_model("claude-opus-4-6", 0, 0, cache_read_tokens=1000)
+    result = cost_for_model("claude-opus-4-7", 0, 0, cache_read_tokens=1000)
     expected = 1000 * per_token * CACHE_READ_MULTIPLIER
     assert abs(result - expected) < 1e-12
 
@@ -101,11 +101,11 @@ def test_cache_read_multiplier():
 
 def test_cache_write_multiplier():
     """Cache write tokens are charged at 125% of normal input rate."""
-    input_rate, _ = get_pricing("claude-opus-4-6")
+    input_rate, _ = get_pricing("claude-opus-4-7")
     per_token = input_rate / 1_000_000
 
     # 1000 cache_write_tokens at 1.25x input rate
-    result = cost_for_model("claude-opus-4-6", 0, 0, cache_write_tokens=1000)
+    result = cost_for_model("claude-opus-4-7", 0, 0, cache_write_tokens=1000)
     expected = 1000 * per_token * CACHE_WRITE_MULTIPLIER
     assert abs(result - expected) < 1e-12
 
@@ -117,8 +117,8 @@ def test_cache_write_multiplier():
 
 def test_batch_discount():
     """Batch mode applies 50% discount to total cost."""
-    normal = cost_for_model("claude-opus-4-6", 1_000_000, 1_000_000)
-    batched = cost_for_model("claude-opus-4-6", 1_000_000, 1_000_000, batch=True)
+    normal = cost_for_model("claude-opus-4-7", 1_000_000, 1_000_000)
+    batched = cost_for_model("claude-opus-4-7", 1_000_000, 1_000_000, batch=True)
     assert batched == normal * (1 - BATCH_DISCOUNT)
 
 
@@ -150,7 +150,7 @@ def test_model_tier_is_strenum():
     """ModelTier is a stdlib StrEnum with exactly 3 members."""
     assert issubclass(ModelTier, StrEnum)
     assert len(ModelTier) == 3
-    assert ModelTier.OPUS.value == "claude-opus-4-6"
+    assert ModelTier.OPUS.value == "claude-opus-4-7"
     assert ModelTier.SONNET.value == "claude-sonnet-4-6"
     assert ModelTier.HAIKU.value == "claude-haiku-4-5-20251001"
 
@@ -187,7 +187,7 @@ def test_estimate_tokens_basic():
     """Known model + known cost produces non-zero int tokens with correct source."""
     from ce_shared import estimate_tokens_from_cost
 
-    result = estimate_tokens_from_cost("claude-opus-4-6", 0.03)
+    result = estimate_tokens_from_cost("claude-opus-4-7", 0.03)
     assert isinstance(result["input_tokens"], int)
     assert isinstance(result["output_tokens"], int)
     assert result["input_tokens"] > 0
@@ -199,7 +199,7 @@ def test_estimate_tokens_zero_cost():
     """Cost=0 returns all zeros."""
     from ce_shared import estimate_tokens_from_cost
 
-    result = estimate_tokens_from_cost("claude-opus-4-6", 0)
+    result = estimate_tokens_from_cost("claude-opus-4-7", 0)
     assert result["input_tokens"] == 0
     assert result["output_tokens"] == 0
     assert result["token_source"] == "estimated_from_cost"
@@ -209,7 +209,7 @@ def test_estimate_tokens_unknown_model():
     """Unknown model string uses Opus-tier pricing (TOKN-04)."""
     from ce_shared import estimate_tokens_from_cost
 
-    known = estimate_tokens_from_cost("claude-opus-4-6", 0.10)
+    known = estimate_tokens_from_cost("claude-opus-4-7", 0.10)
     unknown = estimate_tokens_from_cost("totally-unknown-model-xyz", 0.10)
     assert known == unknown
 
@@ -219,9 +219,9 @@ def test_estimate_tokens_round_trip():
     from ce_shared import estimate_tokens_from_cost
 
     original_cost = 0.05
-    result = estimate_tokens_from_cost("claude-opus-4-6", original_cost)
+    result = estimate_tokens_from_cost("claude-opus-4-7", original_cost)
     recomputed = cost_for_model(
-        "claude-opus-4-6", result["input_tokens"], result["output_tokens"]
+        "claude-opus-4-7", result["input_tokens"], result["output_tokens"]
     )
     assert abs(recomputed - original_cost) / original_cost < 0.05
 
@@ -230,7 +230,7 @@ def test_estimate_tokens_minimum_one():
     """Very small non-zero cost produces at least 1 for each token field."""
     from ce_shared import estimate_tokens_from_cost
 
-    result = estimate_tokens_from_cost("claude-opus-4-6", 0.0000001)
+    result = estimate_tokens_from_cost("claude-opus-4-7", 0.0000001)
     assert result["input_tokens"] >= 1
     assert result["output_tokens"] >= 1
 
@@ -239,6 +239,6 @@ def test_estimate_tokens_custom_ratio():
     """Passing input_output_ratio=3.0 changes the result vs default 5.0."""
     from ce_shared import estimate_tokens_from_cost
 
-    default = estimate_tokens_from_cost("claude-opus-4-6", 0.10)
-    custom = estimate_tokens_from_cost("claude-opus-4-6", 0.10, input_output_ratio=3.0)
+    default = estimate_tokens_from_cost("claude-opus-4-7", 0.10)
+    custom = estimate_tokens_from_cost("claude-opus-4-7", 0.10, input_output_ratio=3.0)
     assert default != custom

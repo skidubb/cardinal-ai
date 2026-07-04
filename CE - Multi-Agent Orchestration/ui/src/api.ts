@@ -3,15 +3,15 @@ import type { Agent, Integration, KBNamespace, KBSearchResult, Protocol, Protoco
 const BASE = '/api'
 
 export function getApiKey(): string {
-  return localStorage.getItem('ce_api_key') || ''
+  return sessionStorage.getItem('ce_api_key') || ''
 }
 
 export function setApiKey(key: string) {
-  localStorage.setItem('ce_api_key', key)
+  sessionStorage.setItem('ce_api_key', key)
 }
 
 export function clearApiKey() {
-  localStorage.removeItem('ce_api_key')
+  sessionStorage.removeItem('ce_api_key')
 }
 
 function authHeaders(): Record<string, string> {

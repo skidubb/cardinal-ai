@@ -48,8 +48,14 @@ class WildcardWalkOrchestrator(WalkBaseOrchestrator):
         salience = await self._stage_salience(frame, shallow_outputs)
         deep_outputs = await self._stage_deep_walk(question, frame, salience, shallow_outputs)
         cross_exam = await self._stage_cross_examine(question, frame, deep_outputs)
+        collisions = await self._stage_collision_synthesis(
+            frame, salience, deep_outputs, shallow_outputs,
+        )
         synthesis, synthesis_text = await self._stage_synthesis(
-            question, frame, shallow_outputs, salience, deep_outputs, cross_exam,
+            question, frame, shallow_outputs, salience, deep_outputs, cross_exam, collisions,
+        )
+        provocation = await self._stage_provocation(
+            frame, shallow_outputs, deep_outputs, collisions,
         )
 
         return WalkResult(
@@ -60,6 +66,8 @@ class WildcardWalkOrchestrator(WalkBaseOrchestrator):
             salience=salience,
             deep_outputs=deep_outputs,
             cross_exam=cross_exam,
+            collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
+            provocation=provocation,
         )

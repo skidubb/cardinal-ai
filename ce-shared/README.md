@@ -24,19 +24,19 @@ Single source of truth for Anthropic model pricing across the monorepo. Includes
 from ce_shared.pricing import get_pricing, cost_for_model, estimate_tokens_from_cost
 
 # Look up pricing for a model (returns input_per_mtok, output_per_mtok)
-input_rate, output_rate = get_pricing("claude-opus-4-6")
+input_rate, output_rate = get_pricing("claude-opus-4-7")
 # (5.0, 25.0)
 
 # Calculate cost for a known token count
 cost = cost_for_model(
-    model="claude-opus-4-6",
+    model="claude-opus-4-7",
     input_tokens=10_000,
     output_tokens=2_000,
 )
 # 0.1  (USD)
 
 # Back-calculate estimated tokens from a known cost
-estimate = estimate_tokens_from_cost("claude-opus-4-6", cost_usd=0.15)
+estimate = estimate_tokens_from_cost("claude-opus-4-7", cost_usd=0.15)
 # {"input_tokens": 12500, "output_tokens": 2500, "token_source": "estimated_from_cost"}
 ```
 

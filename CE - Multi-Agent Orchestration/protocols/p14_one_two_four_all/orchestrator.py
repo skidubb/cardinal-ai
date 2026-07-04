@@ -9,7 +9,7 @@ from typing import Any
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, filter_exceptions
+from protocols.llm import extract_text, llm_complete, filter_exceptions_aligned
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -78,8 +78,7 @@ class OneTwoFourAllOrchestrator:
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
-                "type": "enabled",
-                "budget_tokens": self.thinking_budget,
+                "type": "adaptive",
             },
             system=agent.system_prompt,
             messages=[
@@ -134,9 +133,13 @@ class OneTwoFourAllOrchestrator:
         try:
             solo_tasks = [self._solo_ideate(a, question) for a in self.agents]
             solo_texts = await asyncio.gather(*solo_tasks, return_exceptions=True)
-            solo_texts = filter_exceptions(solo_texts, label="p14_one_two_four_all")
+            solo_texts = filter_exceptions_aligned(
+                solo_texts,
+                label="p14_one_two_four_all",
+                labels=[a.get("name", "?") for a in self.agents],
+            )
             _count(self.thinking_model, len(self.agents))
-            end_span(span, output=f"{len(solo_texts)} solo outputs")
+            end_span(span, output=f"{sum(1 for t in solo_texts if t is not None)}/{len(self.agents)} solo outputs")
         except Exception:
             end_span(span, error="solo_ideation failed")
             raise
@@ -144,8 +147,12 @@ class OneTwoFourAllOrchestrator:
         solo_outputs: dict[str, str] = {}
         tagged: list[dict[str, Any]] = []
         for agent, text in zip(self.agents, solo_texts):
+            if text is None:
+                continue
             solo_outputs[agent.name] = text
             tagged.append({"names": [agent.name], "text": text})
+        if not tagged:
+            raise RuntimeError("p14_one_two_four_all: all agents failed during solo_ideation")
 
         # --- Stage 2: Pair merge (parallel, Haiku) ---
         current = tagged
@@ -162,15 +169,21 @@ class OneTwoFourAllOrchestrator:
                 pair_meta.append({"names": a["names"] + b["names"]})
 
             pair_texts = await asyncio.gather(*merge_tasks, return_exceptions=True)
-            pair_texts = filter_exceptions(pair_texts, label="p14_one_two_four_all")
+            pair_texts = filter_exceptions_aligned(
+                pair_texts,
+                label="p14_one_two_four_all",
+                labels=[", ".join(m["names"]) for m in pair_meta],
+            )
             _count(self.orchestration_model, len(pairs))
-            end_span(span, output=f"{len(pair_texts)} pair merges completed")
+            end_span(span, output=f"{sum(1 for t in pair_texts if t is not None)}/{len(pairs)} pair merges completed")
         except Exception:
             end_span(span, error="pair_merge failed")
             raise
 
         next_stage = []
         for meta, text in zip(pair_meta, pair_texts):
+            if text is None:
+                continue
             entry = {"names": meta["names"], "text": text}
             pair_outputs.append(entry)
             next_stage.append(entry)
@@ -194,15 +207,21 @@ class OneTwoFourAllOrchestrator:
                 quad_meta.append({"names": a["names"] + b["names"]})
 
             quad_texts = await asyncio.gather(*merge_tasks, return_exceptions=True)
-            quad_texts = filter_exceptions(quad_texts, label="p14_one_two_four_all")
+            quad_texts = filter_exceptions_aligned(
+                quad_texts,
+                label="p14_one_two_four_all",
+                labels=[", ".join(m["names"]) for m in quad_meta],
+            )
             _count(self.orchestration_model, len(pairs))
-            end_span(span, output=f"{len(quad_texts)} quad merges completed")
+            end_span(span, output=f"{sum(1 for t in quad_texts if t is not None)}/{len(pairs)} quad merges completed")
         except Exception:
             end_span(span, error="quad_merge failed")
             raise
 
         final_inputs = []
         for meta, text in zip(quad_meta, quad_texts):
+            if text is None:
+                continue
             entry = {"names": meta["names"], "text": text}
             quad_outputs.append(entry)
             final_inputs.append(entry)
@@ -223,8 +242,7 @@ class OneTwoFourAllOrchestrator:
                 model=self.thinking_model,
                 max_tokens=16_000,
                 thinking={
-                    "type": "enabled",
-                    "budget_tokens": self.thinking_budget,
+                    "type": "adaptive",
                 },
                 messages=[
                     {"role": "user", "content": prompt},

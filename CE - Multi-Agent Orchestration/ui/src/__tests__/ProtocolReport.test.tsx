@@ -33,7 +33,7 @@ const baseReport: ProtocolReportData = {
       agent_name: 'CEO',
       text: 'CEO analysis: We should expand into Germany first.',
       cost_usd: 0.0125,
-      model: 'claude-opus-4-6',
+      model: 'claude-opus-4-7',
       tool_calls: [],
     },
     {
@@ -41,7 +41,7 @@ const baseReport: ProtocolReportData = {
       agent_name: 'CFO',
       text: 'CFO analysis: Cash runway needs review before committing.',
       cost_usd: 0.0089,
-      model: 'claude-opus-4-6',
+      model: 'claude-opus-4-7',
       tool_calls: [],
     },
   ],

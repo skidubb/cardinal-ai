@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL, BALANCED_MODEL
-from protocols.llm import extract_text, llm_complete, parse_json_array, filter_exceptions
+from protocols.llm import agent_complete, extract_text, filter_exceptions_aligned, llm_complete, parse_json_array
 
 from .prompts import (
     RANKING_PROMPT,
@@ -54,12 +54,14 @@ class WickedQuestionsOrchestrator:
         agents: list[dict],
         thinking_model: str = THINKING_MODEL,
         orchestration_model: str = ORCHESTRATION_MODEL,
+        thinking_budget: int = 10_000,
     ):
         if not agents:
             raise ValueError("At least one agent is required")
         self.agents = agents
         self.thinking_model = thinking_model
         self.orchestration_model = orchestration_model
+        self.thinking_budget = thinking_budget
         self.client = anthropic.AsyncAnthropic()
 
     @trace_protocol("p07_wicked_questions")
@@ -72,11 +74,19 @@ class WickedQuestionsOrchestrator:
         span = create_span("stage:tension_generation", {"agent_count": len(self.agents)})
         try:
             raw_tensions = await self._generate_tensions(topic)
+            survivors = [
+                (agent, raw)
+                for agent, raw in zip(self.agents, raw_tensions)
+                if raw is not None
+            ]
+            if not survivors:
+                raise RuntimeError(
+                    "p07_wicked_questions: all agents failed during tension_generation"
+                )
             result.agent_contributions = {
-                agent["name"]: raw_tensions[i]
-                for i, agent in enumerate(self.agents)
+                agent["name"]: raw for agent, raw in survivors
             }
-            end_span(span, output=f"{len(raw_tensions)} tension sets")
+            end_span(span, output=f"{len(survivors)}/{len(self.agents)} tension sets")
         except Exception:
             end_span(span, error="tension_generation failed")
             raise
@@ -87,7 +97,7 @@ class WickedQuestionsOrchestrator:
         try:
             all_text = "\n\n".join(
                 f"=== {agent['name']} ===\n{raw}"
-                for agent, raw in zip(self.agents, raw_tensions)
+                for agent, raw in survivors
             )
             tested = await self._wickedness_test(all_text)
             wicked = [t for t in tested if t.get("is_wicked")]
@@ -148,21 +158,25 @@ class WickedQuestionsOrchestrator:
         prompt = TENSION_GENERATION_PROMPT.format(question=topic)
 
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=2048,
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return extract_text(response)
+            return response
 
         _results = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        _results = filter_exceptions(_results, label="p07_wicked_questions")
+        _results = filter_exceptions_aligned(
+            _results,
+            label="p07_wicked_questions",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return _results
 
     async def _wickedness_test(self, all_tensions: str) -> list[dict]:
@@ -180,7 +194,7 @@ class WickedQuestionsOrchestrator:
             }],
             agent_name="wickedness_test",
         )
-        text = extract_text(response)
+        text = response
         return parse_json_array(text)
 
     async def _rank(self, wicked_questions: str) -> list[dict]:

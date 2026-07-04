@@ -11,3 +11,23 @@ description: Second-price sealed-bid auction for honest priority revelation.
 when_to_use: Ranking options where agents have hidden preferences.
 when_not_to_use: Open-ended exploration, estimation tasks.
 tools_enabled: true
+
+stages:
+  - name: "Sealed bidding"
+    produces: bids
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each agent privately selects its preferred option with confidence"
+  - name: "Second-price resolution"
+    produces: [winner, winning_option, original_confidence, second_price_confidence]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Select the winning option; calibrate confidence via the second-highest bid"
+  - name: "Calibrated justification"
+    produces: [synthesis, calibrated_justification]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Produce the final decision narrative with second-price-adjusted confidence"

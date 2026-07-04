@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, filter_exceptions
+from protocols.llm import extract_text, llm_complete, filter_exceptions_aligned
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -75,8 +75,7 @@ class HSROrchestrator:
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
-                "type": "enabled",
-                "budget_tokens": self.thinking_budget,
+                "type": "adaptive",
             },
             system=agent.system_prompt,
             messages=[
@@ -118,8 +117,7 @@ class HSROrchestrator:
             model=self.thinking_model,
             max_tokens=16_000,
             thinking={
-                "type": "enabled",
-                "budget_tokens": self.thinking_budget,
+                "type": "adaptive",
             },
             messages=[
                 {"role": "user", "content": prompt},
@@ -163,9 +161,13 @@ class HSROrchestrator:
         try:
             narrative_tasks = [self._generate_narrative(a, question) for a in self.agents]
             narrative_texts = await asyncio.gather(*narrative_tasks, return_exceptions=True)
-            narrative_texts = filter_exceptions(narrative_texts, label="p10_heard_seen_respected")
+            narrative_texts = filter_exceptions_aligned(
+                narrative_texts,
+                label="p10_heard_seen_respected",
+                labels=[a.get("name", "?") for a in self.agents],
+            )
             _count(self.thinking_model, len(self.agents))
-            end_span(span, output=f"{len(narrative_texts)} narratives generated")
+            end_span(span, output=f"{sum(1 for t in narrative_texts if t is not None)}/{len(self.agents)} narratives generated")
         except Exception:
             end_span(span, error="narrative_generation failed")
             raise
@@ -173,7 +175,13 @@ class HSROrchestrator:
 
         narratives: dict[str, str] = {}
         for agent, text in zip(self.agents, narrative_texts):
+            if text is None:
+                continue
             narratives[agent.name] = text
+        if not narratives:
+            raise RuntimeError(
+                "p10_heard_seen_respected: all agents failed during narrative_generation"
+            )
 
         # --- Phase 2: Reflect — paired reflections (parallel, Haiku) ---
         t_phase2 = time.time()
@@ -189,9 +197,13 @@ class HSROrchestrator:
                 reflect_meta.append({"reflector": reflector.name, "reflected_on": narrator.name})
 
             reflect_texts = await asyncio.gather(*reflect_tasks, return_exceptions=True)
-            reflect_texts = filter_exceptions(reflect_texts, label="p10_heard_seen_respected")
+            reflect_texts = filter_exceptions_aligned(
+                reflect_texts,
+                label="p10_heard_seen_respected",
+                labels=[m["reflector"] for m in reflect_meta],
+            )
             _count(self.orchestration_model, len(reflection_pairs))
-            end_span(span, output=f"{len(reflect_texts)} reflections completed")
+            end_span(span, output=f"{sum(1 for t in reflect_texts if t is not None)}/{len(reflection_pairs)} reflections completed")
         except Exception:
             end_span(span, error="paired_reflections failed")
             raise
@@ -199,6 +211,8 @@ class HSROrchestrator:
 
         reflections: list[dict[str, str]] = []
         for meta, text in zip(reflect_meta, reflect_texts):
+            if text is None:
+                continue
             reflections.append({
                 "reflector": meta["reflector"],
                 "reflected_on": meta["reflected_on"],

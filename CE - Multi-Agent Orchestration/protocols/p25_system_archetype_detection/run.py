@@ -97,7 +97,7 @@ def main() -> None:
     parser.add_argument(
         "--thinking-model",
         default=None,
-        help="Override the thinking model (default: claude-opus-4-6).",
+        help="Override the thinking model (default: claude-opus-4-7).",
     )
     parser.add_argument(
         "--orchestration-model",

@@ -255,19 +255,19 @@ The substring fallback should also handle non-Anthropic patterns (e.g., "gpt" ->
 
 **Unit tests for ce-shared itself:**
 1. `from ce_shared.pricing import MODEL_PRICING, cost_for_model, ModelTier` -- import succeeds
-2. `cost_for_model("claude-opus-4-6", 1_000_000, 1_000_000)` returns expected USD
-3. `cost_for_model("claude-opus-4-6", 1_000_000, 0, cache_read_tokens=500_000)` applies 0.10x multiplier
-4. `cost_for_model("claude-opus-4-6", 1_000_000, 1_000_000, batch=True)` applies 0.50x discount
+2. `cost_for_model("claude-opus-4-7", 1_000_000, 1_000_000)` returns expected USD
+3. `cost_for_model("claude-opus-4-7", 1_000_000, 0, cache_read_tokens=500_000)` applies 0.10x multiplier
+4. `cost_for_model("claude-opus-4-7", 1_000_000, 1_000_000, batch=True)` applies 0.50x discount
 5. `cost_for_model("some-unknown-model", 1000, 1000)` defaults to Opus tier
-6. Substring matching: `cost_for_model("anthropic/claude-opus-4-6", 1000, 1000)` resolves correctly
+6. Substring matching: `cost_for_model("anthropic/claude-opus-4-7", 1000, 1000)` resolves correctly
 
 **Integration tests for Agent Builder:**
-1. Instantiate `UsageRecord(agent="CFO", model="claude-opus-4-6", input_tokens=1_000_000, output_tokens=1_000_000)` and verify `total_cost` matches ce-shared's calculation
+1. Instantiate `UsageRecord(agent="CFO", model="claude-opus-4-7", input_tokens=1_000_000, output_tokens=1_000_000)` and verify `total_cost` matches ce-shared's calculation
 2. Verify no `MODEL_PRICING` or `_get_pricing` exists in Agent Builder's cost_tracker.py (grep test)
 3. Run `csuite ceo "test"` and verify the cost log file uses correct pricing
 
 **Integration tests for Orchestration:**
-1. Instantiate `ProtocolCostTracker`, call `tracker.track("claude-opus-4-6", 1_000_000, 1_000_000)`, verify `tracker.total_cost` matches ce-shared
+1. Instantiate `ProtocolCostTracker`, call `tracker.track("claude-opus-4-7", 1_000_000, 1_000_000)`, verify `tracker.total_cost` matches ce-shared
 2. Verify `_compute_cost` still importable from `protocols.cost_tracker` (backward compat for llm.py)
 3. Verify no `_PRICING` dict in Orchestration's cost_tracker.py (grep test)
 4. Run a protocol and verify cost summary uses correct pricing

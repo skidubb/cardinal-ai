@@ -15,7 +15,8 @@ from pydantic import BaseModel
 from sqlmodel import Session, col, select
 from sse_starlette.sse import EventSourceResponse
 
-from api.database import engine, get_session
+from api.database import get_session
+from api.middleware.clerk_auth import resolve_tenant
 from api.models import AgentOutput, Run, RunStep
 from api.report_helpers import build_envelope_from_db
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
@@ -50,7 +51,7 @@ class ProtocolRunRequest(BaseModel):
 
 class PipelineStepRequest(BaseModel):
     protocol_key: str
-    question_template: str
+    question_template: str = ""
     thinking_model: str = THINKING_MODEL
     orchestration_model: str = ORCHESTRATION_MODEL
     rounds: int | None = None
@@ -72,10 +73,15 @@ def list_runs(
     limit: int = 20,
     offset: int = 0,
     session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
 ) -> list[dict]:
     runs = list(
         session.exec(
-            select(Run).order_by(col(Run.started_at).desc()).offset(offset).limit(limit)
+            select(Run)
+            .where(col(Run.tenant_slug) == tenant_slug)
+            .order_by(col(Run.started_at).desc())
+            .offset(offset)
+            .limit(limit)
         ).all()
     )
     return [
@@ -96,6 +102,66 @@ def list_runs(
         }
         for r in runs
     ]
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+def _cascade_delete_run(session: Session, run: Run) -> None:
+    for step in session.exec(select(RunStep).where(RunStep.run_id == run.id)).all():
+        session.delete(step)
+    for output in session.exec(select(AgentOutput).where(AgentOutput.run_id == run.id)).all():
+        session.delete(output)
+    session.delete(run)
+
+
+@router.delete("/bulk")
+async def delete_runs_bulk(
+    payload: BulkDeleteRequest,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> dict:
+    """Delete multiple runs by id, scoped to the caller's tenant.
+
+    Silently skips ids that don't exist or belong to another tenant,
+    so the caller can't probe for cross-tenant run ids.
+    """
+    if not payload.ids:
+        return {"deleted": 0, "skipped": []}
+    if len(payload.ids) > 200:
+        raise HTTPException(status_code=400, detail="Maximum 200 ids per bulk delete")
+
+    deleted: list[int] = []
+    skipped: list[int] = []
+    for run_id in payload.ids:
+        run = session.get(Run, run_id)
+        if not run or run.tenant_slug != tenant_slug:
+            skipped.append(run_id)
+            continue
+        _cascade_delete_run(session, run)
+        deleted.append(run_id)
+    session.commit()
+    return {"deleted": len(deleted), "deleted_ids": deleted, "skipped": skipped}
+
+
+@router.delete("/{run_id}")
+async def delete_run(
+    run_id: int,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> dict:
+    """Delete a run and all its associated data (steps, outputs)."""
+    run = session.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.tenant_slug != tenant_slug:
+        # Don't leak existence of other-tenant runs -- return 404
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    _cascade_delete_run(session, run)
+    session.commit()
+    return {"deleted": run_id}
 
 
 # ── GET /{run_id}/stream — MUST be declared before GET /{run_id} ──────────────
@@ -140,10 +206,14 @@ async def _replay_completed_run(run: Run, session: Session) -> AsyncGenerator[st
 
 
 @router.get("/{run_id}/stream")
-async def stream_run(run_id: int, session: Session = Depends(get_session)) -> EventSourceResponse:
+async def stream_run(
+    run_id: int,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> EventSourceResponse:
     """Replay a completed run as SSE events."""
     run = session.get(Run, run_id)
-    if not run:
+    if not run or run.tenant_slug != tenant_slug:
         raise HTTPException(status_code=404, detail="Run not found")
     if run.status not in ("completed", "failed", "cancelled"):
         raise HTTPException(status_code=202, detail="Run still in progress")
@@ -155,9 +225,13 @@ async def stream_run(run_id: int, session: Session = Depends(get_session)) -> Ev
 
 
 @router.get("/{run_id}")
-def get_run(run_id: int, session: Session = Depends(get_session)) -> dict:
+async def get_run(
+    run_id: int,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> dict:
     run = session.get(Run, run_id)
-    if not run:
+    if not run or run.tenant_slug != tenant_slug:
         raise HTTPException(status_code=404, detail="Run not found")
 
     steps = session.exec(

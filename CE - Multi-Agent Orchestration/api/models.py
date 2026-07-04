@@ -93,6 +93,7 @@ class Run(SQLModel, table=True):
     pipeline_id: Optional[int] = None
     question: str = ""
     team_id: Optional[int] = None
+    tenant_slug: str = Field(default="cardinal-element", index=True)
     status: str = "pending"
     cost_usd: float = 0.0
     error_message: Optional[str] = None

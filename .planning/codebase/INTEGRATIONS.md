@@ -10,7 +10,7 @@ Reference document for all external APIs, databases, auth providers, and third-p
 
 - **SDK**: `anthropic>=0.83.0` (AsyncAnthropic)
 - **Auth**: `ANTHROPIC_API_KEY` in `.env`
-- **Models**: `claude-opus-4-6` (executive agents), `claude-haiku-4-5-20251001` (orchestration)
+- **Models**: `claude-opus-4-7` (executive agents), `claude-haiku-4-5-20251001` (orchestration)
 - **Features used**: Extended thinking (budget_tokens), tool use / function calling, prompt caching
 - **Used by**: All projects (Agent Builder, Orchestration, Evals)
 - **Source**: `CE - Agent Builder/src/csuite/agents/base.py`, `CE - Multi-Agent Orchestration/protocols/llm.py`

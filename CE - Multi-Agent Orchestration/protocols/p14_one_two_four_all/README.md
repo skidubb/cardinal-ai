@@ -47,7 +47,7 @@ The result includes all intermediate outputs for full lineage tracing:
 
 | Stage | Model | Calls | Purpose |
 |---|---|---|---|
-| Solo ideation | `claude-opus-4-6` | N | Independent idea generation with extended thinking |
+| Solo ideation | `claude-opus-4-7` | N | Independent idea generation with extended thinking |
 | Pair merge | `claude-haiku-4-5-20251001` | N/2 | Find shared themes, resolve tensions |
 | Quad merge | `claude-haiku-4-5-20251001` | N/4 | Refine and prioritize |
-| Final synthesis | `claude-opus-4-6` | 1 | Unified strategic response with extended thinking |
+| Final synthesis | `claude-opus-4-7` | 1 | Unified strategic response with extended thinking |

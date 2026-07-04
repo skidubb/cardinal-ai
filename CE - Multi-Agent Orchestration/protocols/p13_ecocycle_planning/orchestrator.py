@@ -82,8 +82,31 @@ class EcocyclePlanningOrchestrator:
     # ------------------------------------------------------------------
 
     @trace_protocol("p13_ecocycle_planning")
-    async def run(self, question: str, initiatives: list[str]) -> EcocycleResult:
+    async def run(
+        self,
+        question: str,
+        initiatives: list[str] | None = None,
+    ) -> EcocycleResult:
+        """Run the protocol.
+
+        `initiatives` is optional. When omitted (the API runner passes only the
+        question), we extract a portfolio of 3–7 initiatives from the question
+        text via a lightweight Haiku call. The CLI path still passes an
+        explicit list.
+        """
         timings: dict[str, float] = {}
+
+        # Phase 0 — auto-extract initiatives if the caller didn't supply them
+        if initiatives is None or len(initiatives) == 0:
+            t0 = time.time()
+            span0 = create_span("stage:extract_initiatives", {"source": "question"})
+            try:
+                initiatives = await self._extract_initiatives_from_question(question)
+                end_span(span0, output=f"{len(initiatives)} initiatives extracted")
+            except Exception:
+                end_span(span0, error="extract_initiatives failed")
+                raise
+            timings["phase0_extract"] = round(time.time() - t0, 2)
 
         # Phase 1 — Assess: each agent assigns lifecycle stages (parallel, Opus)
         t0 = time.time()
@@ -211,6 +234,59 @@ class EcocyclePlanningOrchestrator:
                 contested.append(initiative)
 
         return consensus, contested
+
+    async def _extract_initiatives_from_question(self, question: str) -> list[str]:
+        """Extract a 3–7 item portfolio from the question text using Haiku.
+
+        Called when the API runner invokes `run(question)` without an explicit
+        `initiatives` list. Parses bullet points first (cheap path) and falls
+        back to Haiku if the question is free-form.
+        """
+        # Cheap path: if the question already contains an obvious list, use it.
+        parsed: list[str] = []
+        for line in question.splitlines():
+            stripped = line.strip()
+            for prefix in ("- ", "* ", "• "):
+                if stripped.startswith(prefix):
+                    item = stripped[len(prefix):].strip()
+                    if item:
+                        parsed.append(item)
+                    break
+            else:
+                # Numbered list: "1. foo", "2) bar"
+                if stripped and stripped[0].isdigit():
+                    for sep in (". ", ") "):
+                        idx = stripped.find(sep)
+                        if 0 < idx <= 3:
+                            item = stripped[idx + len(sep):].strip()
+                            if item:
+                                parsed.append(item)
+                            break
+        if 2 <= len(parsed) <= 10:
+            return parsed
+
+        # Haiku fallback: ask for 3–7 initiatives as JSON array.
+        prompt = (
+            "You will receive a strategic question about a portfolio of initiatives. "
+            "Extract 3-7 concrete initiatives (products, programs, bets, projects) that "
+            "the question implies should be assessed. Respond with JSON only: "
+            '{"initiatives": ["initiative one", "initiative two", ...]}.\n\n'
+            f"QUESTION:\n{question}"
+        )
+        resp = await llm_complete(
+            self.client,
+            model=self.orchestration_model,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+            agent_name="extract_initiatives",
+        )
+        data = parse_json_object(extract_text(resp))
+        items = data.get("initiatives", [])
+        if not isinstance(items, list) or not items:
+            # Last-ditch fallback: treat the whole question as a single initiative
+            return [question.strip()[:120] or "Unnamed initiative"]
+        cleaned = [str(i).strip() for i in items if str(i).strip()]
+        return cleaned[:7] if cleaned else [question.strip()[:120]]
 
     async def _resolve_contested(
         self,

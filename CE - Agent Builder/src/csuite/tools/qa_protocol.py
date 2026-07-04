@@ -431,7 +431,7 @@ class Tier3QAAgent(BaseQAAgent):
     """Tier 3: Executive review using Opus."""
 
     TIER = QATier.TIER_3
-    MODEL = "claude-opus-4-6"
+    MODEL = "claude-opus-4-7"
     COST_PER_1M_INPUT = 5.00
     COST_PER_1M_OUTPUT = 25.00
 

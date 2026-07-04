@@ -88,7 +88,7 @@ class GeminiBackend:
         return (
             resp.text,
             usage.prompt_token_count if usage else 0,
-            usage.candidates_token_count if usage else 0,
+            (usage.candidates_token_count or 0) + (getattr(usage, "thoughts_token_count", 0) or 0) if usage else 0,
         )
 
 

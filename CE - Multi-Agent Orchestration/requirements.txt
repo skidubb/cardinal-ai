@@ -4,11 +4,20 @@ langfuse>=3.0.0
 python-dotenv>=1.0.0
 pyyaml>=6.0
 
+# Auth (Clerk JWT verification + webhook signing on Railway)
+python-jose[cryptography]>=3.3.0
+httpx>=0.27.0
+svix>=1.0.0
+
 # Observability data layer (local package)
 ce-db @ file:../ce-db
 
 # Shared pricing and utilities (local package)
 ce-shared @ file:../ce-shared
+
+# Knowledge graph layer (local package) -- used by protocols/context_assembler.py
+# for the /api/proxy/context-preview memory brief and /api/graph/* endpoints.
+ce-graph @ file:../ce-graph
 
 # Only needed for scripts/ingest_papers.py:
 PyMuPDF>=1.25.0
@@ -18,3 +27,6 @@ pinecone>=5.0.0
 python-docx>=1.1.0
 python-multipart>=0.0.6
 google-genai>=1.0.0
+
+# PDF report rendering (api/routers/reports.py)
+markdown>=3.0

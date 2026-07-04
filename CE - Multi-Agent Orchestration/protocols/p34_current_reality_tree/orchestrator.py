@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, filter_exceptions
+from protocols.llm import agent_complete, filter_exceptions_aligned, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -59,11 +59,17 @@ class CRTOrchestrator:
         span = create_span("stage:surface_udes", {"agent_count": len(self.agents)})
         try:
             raw_udes = await self._surface_udes(question)
-            result.udes = {
-                agent["name"]: raw_udes[i]
-                for i, agent in enumerate(self.agents)
-            }
-            end_span(span, output=f"{len(raw_udes)} UDE sets surfaced")
+            survivors = [
+                (agent, raw)
+                for agent, raw in zip(self.agents, raw_udes)
+                if raw is not None
+            ]
+            if not survivors:
+                raise RuntimeError(
+                    "p34_current_reality_tree: all agents failed during surface_udes"
+                )
+            result.udes = {agent["name"]: raw for agent, raw in survivors}
+            end_span(span, output=f"{len(survivors)}/{len(self.agents)} UDE sets surfaced")
         except Exception:
             end_span(span, error="surface_udes failed")
             raise
@@ -73,8 +79,7 @@ class CRTOrchestrator:
         span = create_span("stage:build_causal_tree", {})
         try:
             all_ude_text = "\n\n".join(
-                f"=== {agent['name']} ===\n{raw}"
-                for agent, raw in zip(self.agents, raw_udes)
+                f"=== {agent['name']} ===\n{raw}" for agent, raw in survivors
             )
             result.causal_tree = await self._build_causal_tree(question, all_ude_text)
             end_span(span, output="causal tree built")
@@ -112,22 +117,25 @@ class CRTOrchestrator:
 
         async def query_agent(agent: dict) -> str:
             messages = [{"role": "user", "content": prompt}]
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-                system=agent["system_prompt"],
                 messages=messages,
-                agent_name=agent["name"],
             )
-            return extract_text(response)
+            return response
 
         _results = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
             return_exceptions=True,
         )
-        _results = filter_exceptions(_results, label="p34_current_reality_tree")
+        _results = filter_exceptions_aligned(
+            _results,
+            label="p34_current_reality_tree",
+            labels=[a.get("name", "?") for a in self.agents],
+        )
         return _results
 
     async def _build_causal_tree(self, question: str, all_udes: str) -> str:
@@ -136,7 +144,7 @@ class CRTOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": CAUSAL_CHAIN_PROMPT.format(
@@ -145,7 +153,7 @@ class CRTOrchestrator:
             }],
             agent_name="tree_builder",
         )
-        return extract_text(response)
+        return response
 
     async def _audit_logic(self, question: str, causal_tree: str) -> str:
         """Phase 3: Logic Auditor validates causal links using CLR."""
@@ -153,7 +161,7 @@ class CRTOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": LOGIC_AUDIT_PROMPT.format(
@@ -162,7 +170,7 @@ class CRTOrchestrator:
             }],
             agent_name="logic_auditor",
         )
-        return extract_text(response)
+        return response
 
     async def _synthesize(
         self, question: str, causal_tree: str, logic_audit: str
@@ -172,7 +180,7 @@ class CRTOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": SYNTHESIS_PROMPT.format(
@@ -183,6 +191,6 @@ class CRTOrchestrator:
             }],
             agent_name="synthesis",
         )
-        return extract_text(response)
+        return response
 
 

@@ -64,14 +64,14 @@ class SelfEvaluator:
 
     def __init__(self) -> None:
         settings = get_settings()
-        self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        self.client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
-    def evaluate(
+    async def evaluate(
         self, artifact_text: str, event_type: str = "", agent_role: str = ""
     ) -> ArtifactScore:
         """Score an artifact. Returns ArtifactScore with dimension scores."""
         try:
-            result = self.client.messages.create(
+            result = await self.client.messages.create(
                 model=HAIKU_MODEL,
                 max_tokens=256,
                 temperature=0.0,

@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-The **Coordination Lab** is Cardinal Element's multi-agent research program. It contains 48 implemented coordination protocols (P0a-c, P3-P47) plus a shared 56-agent registry, 34 benchmark questions across 8 problem types, and an evaluation harness. The goal is to empirically validate these protocols across problem types, then build an adaptive router that selects the optimal protocol for any strategic question.
+The **Coordination Lab** is Cardinal Element's multi-agent research program and production platform. It contains 60 implemented coordination protocols (P00–P01 baselines, meta-routers P0a–P0c, and P3–P57; P02 retired) plus a shared 74-agent registry, 34 benchmark questions across 8 problem types, a FastAPI web UI with React frontend, and PDF report generation. Deployed on Railway at `cardinal-ai-production.up.railway.app`. The goal is to empirically validate these protocols across problem types, then build an adaptive router that selects the optimal protocol for any strategic question.
+
+**Multi-tenancy**: the API is tenant-scoped. Clerk-issued JWTs are validated by `api/middleware/clerk_auth.py`, the `org_slug` claim is extracted, and every run / ce-graph query / Pinecone lookup is scoped to that tenant. Runs persist with a `tenant_id` column so a single Postgres instance cleanly partitions multi-customer data.
 
 ## Running Protocols
 
@@ -40,18 +42,24 @@ Each protocol lives in `protocols/p{NN}_{name}/` with these files:
 
 **Agent contract**:
 
-> **Protocols orchestrate SDK agents built in CE - Agent Builder.**
+> **Protocols orchestrate agents via `ServerAgent`** — direct Anthropic API calls with native tool-use.
 >
-> Each agent key (e.g., `ceo`, `cfo`, `cto`) resolves to a fully initialized `SdkAgent` with tools, MCP servers, and memory. The orchestrator calls `agent.chat(prompt)` and gets back a response from a capable agent — not a bare LLM completion.
+> Each agent key (e.g., `ceo`, `cfo`, `cto`) resolves to a `ServerAgent` instance with: rich system prompt (from Agent Builder's `_ROLE_PROMPTS`), per-role tool schemas (from `ROLE_TOOL_MAP` → `ALL_TOOL_SCHEMAS`), and an agentic tool loop (max 15 iterations). The orchestrator calls `agent.chat(prompt)` and gets back a response from a capable, tool-using agent.
 >
-> This is the product: **build agents in Agent Builder, send them through protocols in Orchestration.**
+> This is the product: **define agents in Agent Builder (prompts + tools), run them through protocols in Orchestration.**
 >
-> Thin dicts `{"name": str, "system_prompt": str}` are the research/fallback mode — used when Agent Builder is not installed or via `--mode research` / `AGENT_MODE=research`.
+> Thin dicts `{"name": str, "system_prompt": str}` are the research/fallback mode — used via `--mode research` / `AGENT_MODE=research`.
 
-**Agent modes**: Production mode (default) builds real SDK agents via `build_production_agents()`. Research mode (`--mode research` or `AGENT_MODE=research` env var) uses lightweight dicts. The API runner (`api/runner.py`) tries production first and falls back to enriched dicts if Agent Builder is not importable.
+**ServerAgent** (`protocols/server_agent.py`): Production agent class. Uses `anthropic.AsyncAnthropic().messages.create()` with tool schemas resolved from Agent Builder. No subprocess spawning — works in Docker/Railway. Imports: `_ROLE_PROMPTS` (80 roles), `ALL_TOOL_SCHEMAS` (27 tools), `ROLE_TOOL_MAP` (66 roles). Tool execution via `api/tool_executor.py`. Memory (Pinecone) and learning (DuckDB) degrade gracefully.
+
+> **Agent Builder dependency**: `csuite` is imported from the sibling checkout `../CE - Agent Builder/src` via `sys.path` (override with `CE_AGENT_BUILDER_PATH`); it is NOT in `requirements.txt`. Import failures are loud: `DEGRADED:` error logs, recorded in `server_agent.AGENT_BUILDER_IMPORT_ERRORS`, and surfaced by `/api/health` as `"agent_builder": "ok" | {errors}` with top-level `"status": "degraded"`. A degraded server runs agents with NO tools — never ship it.
+
+**Agent modes**: Production mode (default) builds `ServerAgent` instances via `build_production_agents()` in `protocols/agent_provider.py`. Research mode (`--mode research` or `AGENT_MODE=research` env var) uses lightweight dicts without tools.
+
+**LLM dispatch** (`protocols/llm.py:agent_complete()`): Three paths — (1) `agent.chat()` exists → ServerAgent direct API, (2) `agent["model"]` set → LiteLLM, (3) plain dict → Anthropic SDK fallback with tool loop. Path 1 is production; Path 3 is the fallback.
 
 **Model strategy**: Two model tiers passed to orchestrators:
-- `thinking_model` (default: `claude-opus-4-6`) — for agent reasoning, synthesis, creative stages
+- `thinking_model` (default: `claude-opus-4-7`) — for agent reasoning, synthesis, creative stages
 - `orchestration_model` (default: `claude-haiku-4-5-20251001`) — for mechanical stages (dedup, ranking, extraction, classification)
 - Agents support model override via `--agent-model` flag (routes through LiteLLM for non-Anthropic models like `gemini/gemini-3.1-pro-preview`)
 
@@ -63,23 +71,47 @@ Each protocol lives in `protocols/p{NN}_{name}/` with these files:
 
 - `The Coordination Lab *.md` — Master research spec: problem type taxonomy, protocols, evaluation rubrics, benchmark questions
 - `benchmark-questions.json` — 34 structured benchmark questions across 8 problem types (referenced by `scripts/evaluate.py`)
-- `protocols/agents.py` — Shared registry of 56 agents across 14 categories (supports `@category` group syntax)
+- `protocols/agents.py` — Shared registry of 74 agents (60 core + 14 walk perspectives) across 15 categories (supports `@category` group syntax)
 - `protocol-diagrams/` — Mermaid diagrams for protocols (summary flows + detailed mechanics)
 - `smoke-tests/` — Saved outputs from protocol runs for regression reference
 
 ## Protocol Taxonomy
 
 - **P0a-P0c**: Meta-Protocols — Reasoning Router, Skip Gate, Tiered Escalation
-- **P3-P5**: Baselines — Parallel Synthesis, Multi-Round Debate, Constraint Negotiation
+- **P00-P01**: Single-Agent Baselines — Direct, Single Agent (control conditions)
+- **P3-P5**: Multi-Agent Baselines — Parallel Synthesis, Multi-Round Debate, Constraint Negotiation
 - **P6-P15**: Liberating Structures — TRIZ, Wicked Questions, Min Specs, Troika, HSR, DAD, 25/10, Ecocycle, 1-2-4-All, What/So What/Now What
 - **P16-P18**: Intelligence Analysis — ACH, Red/Blue/White Team, Delphi Method
 - **P19-P21**: Game Theory — Vickrey Auction, Borda Count, Interests-Based Negotiation
 - **P22-P23**: Org Theory — Sequential Pipeline, Cynefin Probe-Sense-Respond
 - **P24-P25**: Systems Thinking — Causal Loop Mapping, System Archetype Detection
 - **P26-P27**: Design Thinking — Crazy Eights, Affinity Mapping
-- **P28-P47**: Wave 2 Research — Six Hats, PMI, Llull, Wittgenstein, Tetlock, Evaporation Cloud, CRT, Satisficing, Peirce, Hegel, Klein, Popper, Boyd OODA, Duke, Aristotle, Leibniz, Kant, Whitehead, Incubation, Polya
+- **P28-P48**: Wave 2 Research — Six Hats, PMI, Llull, Wittgenstein, Tetlock, Evaporation Cloud, CRT, Satisficing, Peirce, Hegel, Klein, Popper, Boyd OODA, Duke, Aristotle, Leibniz, Kant, Whitehead, Incubation, Polya, Black Swan
+- **P49-P52**: Walk Protocols — Walk Base, Tournament Walk, Wildcard Walk, Drift Return Walk (multi-protocol composition)
+- **P53-P57**: Decentralized Coordination — Contract Net, Blackboard, Gossip Consensus, Stigmergic Exploration, Liquid Democracy (distributed AI / multi-agent systems)
 
-P1 (Single Agent) and P2 (Single + Context) are trivial single-call patterns with no orchestrator — they live in the C-Suite codebase only.
+P00 (Direct) and P01 (Single Agent) are baseline single-call protocols — full packages in this repo, used as control conditions. P02 (Single + Context) was retired; it survives only in the C-Suite codebase.
+
+## Web UI & API
+
+FastAPI backend (`api/`) + React/TypeScript frontend (`ui/`). Deployed on Railway.
+
+### Key API Endpoints
+- `POST /api/protocols/run` — Stream protocol execution (SSE). Background task survives client disconnect.
+- `POST /api/protocols/run/with-context` — Same with multipart file upload (RAG context).
+- `POST /api/pipelines/run` — Execute multi-step pipeline. `POST /api/pipelines/resume/{run_id}` to resume from checkpoint.
+- `GET /api/runs` — List runs. `GET /api/runs/{id}` — Run details + outputs. `DELETE /api/runs/{id}` — Delete.
+- `GET /api/reports/{run_id}/pdf` — Download PDF (WeasyPrint). `GET /share/{run_id}` — Public HTML.
+- `GET /api/protocols` — Protocol manifest. `GET /api/protocols/{key}/stages` — Stage diagram data.
+- `GET /api/agents` — Agent registry (builtin + DB overrides). CRUD for custom agents.
+- `GET /api/pipelines` — Pipeline presets + custom. CRUD.
+- `GET /api/teams` — Team management. CRUD.
+
+### Frontend Pages
+Dashboard, RunHistory, RunDetail, ProtocolLibrary, AgentRegistry, Pipelines, Teams, KnowledgeExplorer, ToolsHub, Settings.
+
+### Database (SQLModel + Postgres)
+Models: `Run`, `RunStep` (pipeline checkpoints), `AgentOutput`, `Agent` (custom overrides), `Pipeline`, `PipelineStep`, `Team`, `Integration`. Auto-migration at startup for new columns.
 
 ## Diagram Conventions
 
@@ -89,11 +121,15 @@ When creating or editing Mermaid diagrams in `protocol-diagrams/`:
 
 ## Observability
 
-All 50 protocols have built-in observability via two layers:
+All 60 protocols have built-in observability via two layers:
 
-**Langfuse tracing** (`protocols/langfuse_tracing.py`): Every orchestrator's `run()` method is decorated with `@trace_protocol("p{NN}_name")`, which creates a root span in Langfuse Cloud. LLM calls within a trace are recorded as child spans via `record_generation()`. Requires `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_BASE_URL` in `.env`. Uses Langfuse SDK v3 API.
+**Langfuse tracing** (`protocols/langfuse_tracing.py`): Every orchestrator's `run()` method is decorated with `@trace_protocol("p{NN}_name")`, which creates a root span in Langfuse Cloud. LLM calls within a trace are recorded as child spans via `record_generation()`. Requires `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_BASE_URL` in `.env`. Uses `start_observation(as_type="span")` (Langfuse v4+ — `start_span()` was removed). Wrapped in try/except so tracing failures never block protocol execution.
 
 **Postgres persistence** (`protocols/persistence.py`): Every CLI `run.py` calls `persist_run()` after execution, writing the run metadata, result JSON, and Langfuse trace_id to the `runs` table. Agent-level outputs are extracted where the result format supports it. Uses `ce-db` package with async SQLAlchemy + asyncpg. Default connection: `postgresql+asyncpg://ce:ce_local@localhost:5432/ce_platform` (Docker Compose).
+
+**Schema note**: there are **two** run-tracking schemas in this DB — `run` (old SQLModel, powers the UI) and `runs` (Alembic-managed, audit sink). Both are load-bearing. See [`docs/schema.md`](docs/schema.md) for the contract and failure-mode cheat sheet.
+
+**Preflight checks** (`protocols/_preflight.py`): Every CLI invocation prints a banner and validates Langfuse, `ce_db`, Postgres reachability, and Alembic head. In dev these are warnings; pass `--strict` or set `ENV=production` / `CE_PREFLIGHT_STRICT=1` to abort on any FAIL. Escape hatch: `CE_SKIP_PREFLIGHT=1`.
 
 **Infrastructure**: `docker-compose.yml` runs Postgres. Langfuse uses Langfuse Cloud (`us.cloud.langfuse.com`) — self-hosted config is commented out in docker-compose.yml.
 
@@ -107,4 +143,6 @@ docker exec ce-agents-postgres-1 psql -U ce -d ce_platform \
 
 - The adaptive router uses **Cynefin framework** as meta-logic (Clear/Complicated/Complex/Chaotic → different protocol families)
 - Protocols are **agent-agnostic orchestration patterns** — not tied to C-Suite or any specific agent collection
-- "C-Suite" refers to Cardinal Element's separate multi-agent product (`/Users/scottewalt/Documents/CE - C-Suite/`) with role-specific agents (CEO, CFO, CTO, CMO, COO, CPO, CRO)
+- "C-Suite" agents (CEO, CFO, CTO, CMO, COO, CPO, CRO) are defined in `CE - Agent Builder/` — prompts, tools, and memory. Orchestration imports them via `ServerAgent`.
+- **ServerAgent replaced SdkAgent** (2026-03-31): `SdkAgent` spawned Claude Code subprocesses which fail as root in Docker. `ServerAgent` uses direct Anthropic API calls. The old `AgentBridge` wrapper is gone from orchestration.
+- **Tool execution**: `api/tool_executor.py` dispatches tool calls to handlers in `CE - Agent Builder/src/csuite/tools/registry.py`. All 27 tools (SEC EDGAR, GitHub, Census, BLS, Brave, Notion, Pinecone, pricing, image gen, web search, etc.) work via this path.

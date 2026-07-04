@@ -73,6 +73,11 @@ class SynthesisEngine:
     async def _via_agent(self, prompt: str) -> str:
         """Route through the Synthesizer meta-agent."""
         agent = _get_synthesizer_agent()
+        # no_tools=True: synthesis is pure prose composition over already-
+        # collected agent perspectives. Tool use here would encourage the
+        # synthesizer to re-research instead of composing, which is the wrong
+        # job. Agent-reasoning phases keep tools on; mechanical composition
+        # phases opt out. See judge.py for the parallel case.
         return await agent_complete(
             agent=agent,
             fallback_model=self.thinking_model,
@@ -88,7 +93,7 @@ class SynthesisEngine:
         response = await self.client.messages.create(
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             system=sys,
             messages=[{"role": "user", "content": prompt}],
         )

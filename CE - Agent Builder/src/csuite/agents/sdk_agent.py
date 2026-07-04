@@ -256,14 +256,10 @@ class SdkAgent:
             try:
                 memories = self._memory_store.retrieve(self.role, query, top_k=5)
                 if memories:
-                    mem_lines = [
-                        f"- [{m['memory_type']}] {m['summary']}"
-                        for m in memories
-                    ]
+                    mem_lines = [f"- [{m['memory_type']}] {m['summary']}" for m in memories]
                     sections.append(
                         "## Institutional Memory\n\n"
-                        "Relevant past analyses and decisions:\n\n"
-                        + "\n".join(mem_lines)
+                        "Relevant past analyses and decisions:\n\n" + "\n".join(mem_lines)
                     )
             except Exception:
                 logger.debug("Memory retrieval failed", exc_info=True)
@@ -307,7 +303,7 @@ class SdkAgent:
             model=self.config.model or get_settings().default_model,
             mcp_servers=self.mcp_servers,
             max_turns=15,
-            permission_mode="bypassPermissions",
+            permission_mode="default",
             cwd=str(get_settings().project_root),
         )
 
@@ -326,14 +322,18 @@ class SdkAgent:
                         tool_input = block.input
                         # Truncate large inputs for logging
                         input_summary = str(tool_input)[:300] if tool_input else ""
-                        self.tool_calls.append({
-                            "tool": block.name,
-                            "input_summary": input_summary,
-                            "id": block.id,
-                        })
+                        self.tool_calls.append(
+                            {
+                                "tool": block.name,
+                                "input_summary": input_summary,
+                                "id": block.id,
+                            }
+                        )
                         logger.info(
                             "[%s] tool_call: %s | input: %s",
-                            self.role, block.name, input_summary[:100],
+                            self.role,
+                            block.name,
+                            input_summary[:100],
                         )
                     elif isinstance(block, ToolResultBlock):
                         # Match result back to the call
@@ -345,8 +345,10 @@ class SdkAgent:
                                 break
                         logger.info(
                             "[%s] tool_result: %s | error=%s | preview: %s",
-                            self.role, block.tool_use_id,
-                            block.is_error, content_preview[:80],
+                            self.role,
+                            block.tool_use_id,
+                            block.is_error,
+                            content_preview[:80],
                         )
 
         if self._cost_tracker and self.cost > 0:
@@ -363,24 +365,23 @@ class SdkAgent:
         if not result_text:
             result_text = "[SDK agent returned no result]"
 
-        self._post_response_learning(user_message, result_text)
+        await self._post_response_learning(user_message, result_text)
 
         return result_text
 
-    def _post_response_learning(self, user_message: str, assistant_message: str) -> None:
+    async def _post_response_learning(self, user_message: str, assistant_message: str) -> None:
         """Detect corrections and run self-evaluation after a response."""
         try:
             if ExperienceLog.detect_correction(user_message):
-                self._experience_log.add_lesson(
-                    self.role, f"User correction: {user_message[:300]}"
-                )
+                self._experience_log.add_lesson(self.role, f"User correction: {user_message[:300]}")
         except Exception:
             logger.warning("Post-response correction detection failed", exc_info=True)
 
         try:
             from csuite.learning.feedback_loop import FeedbackStore, SelfEvaluator
+
             evaluator = SelfEvaluator()
-            score = evaluator.evaluate(
+            score = await evaluator.evaluate(
                 artifact_text=assistant_message,
                 event_type="agent_response",
                 agent_role=self.role,

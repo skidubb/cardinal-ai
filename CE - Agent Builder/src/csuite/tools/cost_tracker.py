@@ -24,17 +24,12 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from ce_shared.pricing import (
     BATCH_DISCOUNT,
     CACHE_READ_MULTIPLIER,
-    CACHE_WRITE_MULTIPLIER,
-    MODEL_PRICING,
-    ModelTier,
     get_pricing,
 )
-
+from pydantic import BaseModel, Field
 
 # =============================================================================
 # Task Type Classification
@@ -211,7 +206,7 @@ class CostTracker:
         # Log a query
         tracker.log_usage(
             agent="CFO",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=15234,
             output_tokens=3128,
             task_type=TaskType.EXECUTIVE_SYNTHESIS,
@@ -1064,7 +1059,7 @@ if __name__ == "__main__":
     # Log a sample usage
     record = tracker.log_usage(
         agent="CFO",
-        model="claude-opus-4-6",
+        model="claude-opus-4-7",
         input_tokens=15000,
         output_tokens=3000,
         task_type=TaskType.EXECUTIVE_SYNTHESIS,

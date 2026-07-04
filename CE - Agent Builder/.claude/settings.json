@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "google-drive": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/google-drive-mcp"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "${GOOGLE_CREDENTIALS_PATH}"
+      }
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "notion": {
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "NOTION_API_KEY": "${NOTION_API_KEY}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./reports", "./sessions"]
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Read(*)",
+      "Write(reports/*)",
+      "Write(sessions/*)",
+      "Bash(npm:*)",
+      "Bash(git:*)"
+    ],
+    "deny": []
+  },
+  "model": "claude-opus-4-7"
+}

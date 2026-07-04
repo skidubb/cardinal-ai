@@ -1,0 +1,22 @@
+slug: cardinal-element
+display_name: Cardinal Element
+vertical: AI-Native Growth Architecture Consulting
+description: Cardinal Element's own institutional graph. The reference implementation -- the demo we show every prospect.
+primary_contact: scott.e.ewalt@gmail.com
+seeded_protocols: true
+connectors:
+  notion:
+    enabled: true
+    workspace: cardinal-element
+    auth: mcp
+  granola:
+    enabled: true
+    auth: mcp
+  hubspot:
+    enabled: false
+    notes: enable when HubSpot Python SDK + auth is wired
+  google_drive:
+    enabled: false
+  slack:
+    enabled: false
+notes: This is the showcase graph. Every Tier 1 sales conversation should reference it.

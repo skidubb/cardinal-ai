@@ -46,7 +46,7 @@ The result includes all intermediate outputs for full lineage tracing:
 
 | Phase | Model | Calls | Purpose |
 |---|---|---|---|
-| Scout | `claude-opus-4-6` | N | Identify positive deviants with extended thinking |
+| Scout | `claude-opus-4-7` | N | Identify positive deviants with extended thinking |
 | Filter | `claude-haiku-4-5-20251001` | D (deviants found) | Test each behavior against 3 criteria |
 | Extract | `claude-haiku-4-5-20251001` | 1 | Group and extract transferable practices |
-| Adapt | `claude-opus-4-6` | 1 | Synthesize into adapted recommendations |
+| Adapt | `claude-opus-4-7` | 1 | Synthesize into adapted recommendations |

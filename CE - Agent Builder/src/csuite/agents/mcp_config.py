@@ -10,11 +10,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Union
 
 from claude_agent_sdk.types import McpHttpServerConfig, McpStdioServerConfig
 
-McpServerConfig = Union[McpStdioServerConfig, McpHttpServerConfig]
+McpServerConfig = McpStdioServerConfig | McpHttpServerConfig
 
 # Project root for resolving MCP server paths
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -33,6 +32,9 @@ def _custom_server(server_script: str) -> McpStdioServerConfig:
 SEC_EDGAR = _custom_server("sec_edgar_mcp/server.py")
 PRICING_CALCULATOR = _custom_server("pricing_mcp/server.py")
 GITHUB_INTEL = _custom_server("github_intel_mcp/server.py")
+
+# SEC EDGAR + Pricing pair inherited by CFO/CRO teams
+_FIN_TOOLS = {"sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR}
 
 # Pinecone — Chairman Standing Order: ALL agents get KB access
 PINECONE: McpStdioServerConfig = McpStdioServerConfig(
@@ -86,9 +88,9 @@ ROLE_MCP_SERVERS: dict[str, dict[str, McpServerConfig]] = {
     "ceo-competitive-intel": {**_COMMON},
     "ceo-deal-strategist": {**_COMMON},
     # --- CFO Direct Reports (inherit CFO: SEC EDGAR, Pricing) ---
-    "cfo-cash-flow-forecaster": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
-    "cfo-client-profitability": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
-    "cfo-pricing-strategist": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
+    "cfo-cash-flow-forecaster": {**_COMMON, **_FIN_TOOLS},
+    "cfo-client-profitability": {**_COMMON, **_FIN_TOOLS},
+    "cfo-pricing-strategist": {**_COMMON, **_FIN_TOOLS},
     # --- CMO Direct Reports (inherit CMO) ---
     "cmo-brand-designer": {**_COMMON},
     "cmo-distribution-strategist": {**_COMMON},
@@ -114,15 +116,15 @@ ROLE_MCP_SERVERS: dict[str, dict[str, McpServerConfig]] = {
     "cto-infra-engineer": {**_COMMON, "github-intel": GITHUB_INTEL},
     "cto-security-engineer": {**_COMMON, "github-intel": GITHUB_INTEL},
     # --- GTM Leadership (inherit CRO: SEC EDGAR, Pricing) ---
-    "gtm-cro": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
-    "gtm-vp-sales": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
+    "gtm-cro": {**_COMMON, **_FIN_TOOLS},
+    "gtm-vp-sales": {**_COMMON, **_FIN_TOOLS},
     "gtm-vp-growth-ops": {**_COMMON},
     "gtm-vp-partnerships": {**_COMMON},
     "gtm-vp-revops": {**_COMMON},
     "gtm-vp-success": {**_COMMON},
     # --- GTM Sales & Pipeline (CRO subset: SEC, Pricing) ---
-    "gtm-ae-strategist": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
-    "gtm-deal-desk": {**_COMMON, "sec-edgar": SEC_EDGAR, "pricing-calculator": PRICING_CALCULATOR},
+    "gtm-ae-strategist": {**_COMMON, **_FIN_TOOLS},
+    "gtm-deal-desk": {**_COMMON, **_FIN_TOOLS},
     "gtm-sales-ops": {**_COMMON},
     "gtm-sdr-manager": {**_COMMON},
     "gtm-sdr-agent": {**_COMMON},

@@ -44,6 +44,6 @@ python -m protocols.p22_sequential_pipeline.run \
 
 | Component | Model | Purpose |
 |-----------|-------|---------|
-| Stage processing | `claude-opus-4-6` | Deep analysis with extended thinking |
+| Stage processing | `claude-opus-4-7` | Deep analysis with extended thinking |
 | Quality gate | `claude-haiku-4-5-20251001` | Fast pass/fail assessment |
-| Final synthesis | `claude-opus-4-6` | Coherent integration of all stages |
+| Final synthesis | `claude-opus-4-7` | Coherent integration of all stages |

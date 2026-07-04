@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, parse_json_object, filter_exceptions
+from protocols.llm import agent_complete, filter_exceptions, llm_complete, parse_json_object
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -116,7 +116,7 @@ class LanguageGameOrchestrator:
             }],
             agent_name="vocabulary_assignment",
         )
-        data = parse_json_object(extract_text(response))
+        data = parse_json_object(response)
         # Extract just domain strings
         assignments = {}
         for agent in self.agents:
@@ -137,16 +137,15 @@ class LanguageGameOrchestrator:
         async def reframe_agent(agent: dict) -> tuple[str, str]:
             domain = assignments.get(agent["name"], "general systems theory")
             prompt = REFRAME_PROMPT.format(domain=domain, question=question)
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=self.thinking_budget + 4096,
-                thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent["name"],
             )
-            return agent["name"], extract_text(response)
+            return agent["name"], response
 
         results = await asyncio.gather(
             *(reframe_agent(agent) for agent in self.agents),
@@ -164,7 +163,7 @@ class LanguageGameOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": RANKING_PROMPT.format(
@@ -174,7 +173,7 @@ class LanguageGameOrchestrator:
             }],
             agent_name="ranking",
         )
-        return extract_text(response)
+        return response
 
     async def _synthesize(
         self,
@@ -194,7 +193,7 @@ class LanguageGameOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": SYNTHESIS_PROMPT.format(
@@ -206,7 +205,7 @@ class LanguageGameOrchestrator:
             }],
             agent_name="synthesis",
         )
-        return extract_text(response)
+        return response
 
 
 

@@ -38,31 +38,40 @@ from typing import Any, TypeVar
 # Structured Logging
 # ============================================================================
 
-LOG_DIR = Path(os.environ.get(
-    "CSUITE_LOG_DIR",
-    Path(__file__).parent.parent.parent.parent / "logs"
-))
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-# Configure structured logger
 logger = logging.getLogger("csuite.resilience")
-logger.setLevel(logging.DEBUG)
+_logging_configured = False
 
-# File handler for structured logs
-_file_handler = logging.FileHandler(LOG_DIR / "api_resilience.log")
-_file_handler.setLevel(logging.DEBUG)
-_file_handler.setFormatter(logging.Formatter(
-    "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-))
-logger.addHandler(_file_handler)
 
-# Console handler for warnings and above
-_console_handler = logging.StreamHandler()
-_console_handler.setLevel(logging.WARNING)
-_console_handler.setFormatter(logging.Formatter(
-    "%(levelname)s: %(message)s"
-))
-logger.addHandler(_console_handler)
+def _configure_logging() -> None:
+    """Configure file and console handlers on first use (not at import time)."""
+    global _logging_configured
+    if _logging_configured:
+        return
+    _logging_configured = True
+
+    logger.setLevel(logging.DEBUG)
+
+    log_dir = Path(os.environ.get(
+        "CSUITE_LOG_DIR",
+        Path(__file__).parent.parent.parent.parent / "logs"
+    ))
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_dir / "api_resilience.log")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+        ))
+        logger.addHandler(file_handler)
+    except OSError:
+        pass  # Read-only filesystem (Docker) — skip file logging
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_handler.setFormatter(logging.Formatter(
+        "%(levelname)s: %(message)s"
+    ))
+    logger.addHandler(console_handler)
 
 
 def log_api_call(
@@ -75,6 +84,7 @@ def log_api_call(
     retry_count: int = 0,
 ) -> None:
     """Log a structured API call record."""
+    _configure_logging()
     record = {
         "timestamp": datetime.now().isoformat(),
         "api": api_name,

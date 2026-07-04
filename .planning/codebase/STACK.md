@@ -182,7 +182,7 @@ Database: `ce_platform`, user: `ce`, password: `ce_local` (local dev defaults).
 
 | Tier | Model ID | Usage |
 |------|----------|-------|
-| Thinking/Executive | `claude-opus-4-6` | All 7 executive agents, strategic reasoning, synthesis |
+| Thinking/Executive | `claude-opus-4-7` | All 7 executive agents, strategic reasoning, synthesis |
 | Orchestration/Mechanical | `claude-haiku-4-5-20251001` | Dedup, ranking, extraction, classification steps |
 
 Temperature varies by role: CFO=0.5, CEO/CTO/COO/CPO=0.6, CMO=0.8.

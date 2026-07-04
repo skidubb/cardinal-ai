@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 
 # ── Anthropic defaults (used by all protocols) ──────────────────────────────
-THINKING_MODEL = os.getenv("THINKING_MODEL", "claude-opus-4-6")
+THINKING_MODEL = os.getenv("THINKING_MODEL", "claude-opus-4-7")
 ORCHESTRATION_MODEL = os.getenv("ORCHESTRATION_MODEL", "claude-haiku-4-5-20251001")
 BALANCED_MODEL = os.getenv("BALANCED_MODEL", "claude-sonnet-4-6")
 
@@ -34,6 +34,10 @@ COGNITIVE_TIERS = {
     "L3": BALANCED_MODEL,       # Sonnet — analytical reasoning
     "L4": THINKING_MODEL,       # Opus — creative/strategic synthesis
 }
+
+# ── Thinking budgets ───────────────────────────────────────────────────────
+DEFAULT_THINKING_BUDGET = int(os.getenv("THINKING_BUDGET", "10000"))
+SYNTHESIS_THINKING_BUDGET = int(os.getenv("SYNTHESIS_THINKING_BUDGET", "16000"))
 
 # Maps stage types to cognitive levels for protocol self-documentation.
 # Orchestrators can use this to auto-select model tier per stage.
@@ -93,8 +97,8 @@ def model_for_stage(stage_type: str) -> str:
 #
 #  Rank  Model                          Score
 #  ────  ─────                          ─────
-#   1    claude-opus-4-6                 1504
-#   2    claude-opus-4-6-thinking        1501
+#   1    claude-opus-4-7                 1504
+#   2    claude-opus-4-7-thinking        1501
 #   3    gemini-3.1-pro-preview          1500
 #   4    grok-4.20-beta1                 1494
 #   5    gemini-3-pro                    1486
@@ -105,7 +109,7 @@ def model_for_stage(stage_type: str) -> str:
 #
 FRONTIER_MODELS = {
     # ── Tier 1: Frontier (Arena 1490+) ─────────────────────────────────────
-    "claude-opus": "claude-opus-4-6",
+    "claude-opus": "claude-opus-4-7",
     "gemini-pro": "gemini/gemini-3.1-pro-preview",
     "grok": "xai/grok-4.20-beta1",
 

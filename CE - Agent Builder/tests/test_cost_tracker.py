@@ -31,7 +31,7 @@ class TestUsageRecord:
         """Verify Opus pricing: $5/MTok input, $25/MTok output."""
         record = UsageRecord(
             agent="CFO",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=15000,  # 15K tokens
             output_tokens=3000,  # 3K tokens
         )
@@ -73,7 +73,7 @@ class TestUsageRecord:
         """Verify cache read tokens get 90% discount (0.1x rate)."""
         record = UsageRecord(
             agent="CFO",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=15000,
             output_tokens=3000,
             cached_tokens=10000,  # 10K of the 15K came from cache
@@ -108,7 +108,7 @@ class TestUsageRecord:
         # Should match "opus" substring
         record = UsageRecord(
             agent="CFO",
-            model="claude-opus-4-6-extended",  # Hypothetical variant
+            model="claude-opus-4-7-extended",  # Hypothetical variant
             input_tokens=1000,
             output_tokens=1000,
         )
@@ -132,7 +132,7 @@ class TestCostTracker:
         """Test logging a usage record."""
         record = temp_tracker.log_usage(
             agent="CFO",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=15000,
             output_tokens=3000,
             task_type=TaskType.EXECUTIVE_SYNTHESIS,
@@ -140,7 +140,7 @@ class TestCostTracker:
         )
 
         assert record.agent == "CFO"
-        assert record.model == "claude-opus-4-6"
+        assert record.model == "claude-opus-4-7"
         assert record.total_cost > 0
 
     def test_get_daily_metrics(self, temp_tracker):
@@ -149,7 +149,7 @@ class TestCostTracker:
         for i in range(5):
             temp_tracker.log_usage(
                 agent="CFO",
-                model="claude-opus-4-6",
+                model="claude-opus-4-7",
                 input_tokens=15000,
                 output_tokens=3000,
             )
@@ -164,9 +164,9 @@ class TestCostTracker:
     def test_get_metrics_by_agent(self, temp_tracker):
         """Test metrics breakdown by agent."""
         # Log usage for different agents
-        temp_tracker.log_usage(agent="CFO", model="claude-opus-4-6", input_tokens=10000, output_tokens=2000)
-        temp_tracker.log_usage(agent="CFO", model="claude-opus-4-6", input_tokens=10000, output_tokens=2000)
-        temp_tracker.log_usage(agent="CTO", model="claude-opus-4-6", input_tokens=10000, output_tokens=2000)
+        temp_tracker.log_usage(agent="CFO", model="claude-opus-4-7", input_tokens=10000, output_tokens=2000)
+        temp_tracker.log_usage(agent="CFO", model="claude-opus-4-7", input_tokens=10000, output_tokens=2000)
+        temp_tracker.log_usage(agent="CTO", model="claude-opus-4-7", input_tokens=10000, output_tokens=2000)
 
         metrics = temp_tracker.get_daily_metrics()
 
@@ -179,7 +179,7 @@ class TestCostTracker:
         """Test report generation."""
         temp_tracker.log_usage(
             agent="CFO",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=15000,
             output_tokens=3000,
         )
@@ -194,7 +194,7 @@ class TestCostTracker:
         """Test dashboard export format."""
         temp_tracker.log_usage(
             agent="CFO",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=15000,
             output_tokens=3000,
         )
@@ -293,7 +293,7 @@ class TestAlertThresholds:
         # Log a very expensive query (>$2 threshold)
         temp_tracker.log_usage(
             agent="CFO",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             input_tokens=100000,  # 100K input = $0.50
             output_tokens=100000,  # 100K output = $2.50
         )

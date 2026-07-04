@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete
+from protocols.llm import agent_complete, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -121,73 +121,69 @@ class TetlockOrchestrator:
 
     async def _fermi_decomposition(self, question: str, agent: dict) -> str:
         """Step 1: Break question into independently estimable sub-questions."""
-        response = await llm_complete(
-            self.client,
-            model=self.thinking_model,
+        response = await agent_complete(
+            agent,
+            fallback_model=self.thinking_model,
+            anthropic_client=self.client,
+            thinking_budget=self.thinking_budget,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-            system=agent["system_prompt"],
             messages=[{
                 "role": "user",
                 "content": FERMI_DECOMPOSITION_PROMPT.format(question=question),
             }],
-            agent_name=agent["name"],
         )
-        return extract_text(response)
+        return response
 
     async def _base_rate_establishment(self, question: str, decomposition: str, agent: dict) -> str:
         """Step 2: Establish outside-view base rates for each sub-question."""
-        response = await llm_complete(
-            self.client,
-            model=self.thinking_model,
+        response = await agent_complete(
+            agent,
+            fallback_model=self.thinking_model,
+            anthropic_client=self.client,
+            thinking_budget=self.thinking_budget,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-            system=agent["system_prompt"],
             messages=[{
                 "role": "user",
                 "content": BASE_RATE_PROMPT.format(
                     question=question, decomposition=decomposition
                 ),
             }],
-            agent_name=agent["name"],
         )
-        return extract_text(response)
+        return response
 
     async def _inside_view_adjustment(self, question: str, base_rates: str, agent: dict) -> str:
         """Step 3: Adjust base rates with case-specific inside-view factors."""
-        response = await llm_complete(
-            self.client,
-            model=self.thinking_model,
+        response = await agent_complete(
+            agent,
+            fallback_model=self.thinking_model,
+            anthropic_client=self.client,
+            thinking_budget=self.thinking_budget,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-            system=agent["system_prompt"],
             messages=[{
                 "role": "user",
                 "content": INSIDE_VIEW_ADJUSTMENT_PROMPT.format(
                     question=question, base_rates=base_rates
                 ),
             }],
-            agent_name=agent["name"],
         )
-        return extract_text(response)
+        return response
 
     async def _extremizing_aggregation(self, question: str, adjustments: str, agent: dict) -> str:
         """Step 4: Apply extremizing formula and produce final probability."""
-        response = await llm_complete(
-            self.client,
-            model=self.thinking_model,
+        response = await agent_complete(
+            agent,
+            fallback_model=self.thinking_model,
+            anthropic_client=self.client,
+            thinking_budget=self.thinking_budget,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
-            system=agent["system_prompt"],
             messages=[{
                 "role": "user",
                 "content": EXTREMIZING_AGGREGATION_PROMPT.format(
                     question=question, adjustments=adjustments
                 ),
             }],
-            agent_name=agent["name"],
         )
-        return extract_text(response)
+        return response
 
     async def _synthesize(self, result: ForecastResult) -> str:
         """Produce final human-readable forecast summary."""
@@ -195,7 +191,7 @@ class TetlockOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{
                 "role": "user",
                 "content": SYNTHESIS_PROMPT.format(
@@ -208,7 +204,7 @@ class TetlockOrchestrator:
             }],
             agent_name="synthesis",
         )
-        return extract_text(response)
+        return response
 
 
 

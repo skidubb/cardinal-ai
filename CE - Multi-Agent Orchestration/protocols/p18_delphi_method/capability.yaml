@@ -11,3 +11,23 @@ description: Iterative expert estimation with anonymous feedback and convergence
 when_to_use: Forecasting, sizing, probability assessment.
 when_not_to_use: Qualitative strategic questions, creative ideation.
 tools_enabled: true
+
+stages:
+  - name: "Iterative estimation rounds"
+    produces: rounds
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each round: agents estimate with reasoning, see anonymized peer estimates, and update"
+  - name: "Convergence check"
+    produces: [converged, rounds_used, final_estimate, confidence_interval]
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Check for inter-quartile convergence; stop when spread is within threshold"
+  - name: "Reasoning synthesis"
+    produces: reasoning_summary
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Summarize the reasoning clusters and residual disagreements"

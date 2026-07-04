@@ -146,6 +146,7 @@ def _record_usage(
         input_tokens = estimated_tokens.get("input_tokens", 0)
         output_tokens = estimated_tokens.get("output_tokens", 0)
         cached_tokens = 0
+        cache_write_tokens = 0
         token_source = "estimated_from_cost"
     else:
         usage = getattr(response, "usage", None)
@@ -153,8 +154,10 @@ def _record_usage(
             return
         input_tokens = getattr(usage, "input_tokens", 0) or 0
         output_tokens = getattr(usage, "output_tokens", 0) or 0
-        # cache_read_input_tokens is Anthropic SDK's attribute name for prompt-cache hits
+        # cache_read_input_tokens — prompt-cache hits (charged at 0.1×)
         cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+        # cache_creation_input_tokens — cache writes (charged at 1.25×); track separately
+        cache_write_tokens = getattr(usage, "cache_creation_input_tokens", 0) or 0
         token_source = "sdk_response"
 
     tracker = _cost_tracker.get()
@@ -174,6 +177,7 @@ def _record_usage(
                 output_tokens,
                 cached_tokens,
                 agent_name=agent_name,
+                cache_write_tokens=cache_write_tokens if token_source == "sdk_response" else 0,
             )
         except TypeError:
             # Backward compatibility for custom trackers.
@@ -191,8 +195,9 @@ def _record_usage(
     try:
         from protocols.langfuse_tracing import record_generation
         from protocols.cost_tracker import _compute_cost
+        _cw = cache_write_tokens if token_source == "sdk_response" else 0
         call_cost = cost_usd if cost_usd is not None else _compute_cost(
-            model, input_tokens, output_tokens, cached_tokens
+            model, input_tokens, output_tokens, cached_tokens, _cw
         )
         record_generation(
             model, input_tokens, output_tokens, cached_tokens, agent_name,
@@ -205,12 +210,51 @@ def _record_usage(
         pass
 
 
+def _apply_cache_control(kwargs: dict) -> dict:
+    """Convert a string ``system`` prompt to a list-of-blocks with cache_control.
+
+    Anthropic prompt caching requires the system prompt to be a list of text
+    blocks. Adding ``cache_control: {"type": "ephemeral"}`` to the **last**
+    block marks that prefix (tools + system) as cacheable for 5 minutes.
+    Writes cost 1.25×; reads cost 0.1× — profitable after 1 re-use.
+
+    Rules:
+    - If ``system`` is already a list, ensure the last block has cache_control.
+    - If ``system`` is a string, convert it to a single-element list.
+    - If ``system`` is absent or empty, return kwargs unchanged.
+    """
+    system = kwargs.get("system")
+    if not system:
+        return kwargs
+
+    if isinstance(system, list):
+        if not system:
+            return kwargs
+        blocks = list(system)
+        last = dict(blocks[-1])
+        last["cache_control"] = {"type": "ephemeral"}
+        blocks[-1] = last
+        return {**kwargs, "system": blocks}
+
+    # Plain string → single block
+    return {
+        **kwargs,
+        "system": [
+            {
+                "type": "text",
+                "text": str(system),
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+    }
+
+
 async def llm_complete(
     client: anthropic.AsyncAnthropic,
     *,
     agent_name: str | None = None,
     **kwargs,
-) -> Any:
+) -> str:
     """Wrapper around client.messages.create with automatic usage tracking.
 
     Forwards all kwargs to client.messages.create(), adds retry logic,
@@ -219,20 +263,45 @@ async def llm_complete(
     Use for orchestration-level calls (dedup, ranking, synthesis) that
     don't go through agent_complete().
 
+    Returns the extracted text content as a string — the raw Message object
+    is only useful for the internal usage-tracking call, which happens here.
+    Callers that still wrap the result in `extract_text()` are fine:
+    `extract_text()` is idempotent on strings.
+
+    Prompt caching: the system prompt (if present) is automatically converted
+    to a list-of-blocks with cache_control on the last block. Reads are 0.1×
+    the normal input cost; profitable after a single cache hit within 5 min.
+
     Args:
         client: Anthropic async client instance.
         agent_name: Label for cost/trace attribution (e.g. "dedup", "synthesis").
         **kwargs: Passed directly to client.messages.create().
     """
+    kwargs = _apply_cache_control(kwargs)
     response = await _retry_api_call(client.messages.create, **kwargs)
     model = kwargs.get("model", "unknown")
     _record_usage(model, response, agent_name=agent_name, input_messages=kwargs.get("messages"))
-    return response
+    return extract_text(response)
 
 
 def _is_anthropic_model(model: str) -> bool:
     """Check if a LiteLLM model string targets Anthropic."""
     return model.startswith("anthropic/") or "claude" in model.lower()
+
+
+def _model_accepts_temperature(model: str) -> bool:
+    """Claude 4.x deprecated the temperature parameter (API returns 400).
+
+    Non-Claude-4 Anthropic models and non-Anthropic models still accept it.
+    """
+    if not model:
+        return True
+    low = model.lower()
+    return not (
+        "claude-opus-4" in low
+        or "claude-sonnet-4" in low
+        or "claude-haiku-4" in low
+    )
 
 
 async def agent_complete(
@@ -300,12 +369,33 @@ async def _agent_complete_inner(
     if hasattr(agent, "chat") and callable(agent.chat):
         user_msg = messages[-1]["content"] if messages else ""
         result = await agent.chat(user_msg)
+        agent_name_val = getattr(agent, "name", None)
+
+        # ServerAgent provides real token counts; legacy SdkAgent only has cost
+        real_input = getattr(agent, "input_tokens", 0)
+        real_output = getattr(agent, "output_tokens", 0)
         cost_usd = getattr(agent, "cost", 0.0)
-        if cost_usd and cost_usd > 0:
-            from ce_shared.pricing import estimate_tokens_from_cost
-            est = estimate_tokens_from_cost(fallback_model, cost_usd)
-            agent_name_val = getattr(agent, "name", None)
-            tracker = _cost_tracker.get()
+
+        if real_input > 0 or real_output > 0:
+            # Real token counts from ServerAgent — use directly
+            _record_usage(
+                response=None,
+                model=getattr(agent, "model", fallback_model),
+                agent_name=agent_name_val,
+                estimated_tokens={
+                    "input_tokens": real_input,
+                    "output_tokens": real_output,
+                },
+                cost_usd=cost_usd,
+                input_messages=user_msg,
+            )
+        elif cost_usd and cost_usd > 0:
+            # Legacy SDK agent — estimate tokens from cost
+            try:
+                from ce_shared.pricing import estimate_tokens_from_cost
+                est = estimate_tokens_from_cost(fallback_model, cost_usd)
+            except ImportError:
+                est = {"input_tokens": 0, "output_tokens": 0}
             _record_usage(
                 response=None,
                 model=fallback_model,
@@ -324,6 +414,26 @@ async def _agent_complete_inner(
     effective_no_tools = no_tools or _no_tools.get()
     system_prompt = system or agent.get("system_prompt", "")
     agent_model = agent.get("model")
+    agent_temperature = agent.get("temperature")
+    # Extended thinking requires temperature=1.0 (API default). Treat a
+    # non-default temperature as an explicit opt-out of extended thinking —
+    # but only on models that still accept the temperature parameter. Claude
+    # 4.x rejects temperature with HTTP 400, so we silently ignore it there.
+    target_model = agent_model or fallback_model
+    custom_temperature = (
+        agent_temperature is not None
+        and float(agent_temperature) != 1.0
+        and _model_accepts_temperature(target_model)
+    )
+    if (
+        agent_temperature is not None
+        and float(agent_temperature) != 1.0
+        and not _model_accepts_temperature(target_model)
+    ):
+        _log.warning(
+            "agent %s: temperature=%s ignored — model %s does not accept temperature",
+            agent.get("name", "unknown"), agent_temperature, target_model,
+        )
 
     if agent_model:
         # LiteLLM path — agent owns its model
@@ -338,8 +448,14 @@ async def _agent_complete_inner(
             "max_tokens": max_tokens,
         }
 
-        if _is_anthropic_model(agent_model) and thinking_budget > 0:
-            kwargs["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+        if _is_anthropic_model(agent_model) and thinking_budget > 0 and not custom_temperature:
+            # Claude 4.x uses adaptive thinking. budget_tokens is rejected
+            # by the API in adaptive mode — use output_config.effort to
+            # control depth instead (model picks budget per-turn).
+            kwargs["thinking"] = {"type": "adaptive"}
+
+        if custom_temperature:
+            kwargs["temperature"] = float(agent_temperature)
 
         if not effective_no_tools and tools:
             kwargs["tools"] = tools
@@ -376,12 +492,20 @@ async def _agent_complete_inner(
         "system": system_prompt,
         "messages": messages,
     }
-    if thinking_budget > 0:
-        create_kwargs["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+    if thinking_budget > 0 and not custom_temperature:
+        # Claude 4.x adaptive mode rejects budget_tokens.
+        create_kwargs["thinking"] = {"type": "adaptive"}
     else:
         create_kwargs["thinking"] = {"type": "disabled"}
+    if custom_temperature:
+        create_kwargs["temperature"] = float(agent_temperature)
     if effective_tools:
         create_kwargs["tools"] = effective_tools
+
+    # Apply prompt caching — converts system string to list-of-blocks so the
+    # last block carries cache_control. The tool loop re-sends create_kwargs
+    # on every iteration, so caching amortises across all tool iterations.
+    create_kwargs = _apply_cache_control(create_kwargs)
 
     response = await _retry_api_call(anthropic_client.messages.create, **create_kwargs)
     _record_usage(fallback_model, response, agent_name=agent.get("name"), input_messages=messages)
@@ -507,7 +631,11 @@ def gather_with_exceptions(*coros_or_futures):
 
 
 def filter_exceptions(results: list, label: str = "gather") -> list:
-    """Filter exceptions from gather_with_exceptions results, logging warnings."""
+    """Filter exceptions from gather_with_exceptions results, logging warnings.
+
+    DROPS failed entries — callers must NOT rely on positional alignment with
+    the input. For alignment-preserving behavior, use filter_exceptions_aligned().
+    """
     good = []
     for r in results:
         if isinstance(r, BaseException):
@@ -517,30 +645,87 @@ def filter_exceptions(results: list, label: str = "gather") -> list:
     return good
 
 
-def parse_json_array(text: str) -> list[dict]:
+def filter_exceptions_aligned(
+    results: list,
+    label: str = "gather",
+    labels: list[str] | None = None,
+) -> list:
+    """Replace exceptions with None, preserving positional alignment.
+
+    Use when downstream code zips the results back against the original input
+    (e.g. the agent list). Keeps list length equal to the input so positional
+    pairing stays correct. Failed items become None — callers must skip them.
+
+    ``labels`` is an optional parallel list (e.g. agent names) used only for
+    log messages so each failure names the agent that died.
+    """
+    aligned: list = []
+    for i, r in enumerate(results):
+        if isinstance(r, BaseException):
+            who = labels[i] if labels and i < len(labels) else f"idx={i}"
+            log.warning("%s: %s failed: %s: %s", label, who, type(r).__name__, r)
+            aligned.append(None)
+        else:
+            aligned.append(r)
+    return aligned
+
+
+def parse_json_array(text: str) -> list:
     """Extract a JSON array from LLM output that may contain markdown fences.
 
-    Handles truncated JSON by attempting repair (closing brackets/braces).
+    Robust to:
+    - Markdown code fences (```json ... ```)
+    - Prose wrapped around the array
+    - Models that wrap the array in an object like {"items": [...]} or
+      {"conditions": [...]} instead of returning a bare array
+    - Truncated JSON (closes open strings/brackets/braces as repair)
     """
     import re
 
     text = text.strip()
-    # Try to find JSON array between markdown fences
+    # Try to find JSON between markdown fences (any fence content, not just array)
     if "```" in text:
-        match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
+        match = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
         if match:
             text = match.group(1).strip()
-    # Fallback: find the first [ ... ] in the text
-    if not text.startswith("["):
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end != -1:
-            text = text[start : end + 1]
+
+    # Prefer the first bare array if present
+    bare_start = text.find("[")
+    bare_end = text.rfind("]")
+    obj_start = text.find("{")
+
+    extracted = text
+    if bare_start != -1 and bare_end != -1 and (obj_start == -1 or bare_start < obj_start):
+        extracted = text[bare_start : bare_end + 1]
+    elif obj_start != -1:
+        obj_end = text.rfind("}")
+        if obj_end != -1:
+            extracted = text[obj_start : obj_end + 1]
+
+    def _unwrap_if_object(parsed):
+        """If the LLM returned {"<something>": [...]}, return the [...]."""
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            # Common keys LLMs pick for the wrapping object
+            for key in (
+                "items", "data", "results", "array", "list",
+                "conditions", "options", "initiatives", "values",
+                "entries", "elements",
+            ):
+                if key in parsed and isinstance(parsed[key], list):
+                    return parsed[key]
+            # Otherwise: if there is exactly one value that is a list, use it.
+            list_values = [v for v in parsed.values() if isinstance(v, list)]
+            if len(list_values) == 1:
+                return list_values[0]
+        raise ValueError(f"Expected JSON array, got: {type(parsed).__name__}")
+
     try:
-        return json.loads(text)
+        return _unwrap_if_object(json.loads(extracted))
     except json.JSONDecodeError:
         # Attempt truncation repair: close open strings/objects/arrays
-        repaired = text.rstrip()
+        repaired = extracted.rstrip()
         if repaired.endswith(","):
             repaired = repaired[:-1]
         open_braces = repaired.count("{") - repaired.count("}")
@@ -554,8 +739,8 @@ def parse_json_array(text: str) -> list[dict]:
             repaired += "}" * max(0, open_braces)
             repaired += "]" * max(0, open_brackets)
         try:
-            return json.loads(repaired)
-        except json.JSONDecodeError:
+            return _unwrap_if_object(json.loads(repaired))
+        except (json.JSONDecodeError, ValueError):
             raise ValueError(f"Cannot parse JSON array (len={len(text)}): {text[:200]}...")
 
 

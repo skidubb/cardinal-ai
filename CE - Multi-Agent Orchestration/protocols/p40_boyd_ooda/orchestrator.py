@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 from protocols.langfuse_tracing import trace_protocol, create_span, end_span
-from protocols.llm import extract_text, llm_complete, filter_exceptions
+from protocols.llm import agent_complete, filter_exceptions, llm_complete
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
 from .prompts import (
@@ -143,16 +143,15 @@ class OODAOrchestrator:
         compact_budget = 3000
 
         async def query_agent(agent: dict) -> str:
-            response = await llm_complete(
-                self.client,
-                model=self.thinking_model,
+            response = await agent_complete(
+                agent,
+                fallback_model=self.thinking_model,
+                anthropic_client=self.client,
+                thinking_budget=self.thinking_budget,
                 max_tokens=compact_budget + 2048,
-                thinking={"type": "enabled", "budget_tokens": compact_budget},
-                system=agent["system_prompt"],
                 messages=[{"role": "user", "content": prompt}],
-                agent_name=agent.get("name"),
             )
-            return f"=== {agent['name']} ===\n{extract_text(response)}"
+            return f"=== {agent['name']} ===\n{response}"
 
         results = await asyncio.gather(
             *(query_agent(agent) for agent in self.agents),
@@ -168,11 +167,11 @@ class OODAOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
             agent_name="orient",
         )
-        return extract_text(response)
+        return response
 
     async def _decide(self, model: str) -> str:
         """Phase 3: Decide — single best immediate action. Compact."""
@@ -182,11 +181,11 @@ class OODAOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=compact_budget + 2048,
-            thinking={"type": "enabled", "budget_tokens": compact_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
             agent_name="decide",
         )
-        return extract_text(response)
+        return response
 
     async def _act(self, decision: str, question: str) -> str:
         """Phase 4: Act — project consequences for next cycle."""
@@ -196,11 +195,11 @@ class OODAOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=compact_budget + 2048,
-            thinking={"type": "enabled", "budget_tokens": compact_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
             agent_name="act",
         )
-        return extract_text(response)
+        return response
 
     async def _synthesize(self, question: str, cycles: list[dict]) -> str:
         """Final synthesis across all OODA cycles."""
@@ -214,10 +213,10 @@ class OODAOrchestrator:
             self.client,
             model=self.thinking_model,
             max_tokens=self.thinking_budget + 4096,
-            thinking={"type": "enabled", "budget_tokens": self.thinking_budget},
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
             agent_name="synthesis",
         )
-        return extract_text(response)
+        return response
 
 

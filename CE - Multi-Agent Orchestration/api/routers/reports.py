@@ -10,13 +10,16 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
+import markdown as _md
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, Response
 from jinja2 import Environment, FileSystemLoader
 from sqlmodel import Session
 
 from api.database import get_session
+from api.middleware.clerk_auth import resolve_tenant
 from api.models import Run
 from api.report_helpers import build_envelope_from_db
 from protocols.protocol_report import from_envelope
@@ -26,53 +29,67 @@ router = APIRouter(tags=["reports"])
 _template_dir = Path(__file__).resolve().parent.parent / "templates"
 _jinja_env = Environment(loader=FileSystemLoader(str(_template_dir)), autoescape=True)
 
+# Markdown converter with table and code support
+_md_extensions = ["tables", "fenced_code", "nl2br"]
 
-def _load_report(run_id: int, session: Session):
-    """Load run from DB, reconstruct envelope, transform to ProtocolReport.
 
-    Args:
-        run_id: ID of the completed run.
-        session: Active SQLModel session.
+def _md_render(text: str) -> str:
+    """Convert markdown text to HTML."""
+    if not text:
+        return ""
+    return _md.markdown(text, extensions=_md_extensions)
 
-    Returns:
-        ProtocolReport instance.
 
-    Raises:
-        HTTPException 404: If run not found or not in completed status.
-    """
+def _prepare_report_for_template(report_dict: dict[str, Any]) -> dict[str, Any]:
+    """Convert markdown fields to rendered HTML for the template."""
+    d = dict(report_dict)
+
+    # Render main text fields
+    d["synthesis_html"] = _md_render(d.get("synthesis", ""))
+    d["executive_summary_html"] = _md_render(d.get("executive_summary", ""))
+
+    # Render each agent contribution's text
+    if d.get("agent_contributions"):
+        for contrib in d["agent_contributions"]:
+            contrib["text_html"] = _md_render(contrib.get("text", ""))
+
+    return d
+
+
+def _load_report(run_id: int, session: Session, tenant_slug: str | None = None):
+    """Load a report. If ``tenant_slug`` is given, also enforce tenant scoping
+    (return 404 rather than 403 to avoid leaking existence)."""
     run = session.get(Run, run_id)
     if not run or run.status != "completed":
         raise HTTPException(status_code=404, detail="Completed run not found")
+    if tenant_slug is not None and run.tenant_slug != tenant_slug:
+        raise HTTPException(status_code=404, detail="Completed run not found")
     envelope = build_envelope_from_db(run, session)
     verdict = json.loads(run.judge_verdict_json) if run.judge_verdict_json and run.judge_verdict_json != "{}" else None
-    return from_envelope(envelope, verdict)
+    report = from_envelope(envelope, verdict)
+    return _prepare_report_for_template(report.as_dict())
+
+
+def _render_report_html(report: dict[str, Any]) -> str:
+    return _jinja_env.get_template("report.html.j2").render(report=report)
 
 
 @router.get("/api/reports/{run_id}/pdf")
-async def get_run_pdf(run_id: int, session: Session = Depends(get_session)) -> Response:
-    """Download a polished PDF report for a completed run.
-
-    Returns:
-        PDF bytes with content-type application/pdf.
-        501 if WeasyPrint or its system dependencies are not installed.
-        404 if run not found or not completed.
-    """
-    report = _load_report(run_id, session)
-    html = _jinja_env.get_template("report.html.j2").render(report=report.as_dict())
+async def get_run_pdf(
+    run_id: int,
+    session: Session = Depends(get_session),
+    tenant_slug: str = Depends(resolve_tenant),
+) -> Response:
+    report = _load_report(run_id, session, tenant_slug=tenant_slug)
+    html = _render_report_html(report)
     try:
         import weasyprint
         pdf_bytes = await asyncio.to_thread(weasyprint.HTML(string=html).write_pdf)
     except ImportError:
-        raise HTTPException(
-            status_code=501,
-            detail="WeasyPrint not installed. Run: pip install weasyprint && brew install pango",
-        )
+        raise HTTPException(status_code=501, detail="WeasyPrint not installed")
     except OSError as e:
-        raise HTTPException(
-            status_code=501,
-            detail=f"WeasyPrint system dependencies missing: {e}. Run: brew install pango",
-        )
-    protocol_key = report.metadata.get("protocol_key", "unknown") or "unknown"
+        raise HTTPException(status_code=501, detail=f"WeasyPrint system deps missing: {e}")
+    protocol_key = report.get("metadata", {}).get("protocol_key", "report") or "report"
     filename = f"ce-report-{protocol_key}-{run_id}.pdf"
     return Response(
         content=pdf_bytes,
@@ -83,14 +100,6 @@ async def get_run_pdf(run_id: int, session: Session = Depends(get_session)) -> R
 
 @router.get("/share/{run_id}")
 def share_run(run_id: int, session: Session = Depends(get_session)) -> HTMLResponse:
-    """Serve a read-only styled HTML report for sharing.
-
-    This route is excluded from API key authentication in server.py.
-
-    Returns:
-        Full self-contained HTML page with all report sections.
-        404 if run not found or not completed.
-    """
     report = _load_report(run_id, session)
-    html = _jinja_env.get_template("report.html.j2").render(report=report.as_dict())
+    html = _render_report_html(report)
     return HTMLResponse(content=html)

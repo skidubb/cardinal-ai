@@ -8,13 +8,20 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import inspect
 import json
+import logging
 import re
 import time
 import traceback
+
+_log = logging.getLogger(__name__)
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from api.context_pipeline import RunContext
 
 
 # ── Active task registry ──────────────────────────────────────────────────────
@@ -35,6 +42,7 @@ from protocols.langfuse_tracing import get_trace_id, is_enabled as langfuse_is_e
 from protocols.llm import set_cost_tracker, set_event_queue, set_no_tools
 from protocols.persistence import PersistOutcome, persist_run
 from protocols.run_envelope import StepEnvelope, TelemetryWarning, build_run_envelope
+from protocols.learning.hooks import pre_run_hook, post_run_hook
 
 
 # ── Protocol → orchestrator class mapping ────────────────────────────────────
@@ -42,20 +50,32 @@ from protocols.run_envelope import StepEnvelope, TelemetryWarning, build_run_env
 def _discover_orchestrators() -> dict[str, tuple[str, str]]:
     """Map protocol keys to (module_path, class_name) tuples.
 
-    Scans protocols/p*/orchestrator.py for class definitions.
-    Returns e.g. {"p03_parallel_synthesis": ("protocols.p03_parallel_synthesis.orchestrator", "SynthesisOrchestrator")}
+    Scans protocols/p*/orchestrator.py for class definitions. Prefers classes
+    named ``*Orchestrator``; falls back to the class containing an
+    ``async def run`` method (the canonical entrypoint signature).
     """
     from pathlib import Path
     mapping: dict[str, tuple[str, str]] = {}
     protocols_dir = Path(__file__).resolve().parent.parent / "protocols"
     for orch_file in protocols_dir.glob("p*/orchestrator.py"):
         protocol_key = orch_file.parent.name
-        text = orch_file.read_text()
-        match = re.search(r"class (\w+Orchestrator)", text)
-        if match:
+        class_name = _find_entrypoint_class(orch_file.read_text())
+        if class_name:
             module = f"protocols.{protocol_key}.orchestrator"
-            mapping[protocol_key] = (module, match.group(1))
+            mapping[protocol_key] = (module, class_name)
     return mapping
+
+
+def _find_entrypoint_class(text: str) -> str | None:
+    match = re.search(r"^class (\w+Orchestrator)\b", text, re.MULTILINE)
+    if match:
+        return match.group(1)
+    classes = [(m.start(), m.group(1)) for m in re.finditer(r"^class (\w+)\b", text, re.MULTILINE)]
+    for run in re.finditer(r"^    async def run\s*\(", text, re.MULTILINE):
+        preceding = [name for pos, name in classes if pos < run.start()]
+        if preceding:
+            return preceding[-1]
+    return None
 
 
 _ORCHESTRATOR_MAP: dict[str, tuple[str, str]] | None = None
@@ -216,9 +236,15 @@ async def run_protocol_stream(
     rounds: int | None = None,
     no_tools: bool = False,
     context: "RunContext | None" = None,
+    tenant_slug: str = "cardinal-element",
 ) -> AsyncGenerator[str, None]:
-    """Execute a protocol and yield SSE events."""
-    from api.context_pipeline import RunContext, build_effective_question, cleanup_run_context
+    """Execute a protocol and yield SSE events.
+
+    ``tenant_slug`` is propagated to ``persist_run`` so the Postgres run row
+    is correctly tenant-scoped. Defaults to ``cardinal-element`` for CLI/local
+    callers that don't have an auth context.
+    """
+    from api.context_pipeline import build_effective_question, cleanup_run_context
 
     yield _sse_event("run_start", {"run_id": run_id, "protocol_key": protocol_key})
 
@@ -236,18 +262,71 @@ async def run_protocol_stream(
         OrchestratorClass = _load_orchestrator_class(protocol_key)
         agents = build_production_agents(agent_keys)
 
+        # M5: Assemble context from the tenant's knowledge graph + inject as
+        # institutional_memory. Best-effort -- failures don't block the run.
+        try:
+            from protocols.context_assembler import assemble_context
+            _ce_brief = await assemble_context(tenant_slug, question, agent_keys)
+            if _ce_brief:
+                for agent in agents:
+                    if hasattr(agent, "institutional_memory"):
+                        existing = getattr(agent, "institutional_memory", None) or ""
+                        agent.institutional_memory = (
+                            (existing + "\n\n" if existing else "") + _ce_brief
+                        )
+        except Exception:
+            pass
+
+        # Protocol learning: classify question + retrieve insights + inject memory
+        _learning_categories = ["unclassified"]
+        try:
+            import anthropic as _anth
+            _learning_client = _anth.AsyncAnthropic()
+            _user_config = {"rounds": rounds}
+            _user_config, _learning_categories = await pre_run_hook(
+                client=_learning_client,
+                protocol_key=protocol_key,
+                question=question,
+                agents=agents,
+                user_config=_user_config,
+            )
+            if _user_config.get("rounds") and rounds is None:
+                rounds = _user_config["rounds"]
+        except Exception:
+            pass  # Learning hooks are non-blocking
+
         yield _sse_event("agent_roster", {
             "agents": [{"key": k, "name": a["name"]} for k, a in zip(agent_keys, agents)]
         })
 
-        # Build orchestrator kwargs
-        kwargs: dict[str, Any] = {
+        # Build orchestrator kwargs, then filter to what the orchestrator's
+        # __init__ actually accepts. Older orchestrators (e.g. P04 Debate) don't
+        # take `orchestration_model`; this avoids a TypeError that otherwise
+        # crashes the run at construction time with a misleading traceback.
+        candidate_kwargs: dict[str, Any] = {
             "agents": agents,
             "thinking_model": thinking_model,
             "orchestration_model": orchestration_model,
         }
         if rounds is not None:
-            kwargs["rounds"] = rounds
+            candidate_kwargs["rounds"] = rounds
+
+        _accepted = inspect.signature(OrchestratorClass.__init__).parameters
+        # If __init__ uses **kwargs, pass everything; otherwise drop keys it doesn't name.
+        accepts_var_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in _accepted.values())
+        kwargs = (
+            candidate_kwargs
+            if accepts_var_kwargs
+            else {k: v for k, v in candidate_kwargs.items() if k in _accepted}
+        )
+        dropped = set(candidate_kwargs) - set(kwargs)
+        if dropped:
+            print(
+                f"[runner] {protocol_key}: {OrchestratorClass.__name__} does not "
+                f"accept {sorted(dropped)}; passing "
+                f"{sorted(kwargs)} instead.",
+                flush=True,
+            )
 
         orchestrator = OrchestratorClass(**kwargs)
 
@@ -351,6 +430,7 @@ async def run_protocol_stream(
             yield _sse_event("synthesis", {"text": envelope.result_summary})
 
         # Quality Judge — score synthesis against agent outputs
+        _judge_overall: float | None = None
         judge_verdict_dict: dict[str, Any] | None = None
         if envelope.result_summary and envelope.agent_outputs:
             try:
@@ -367,6 +447,7 @@ async def run_protocol_stream(
                     synthesis=envelope.result_summary,
                 )
                 judge_verdict_dict = verdict.as_dict()
+                _judge_overall = float(verdict.overall)
                 yield _sse_event("judge_verdict", judge_verdict_dict)
                 # Attach scores to Langfuse trace for dashboard filtering/trends
                 trace_id = envelope.trace_id
@@ -442,6 +523,8 @@ async def run_protocol_stream(
                 source="api",
                 started_at=started_at,
                 envelope=envelope,
+                tenant_slug=tenant_slug,
+                also_write_legacy=False,  # API already wrote the legacy Run row upfront (status=pending) and updated it post-run.
             )
         except Exception as pg_err:
             persist_outcome.warnings.append(
@@ -453,15 +536,48 @@ async def run_protocol_stream(
                 }
             )
 
+        # M5: Write a Decision node to the tenant's knowledge graph. This is
+        # what closes the compounding loop -- future runs query these decisions
+        # via context_assembler. Best-effort; never blocks the run.
+        try:
+            from protocols.graph_writer import write_decision
+            try:
+                envelope.run_id = run_id  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            await write_decision(tenant_slug=tenant_slug, envelope=envelope, run_id_source=str(run_id))
+        except Exception as graph_err:
+            _log.warning(
+                "graph_writer.invoke_failed run_id=%s tenant=%s err=%s",
+                run_id, tenant_slug, graph_err,
+            )
+
         if persist_outcome.telemetry_degraded:
             for warning in persist_outcome.warnings:
                 envelope.add_warning(warning)
-            with Session(engine) as session:
-                run = session.get(Run, run_id)
-                if run and run.status == "completed":
-                    run.error_message = json.dumps([w.as_dict() for w in envelope.warnings])[:4000]
-                    session.add(run)
-                    session.commit()
+            fatal_warnings = [w for w in envelope.warnings if not w.recoverable]
+            if fatal_warnings:
+                with Session(engine) as session:
+                    run = session.get(Run, run_id)
+                    if run and run.status == "completed":
+                        run.error_message = json.dumps([w.as_dict() for w in fatal_warnings])[:4000]
+                        session.add(run)
+                        session.commit()
+
+        # Protocol learning: record run outcome
+        try:
+            await post_run_hook(
+                run_id=persist_outcome.run_id if persist_outcome and persist_outcome.run_id else str(run_id),
+                protocol_key=protocol_key,
+                question=question,
+                question_categories=_learning_categories,
+                eval_score=_judge_overall,
+                config={"rounds": rounds, "agents": agent_keys, "thinking_model": thinking_model},
+                synthesis_text=envelope.result_summary or "",
+                cost_summary=cost_summary,
+            )
+        except Exception:
+            pass  # Learning hooks are non-blocking
 
         run_complete_payload: dict[str, Any] = {
             "run_id": run_id,
@@ -510,6 +626,8 @@ async def run_protocol_stream(
                 source="api",
                 started_at=started_at,
                 error=tb_str,
+                tenant_slug=tenant_slug,
+                also_write_legacy=False,  # API already updated the legacy Run row to status=failed above.
             )
             run_warnings.extend(outcome.warnings)
         except Exception as pg_err:
@@ -522,7 +640,8 @@ async def run_protocol_stream(
                 }
             )
 
-        yield _sse_event("error", {"message": str(e), "traceback": tb_str})
+        _log.error("Run failed:\n%s", tb_str)
+        yield _sse_event("error", {"message": str(e)})
         yield _sse_event(
             "run_complete",
             {
@@ -592,6 +711,7 @@ async def run_pipeline_stream(
             if i < start_from_step:
                 continue  # Skip already-completed steps (resume)
             step_question = step["question_template"]
+            step_question = step_question.replace("{question}", question)
             if "{prev_output}" in step_question and prev_output:
                 step_question = step_question.replace("{prev_output}", prev_output)
 
@@ -635,7 +755,7 @@ async def run_pipeline_stream(
             step_tool_events: list[dict[str, Any]] = []
             pip_task = asyncio.create_task(orchestrator.run(step_question))
             _active_run_tasks[run_id] = pip_task
-            pip_task.add_done_callback(lambda t: _active_run_tasks.pop(run_id, None) or (
+            pip_task.add_done_callback(lambda t: (
                 t.exception() if not t.cancelled() and t.exception() else None
             ))
 
@@ -800,6 +920,7 @@ async def run_pipeline_stream(
                 source="api",
                 started_at=pipeline_started_at,
                 envelope=pipeline_envelope,
+                also_write_legacy=False,  # Pipeline runner already wrote its legacy Run row.
             )
             if persist_outcome.telemetry_degraded:
                 for warning in persist_outcome.warnings:
@@ -865,6 +986,7 @@ async def run_pipeline_stream(
                 source="api",
                 started_at=pipeline_started_at,
                 error=tb_str,
+                also_write_legacy=False,  # Pipeline runner already updated the legacy Run row to status=failed above.
             )
             run_error_warnings.extend(outcome.warnings)
         except Exception as pg_err:
@@ -877,7 +999,8 @@ async def run_pipeline_stream(
                 }
             )
 
-        yield _sse_event("error", {"message": str(e), "traceback": tb_str})
+        _log.error("Run failed:\n%s", tb_str)
+        yield _sse_event("error", {"message": str(e)})
         yield _sse_event(
             "run_complete",
             {
@@ -889,6 +1012,8 @@ async def run_pipeline_stream(
         )
 
     finally:
-        # Always clean up context vars, regardless of how the generator exits
+        # Always clean up context vars and active task tracking
+        _active_run_tasks.pop(run_id, None)
         set_cost_tracker(None)
+        set_event_queue(None)
         set_session_id(None)

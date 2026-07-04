@@ -20,7 +20,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
-from ce_shared.pricing import cost_for_model, get_pricing
+from ce_shared.pricing import cost_for_model
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ def _compute_cost(
     input_tokens: int,
     output_tokens: int,
     cached_tokens: int = 0,
+    cache_write_tokens: int = 0,
 ) -> float:
     """Return USD cost for a single API call.
 
@@ -37,14 +38,16 @@ def _compute_cost(
 
     Note: *input_tokens* here is the **total** input count (including any
     cached portion).  ``cost_for_model`` expects regular (non-cached) tokens
-    separately, so we subtract *cached_tokens* before delegating.
+    separately, so we subtract *cached_tokens* and *cache_write_tokens* before
+    delegating.  Cache reads are charged at 0.1× and writes at 1.25×.
     """
-    non_cached = max(0, input_tokens - cached_tokens)
+    non_cached = max(0, input_tokens - cached_tokens - cache_write_tokens)
     return cost_for_model(
         model,
         input_tokens=non_cached,
         output_tokens=output_tokens,
         cache_read_tokens=cached_tokens,
+        cache_write_tokens=cache_write_tokens,
     )
 
 
@@ -58,6 +61,7 @@ class _ModelStats:
     input_tokens: int = 0
     output_tokens: int = 0
     cached_tokens: int = 0
+    cache_write_tokens: int = 0
     cost_usd: float = 0.0
 
 
@@ -71,6 +75,7 @@ class _AgentStats:
     input_tokens: int = 0
     output_tokens: int = 0
     cached_tokens: int = 0
+    cache_write_tokens: int = 0
     cost_usd: float = 0.0
     by_model: dict[str, _ModelStats] = field(default_factory=dict)
 
@@ -110,9 +115,19 @@ class ProtocolCostTracker:
         output_tokens: int,
         cached_tokens: int = 0,
         agent_name: str | None = None,
+        cache_write_tokens: int = 0,
     ) -> None:
-        """Record one API call's token usage and accumulate cost."""
-        cost = _compute_cost(model, input_tokens, output_tokens, cached_tokens)
+        """Record one API call's token usage and accumulate cost.
+
+        Args:
+            model: Model identifier (e.g. ``claude-opus-4-7``).
+            input_tokens: Total input tokens (including cached reads/writes).
+            output_tokens: Output tokens.
+            cached_tokens: Cache-read tokens (charged at 0.1×).
+            agent_name: Optional label for per-agent breakdown.
+            cache_write_tokens: Cache-write tokens (charged at 1.25×).
+        """
+        cost = _compute_cost(model, input_tokens, output_tokens, cached_tokens, cache_write_tokens)
         self._calls += 1
         self._total_cost += cost
 
@@ -121,6 +136,7 @@ class ProtocolCostTracker:
         stats.input_tokens += input_tokens
         stats.output_tokens += output_tokens
         stats.cached_tokens += cached_tokens
+        stats.cache_write_tokens += cache_write_tokens
         stats.cost_usd += cost
 
         if agent_name:
@@ -130,12 +146,14 @@ class ProtocolCostTracker:
             agent_stats.input_tokens += input_tokens
             agent_stats.output_tokens += output_tokens
             agent_stats.cached_tokens += cached_tokens
+            agent_stats.cache_write_tokens += cache_write_tokens
             agent_stats.cost_usd += cost
             model_stats = agent_stats.by_model.setdefault(model, _ModelStats())
             model_stats.calls += 1
             model_stats.input_tokens += input_tokens
             model_stats.output_tokens += output_tokens
             model_stats.cached_tokens += cached_tokens
+            model_stats.cache_write_tokens += cache_write_tokens
             model_stats.cost_usd += cost
 
         # Budget ceiling check (warn once per run)
@@ -186,6 +204,7 @@ class ProtocolCostTracker:
                     "input_tokens": s.input_tokens,
                     "output_tokens": s.output_tokens,
                     "cached_tokens": s.cached_tokens,
+                    "cache_write_tokens": s.cache_write_tokens,
                     "cost_usd": round(s.cost_usd, 6),
                 }
                 for model, s in self._by_model.items()
@@ -196,6 +215,7 @@ class ProtocolCostTracker:
                     "input_tokens": s.input_tokens,
                     "output_tokens": s.output_tokens,
                     "cached_tokens": s.cached_tokens,
+                    "cache_write_tokens": s.cache_write_tokens,
                     "cost_usd": round(s.cost_usd, 6),
                     "primary_model": max(
                         s.by_model.items(),
@@ -207,6 +227,7 @@ class ProtocolCostTracker:
                             "input_tokens": ms.input_tokens,
                             "output_tokens": ms.output_tokens,
                             "cached_tokens": ms.cached_tokens,
+                            "cache_write_tokens": ms.cache_write_tokens,
                             "cost_usd": round(ms.cost_usd, 6),
                         }
                         for model, ms in s.by_model.items()

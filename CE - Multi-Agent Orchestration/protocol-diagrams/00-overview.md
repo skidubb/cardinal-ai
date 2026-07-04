@@ -136,7 +136,7 @@ graph LR
 
 ```mermaid
 graph TB
-    ROOT["30 Coordination Protocols"]:::root
+    ROOT["Coordination Protocols"]:::root
 
     P0["Meta-Protocols<br/>P0a–P0c"]:::meta
     B["Baselines<br/>P1–P5"]:::baselines
@@ -146,6 +146,7 @@ graph TB
     OT["Org Theory<br/>P22–P23"]:::orgtheory
     ST["Systems Thinking<br/>P24–P25"]:::systems
     DT["Design Thinking<br/>P26–P27"]:::design
+    DC["Decentralized Coordination<br/>P53–P57"]:::decentral
 
     ROOT --> P0
     ROOT --> B
@@ -155,6 +156,7 @@ graph TB
     ROOT --> OT
     ROOT --> ST
     ROOT --> DT
+    ROOT --> DC
 
     classDef root fill:#333,stroke:#111,color:#fff
     classDef meta fill:#607D8B,stroke:#455A64,color:#fff
@@ -165,6 +167,7 @@ graph TB
     classDef orgtheory fill:#1ABC9C,stroke:#16A085,color:#fff
     classDef systems fill:#2ECC71,stroke:#27AE60,color:#fff
     classDef design fill:#E91E63,stroke:#C2185B,color:#fff
+    classDef decentral fill:#16A2DA,stroke:#0F7AA3,color:#fff
 ```
 
 ## Color Coding
@@ -179,6 +182,7 @@ graph TB
 | Org Theory | Teal `#1ABC9C` | [05-org-theory.md](05-org-theory.md) |
 | Systems Thinking | Green `#2ECC71` | [06-systems-thinking.md](06-systems-thinking.md) |
 | Design Thinking | Pink `#E91E63` | [07-design-thinking.md](07-design-thinking.md) |
+| **Decentralized Coordination** | **Steel `#16A2DA`** | **[08-decentralized.md](08-decentralized.md)** |
 
 ## Full Protocol Index
 
@@ -214,3 +218,8 @@ graph TB
 | P25 | System Archetype Detection | Systems Thinking | N+1 | Pattern matching |
 | P26 | Crazy Eights | Design Thinking | N+1 | Constrained divergence |
 | P27 | Affinity Mapping | Design Thinking | N+1 | Embedding clusters |
+| P53 | Contract Net | Decentralized Coordination | N | Bid → Hungarian assignment |
+| P54 | Blackboard (Pandemonium) | Decentralized Coordination | N | Self-dispatched peer contribution |
+| P55 | Gossip Consensus | Decentralized Coordination | N | Random-pair convergence to variance |
+| P56 | Stigmergic Exploration | Decentralized Coordination | N | Pheromone-biased path convergence |
+| P57 | Liquid Democracy | Decentralized Coordination | N | Vote-or-delegate weighted Borda |

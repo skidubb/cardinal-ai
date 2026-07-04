@@ -35,7 +35,7 @@ python -m protocols.p18_delphi_method.run \
 | `-q, --question` | required | Question requiring a numerical estimate |
 | `-a, --agents` | ceo cfo cto cmo | Agent keys (available: ceo, cfo, cto, cmo, coo, cpo, cro) |
 | `--max-rounds` | 3 | Maximum estimation rounds |
-| `--thinking-model` | claude-opus-4-6 | Model for agent estimation |
+| `--thinking-model` | claude-opus-4-7 | Model for agent estimation |
 | `--orchestration-model` | claude-haiku-4-5-20251001 | Model for final synthesis |
 | `--json` | false | Output raw JSON |
 

@@ -48,7 +48,7 @@ class _AgentPatchContext:
         # Configure settings
         s = MagicMock()
         s.anthropic_api_key = "test-key"
-        s.default_model = "claude-opus-4-6"
+        s.default_model = "claude-opus-4-7"
         s.project_root = Path("/tmp/fake_project")
         s.memory_enabled = True
         s.tools_enabled = True
@@ -58,7 +58,7 @@ class _AgentPatchContext:
 
         # Configure agent config
         cfg = MagicMock()
-        cfg.model = "claude-opus-4-6"
+        cfg.model = "claude-opus-4-7"
         cfg.max_tokens = 8192
         cfg.temperature = 0.6
         cfg.name = "CEO - Test"
@@ -162,7 +162,7 @@ class TestEstimateResponseCost:
     def test_opus_pricing(self):
         with _agent_patches():
             agent = _TestAgent()
-            resp = make_api_response(model="claude-opus-4-6", input_tokens=1000, output_tokens=500)
+            resp = make_api_response(model="claude-opus-4-7", input_tokens=1000, output_tokens=500)
             cost = agent._estimate_response_cost(resp)
             expected = (1000 * 5.0 / 1e6) + (500 * 25.0 / 1e6)
             assert abs(cost - expected) < 1e-8
@@ -178,7 +178,7 @@ class TestEstimateResponseCost:
     def test_cached_tokens_discounted(self):
         with _agent_patches():
             agent = _TestAgent()
-            resp = make_api_response(model="claude-opus-4-6", input_tokens=1000, output_tokens=500)
+            resp = make_api_response(model="claude-opus-4-7", input_tokens=1000, output_tokens=500)
             resp.usage.cache_read_input_tokens = 400
             cost = agent._estimate_response_cost(resp)
             # 600 non-cached at full rate + 400 at 0.1x
@@ -245,7 +245,7 @@ class TestChat:
                 content=[make_tool_use_block()],
                 input_tokens=500_000,
                 output_tokens=200_000,
-                model="claude-opus-4-6",
+                model="claude-opus-4-7",
             )
             ctx.mock_client.messages.create.return_value = tool_resp
             ctx.mocks["settings"].return_value.tool_cost_limit = 0.01  # Very low

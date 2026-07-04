@@ -12,3 +12,29 @@ description: Alternate between discovery (what is?) and action (what should we d
 when_to_use: Situations needing both diagnosis and actionable next steps.
 when_not_to_use: Pure estimation, already-diagnosed problems.
 tools_enabled: true
+
+stages:
+  - name: "Scout positive deviants"
+    produces: scouted_deviants
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Identify instances where the problem is already being solved well"
+  - name: "Filter effective behaviors"
+    produces: filtered_behaviors
+    kind: mechanical
+    required: true
+    summary_role: working_notes
+    description: "Winnow observed behaviors to those with causal evidence of effect"
+  - name: "Extract transferable practices"
+    produces: extracted_practices
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Abstract behaviors into transferable practices with context conditions"
+  - name: "Adapt to context"
+    produces: adapted_recommendations
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Translate practices into concrete recommendations for the target context"

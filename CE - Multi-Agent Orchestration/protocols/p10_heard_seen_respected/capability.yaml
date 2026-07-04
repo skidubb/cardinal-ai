@@ -12,3 +12,23 @@ description: Deep listening protocol — surface experiences and perspectives be
 when_to_use: Stakeholder alignment, empathy-building before decisions.
 when_not_to_use: Urgent decisions, quantitative analysis.
 tools_enabled: true
+
+stages:
+  - name: "Phase 1 — Share narratives"
+    produces: narratives
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Each stakeholder shares their experience as a first-person narrative"
+  - name: "Phase 2 — Reflect back"
+    produces: reflections
+    kind: agent
+    required: true
+    summary_role: working_notes
+    description: "Paired reflections — each participant mirrors what they heard from another"
+  - name: "Phase 3 — Bridge synthesis"
+    produces: [common_ground, key_differences, translation_guide]
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Surface common ground, key differences, and a translation guide across perspectives"

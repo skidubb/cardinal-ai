@@ -6,24 +6,14 @@ Skips Stage 4 (cross-exam) and defaults to fewer promoted agents (3).
 
 from __future__ import annotations
 
-import json
 import logging
 
 from protocols.config import THINKING_MODEL, ORCHESTRATION_MODEL
-from protocols.langfuse_tracing import create_span, end_span, trace_protocol
-from protocols.synthesis import SynthesisEngine
-from protocols.walk_shared.prompts import SYNTHESIS_PROMPT
+from protocols.langfuse_tracing import trace_protocol
 from protocols.walk_shared.schemas import (
-    DeepWalkOutput,
-    FrameArtifact,
-    SalienceArtifact,
-    ShallowWalkOutput,
     WalkResult,
-    WalkSynthesis,
 )
-from protocols.walk_shared.selection import select_promoted
 from protocols.p49_walk_base.orchestrator import WalkBaseOrchestrator
-from protocols.llm import parse_json_object
 
 _log = logging.getLogger(__name__)
 
@@ -64,9 +54,15 @@ class TournamentWalkOrchestrator(WalkBaseOrchestrator):
         salience = await self._stage_salience(frame, shallow_outputs)
         deep_outputs = await self._stage_deep_walk(question, frame, salience, shallow_outputs)
 
-        # Skip cross-examination → go straight to synthesis
+        # Skip cross-examination, but run collision synthesis
+        collisions = await self._stage_collision_synthesis(
+            frame, salience, deep_outputs, shallow_outputs,
+        )
         synthesis, synthesis_text = await self._stage_synthesis(
-            question, frame, shallow_outputs, salience, deep_outputs, [],
+            question, frame, shallow_outputs, salience, deep_outputs, [], collisions,
+        )
+        provocation = await self._stage_provocation(
+            frame, shallow_outputs, deep_outputs, collisions,
         )
 
         return WalkResult(
@@ -77,6 +73,8 @@ class TournamentWalkOrchestrator(WalkBaseOrchestrator):
             salience=salience,
             deep_outputs=deep_outputs,
             cross_exam=[],  # No cross-exam in tournament
+            collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
+            provocation=provocation,
         )

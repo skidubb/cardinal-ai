@@ -67,8 +67,14 @@ class DriftReturnWalkOrchestrator(WalkBaseOrchestrator):
         deep_outputs = await self._stage_return(question, frame, salience, shallow_outputs)
 
         cross_exam = await self._stage_cross_examine(question, frame, deep_outputs)
+        collisions = await self._stage_collision_synthesis(
+            frame, salience, deep_outputs, shallow_outputs,
+        )
         synthesis, synthesis_text = await self._stage_synthesis(
-            question, frame, shallow_outputs, salience, deep_outputs, cross_exam,
+            question, frame, shallow_outputs, salience, deep_outputs, cross_exam, collisions,
+        )
+        provocation = await self._stage_provocation(
+            frame, shallow_outputs, deep_outputs, collisions,
         )
 
         return WalkResult(
@@ -79,8 +85,10 @@ class DriftReturnWalkOrchestrator(WalkBaseOrchestrator):
             salience=salience,
             deep_outputs=deep_outputs,
             cross_exam=cross_exam,
+            collisions=collisions,
             synthesis=synthesis,
             synthesis_text=synthesis_text,
+            provocation=provocation,
         )
 
     async def _stage_drift(
@@ -100,6 +108,7 @@ class DriftReturnWalkOrchestrator(WalkBaseOrchestrator):
                 agent_key=key,
                 agent_name=walker["name"],
                 lens_family=meta.get("lens_family", "general"),
+                lens_mandate=meta.get("lens_mandate", "Apply your lens to explore this domain."),
             )
             raw = await agent_complete(
                 agent=walker,

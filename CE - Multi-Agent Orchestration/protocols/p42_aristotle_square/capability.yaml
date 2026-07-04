@@ -1,6 +1,6 @@
 protocol_id: P42
 name: Aristotle Square of Opposition
-category: Wave 2 Research
+category: Reasoning Methods
 problem_types:
 - Diagnostic
 - Adversarial
@@ -12,3 +12,23 @@ description: Map logical relationships between propositions using Aristotelian l
 when_to_use: Clarifying logical structure of competing claims.
 when_not_to_use: Creative ideation, quantitative estimation.
 tools_enabled: true
+
+stages:
+  - name: "Classify opposition type"
+    produces: classification
+    kind: mechanical
+    required: true
+    summary_role: structured_prelude
+    description: "Map the two positions to one of contrary / contradictory / subalternate / subcontrary"
+  - name: "Route to protocol"
+    produces: [recommended_protocol, routing_rationale]
+    kind: synthesis
+    required: true
+    summary_role: structured_prelude
+    description: "Based on the opposition class, recommend the appropriate resolution protocol"
+  - name: "Reasoning"
+    produces: reasoning
+    kind: synthesis
+    required: true
+    summary_role: primary_summary
+    description: "Explain the logical structure and routing decision"

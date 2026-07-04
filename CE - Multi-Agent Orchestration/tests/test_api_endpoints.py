@@ -233,7 +233,7 @@ def test_stream_completed_run_returns_sse(client, engine):
         ao = AgentOutput(
             run_id=run_id,
             agent_key="ceo",
-            model="claude-opus-4-6",
+            model="claude-opus-4-7",
             output_text="CEO output here",
         )
         session.add(ao)

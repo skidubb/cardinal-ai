@@ -165,34 +165,40 @@ class DuckDBStore:
         messages: list[dict[str, Any]],
     ) -> None:
         with self._write_lock:
-            self.conn.execute(
-                """INSERT OR REPLACE INTO sessions
-                   (id, agent_role, title, parent_session_id, metadata, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?::JSON, ?, ?)""",
-                [
-                    session_id,
-                    agent_role,
-                    title,
-                    parent_session_id,
-                    json.dumps(metadata, default=str),
-                    created_at,
-                    updated_at,
-                ],
-            )
-            # Delete existing messages for this session, then re-insert
-            self.conn.execute("DELETE FROM messages WHERE session_id = ?", [session_id])
-            for msg in messages:
+            self.conn.execute("BEGIN")
+            try:
                 self.conn.execute(
-                    """INSERT INTO messages (session_id, role, content, timestamp, metadata)
-                       VALUES (?, ?, ?, ?, ?::JSON)""",
+                    """INSERT OR REPLACE INTO sessions
+                       (id, agent_role, title, parent_session_id, metadata, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?::JSON, ?, ?)""",
                     [
                         session_id,
-                        msg["role"],
-                        msg["content"],
-                        msg["timestamp"],
-                        json.dumps(msg.get("metadata", {}), default=str),
+                        agent_role,
+                        title,
+                        parent_session_id,
+                        json.dumps(metadata, default=str),
+                        created_at,
+                        updated_at,
                     ],
                 )
+                # Delete existing messages for this session, then re-insert
+                self.conn.execute("DELETE FROM messages WHERE session_id = ?", [session_id])
+                for msg in messages:
+                    self.conn.execute(
+                        """INSERT INTO messages (session_id, role, content, timestamp, metadata)
+                           VALUES (?, ?, ?, ?, ?::JSON)""",
+                        [
+                            session_id,
+                            msg["role"],
+                            msg["content"],
+                            msg["timestamp"],
+                            json.dumps(msg.get("metadata", {}), default=str),
+                        ],
+                    )
+                self.conn.execute("COMMIT")
+            except Exception:
+                self.conn.execute("ROLLBACK")
+                raise
 
     def load_session(
         self, session_id: str, agent_role: str | None = None
@@ -236,32 +242,35 @@ class DuckDBStore:
     ) -> list[dict[str, Any]]:
         if agent_role:
             rows = self.conn.execute(
-                """SELECT id, agent_role, title, parent_session_id, metadata,
-                          created_at, updated_at
-                   FROM sessions WHERE agent_role = ?
-                   ORDER BY updated_at DESC LIMIT ?""",
+                """SELECT s.id, s.agent_role, s.title, s.parent_session_id, s.metadata,
+                          s.created_at, s.updated_at, COUNT(m.session_id) AS message_count
+                   FROM sessions s
+                   LEFT JOIN messages m ON m.session_id = s.id
+                   WHERE s.agent_role = ?
+                   GROUP BY s.id, s.agent_role, s.title, s.parent_session_id,
+                            s.metadata, s.created_at, s.updated_at
+                   ORDER BY s.updated_at DESC LIMIT ?""",
                 [agent_role, limit],
             ).fetchall()
         else:
             rows = self.conn.execute(
-                """SELECT id, agent_role, title, parent_session_id, metadata,
-                          created_at, updated_at
-                   FROM sessions ORDER BY updated_at DESC LIMIT ?""",
+                """SELECT s.id, s.agent_role, s.title, s.parent_session_id, s.metadata,
+                          s.created_at, s.updated_at, COUNT(m.session_id) AS message_count
+                   FROM sessions s
+                   LEFT JOIN messages m ON m.session_id = s.id
+                   GROUP BY s.id, s.agent_role, s.title, s.parent_session_id,
+                            s.metadata, s.created_at, s.updated_at
+                   ORDER BY s.updated_at DESC LIMIT ?""",
                 [limit],
             ).fetchall()
 
         cols = ["id", "agent_role", "title", "parent_session_id", "metadata",
-                "created_at", "updated_at"]
+                "created_at", "updated_at", "message_count"]
         results = []
         for row in rows:
             d = dict(zip(cols, row))
             if isinstance(d["metadata"], str):
                 d["metadata"] = json.loads(d["metadata"])
-            # Count messages
-            count = self.conn.execute(
-                "SELECT COUNT(*) FROM messages WHERE session_id = ?", [d["id"]]
-            ).fetchone()
-            d["message_count"] = count[0] if count else 0
             results.append(d)
         return results
 
