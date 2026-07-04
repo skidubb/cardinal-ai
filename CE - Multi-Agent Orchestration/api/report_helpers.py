@@ -37,11 +37,18 @@ def build_envelope_from_db(run: Run, session: Session) -> RunEnvelope:
     )
 
     result_summary = ""
+    article: dict[str, Any] | None = None
     agent_outputs: list[AgentOutputEnvelope] = []
 
     for row in agent_output_rows:
         if row.agent_key == "_synthesis":
             result_summary = row.output_text
+            continue
+        if row.agent_key == "_article":
+            try:
+                article = json.loads(row.output_text)
+            except (json.JSONDecodeError, ValueError):
+                article = None
             continue
 
         tool_calls: list[dict[str, Any]] = []
@@ -74,8 +81,10 @@ def build_envelope_from_db(run: Run, session: Session) -> RunEnvelope:
     }
 
     # Infer agent_keys from stored outputs (excluding internal keys)
-    _internal = frozenset(("_synthesis", "_result", "_stage"))
-    raw_agent_keys = [o.agent_key for o in agent_outputs if o.agent_key not in _internal]
+    _internal = frozenset(("_synthesis", "_result", "_stage", "_article"))
+    raw_agent_keys = [
+        o.agent_key for o in agent_outputs if o.agent_key not in _internal
+    ]
 
     # Deduplicate while preserving order
     seen: set[str] = set()
@@ -102,4 +111,5 @@ def build_envelope_from_db(run: Run, session: Session) -> RunEnvelope:
         trace_id=run.trace_id,
         run_id=run.id,
         agent_outputs=agent_outputs,
+        metadata={"article": article} if article else {},
     )

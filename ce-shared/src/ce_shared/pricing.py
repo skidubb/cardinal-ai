@@ -54,8 +54,19 @@ MODEL_PRICING: dict[str, tuple[float, float]] = {
     "claude-opus-4-6": (5.00, 25.00),
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-haiku-4-5-20251001": (1.00, 5.00),
+    # Anthropic — Claude 5 family
+    "claude-opus-4-8": (5.00, 25.00),
+    "claude-fable-5": (10.00, 50.00),
+    "claude-sonnet-5": (2.00, 10.00),  # intro pricing thru 2026-08-31, then (3, 15)
     # Anthropic — aliases
     "claude-haiku-4-5": (1.00, 5.00),
+    # Open-weight (via Vercel AI Gateway)
+    "deepseek-v4-pro": (2.00, 4.00),
+    "deepseek-v4-flash": (0.14, 0.28),
+    "qwen-3.6-plus": (0.50, 3.00),
+    "kimi-k2.6": (1.20, 4.50),
+    "glm-5.2": (1.40, 4.40),
+    "minimax-m2.7": (0.30, 1.20),
     # Anthropic — previous generation
     "claude-opus-4-5-20251101": (5.00, 25.00),
     "claude-opus-4-5": (5.00, 25.00),
@@ -89,6 +100,7 @@ _SUBSTRING_FALLBACKS: list[tuple[str, tuple[float, float]]] = [
     ("opus-4-1", (15.00, 75.00)),
     ("opus-4-0", (15.00, 75.00)),
     ("opus", (5.00, 25.00)),  # default opus = current gen
+    ("fable", (10.00, 50.00)),  # dated variants e.g. claude-fable-5-20260609
     ("sonnet", (3.00, 15.00)),
     ("haiku", (1.00, 5.00)),
     ("gpt", (2.50, 10.00)),
@@ -154,7 +166,9 @@ def estimate_tokens_from_cost(
     # cost = (input_tokens * input_rate + output_tokens * output_rate) / 1_000_000
     # With input_tokens = ratio * output_tokens:
     # cost = output_tokens * (ratio * input_rate + output_rate) / 1_000_000
-    output_tokens = cost_usd * 1_000_000 / (input_output_ratio * input_rate + output_rate)
+    output_tokens = (
+        cost_usd * 1_000_000 / (input_output_ratio * input_rate + output_rate)
+    )
     input_tokens = input_output_ratio * output_tokens
 
     return {
@@ -207,6 +221,6 @@ def cost_for_model(
 
     # Batch discount
     if batch:
-        cost *= (1 - BATCH_DISCOUNT)
+        cost *= 1 - BATCH_DISCOUNT
 
     return cost

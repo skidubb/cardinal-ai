@@ -8,6 +8,7 @@ Precedence: env var > CLI arg > per-agent "model" field > these defaults.
 
 from __future__ import annotations
 
+import logging
 import os
 
 # ── Anthropic defaults (used by all protocols) ──────────────────────────────
@@ -15,7 +16,33 @@ THINKING_MODEL = os.getenv("THINKING_MODEL", "claude-opus-4-7")
 ORCHESTRATION_MODEL = os.getenv("ORCHESTRATION_MODEL", "claude-haiku-4-5-20251001")
 BALANCED_MODEL = os.getenv("BALANCED_MODEL", "claude-sonnet-4-6")
 
+# Soft validation only — never raise. An unrecognized model string is valid
+# (e.g. a bare LiteLLM/gateway id not yet in the catalog); this just warns so
+# typos in env overrides surface at startup instead of failing silently.
+try:
+    from protocols.model_catalog import get_model as _get_model
+
+    for _name, _value in (
+        ("THINKING_MODEL", THINKING_MODEL),
+        ("ORCHESTRATION_MODEL", ORCHESTRATION_MODEL),
+        ("BALANCED_MODEL", BALANCED_MODEL),
+    ):
+        if _get_model(_value) is None:
+            logging.getLogger(__name__).warning(
+                "%s=%r is not in protocols.model_catalog.CATALOG — "
+                "unrecognized models still work but won't show pricing/tier metadata.",
+                _name,
+                _value,
+            )
+except Exception:
+    # Catalog import failures must never break config.py — it's imported by
+    # every protocol at module load time.
+    pass
+
 # ── Cognitive Depth Tiers (Think Fast and Slow) ──────────────────────────────
+# DEPRECATED — no consumers; superseded by protocols/model_catalog.py. Do not
+# wire new code to COGNITIVE_TIERS, STAGE_COGNITIVE_MAP, model_for_stage, or
+# FRONTIER_MODELS below. Kept for backward compatibility only.
 # Four-level cognitive hierarchy inspired by CogRouter (arXiv:2602.12662).
 # Assign per protocol stage to cut costs 40-60% without quality loss.
 #
@@ -31,8 +58,8 @@ BALANCED_MODEL = os.getenv("BALANCED_MODEL", "claude-sonnet-4-6")
 COGNITIVE_TIERS = {
     "L1": ORCHESTRATION_MODEL,  # Haiku — fast pattern matching
     "L2": ORCHESTRATION_MODEL,  # Haiku — rule application
-    "L3": BALANCED_MODEL,       # Sonnet — analytical reasoning
-    "L4": THINKING_MODEL,       # Opus — creative/strategic synthesis
+    "L3": BALANCED_MODEL,  # Sonnet — analytical reasoning
+    "L4": THINKING_MODEL,  # Opus — creative/strategic synthesis
 }
 
 # ── Thinking budgets ───────────────────────────────────────────────────────
@@ -112,13 +139,11 @@ FRONTIER_MODELS = {
     "claude-opus": "claude-opus-4-7",
     "gemini-pro": "gemini/gemini-3.1-pro-preview",
     "grok": "xai/grok-4.20-beta1",
-
     # ── Tier 2: Near-Frontier (Arena 1470-1489) ───────────────────────────
     "gemini-3-pro": "gemini/gemini-3-pro",
     "gpt-5": "openai/gpt-5.2-chat-latest",
     "gemini-flash": "gemini/gemini-3-flash",
     "grok-thinking": "xai/grok-4.1-thinking",
-
     # ── Tier 3: Strong (Arena <1470 or utility) ───────────────────────────
     "claude-sonnet": "claude-sonnet-4-6",
     "claude-haiku": "claude-haiku-4-5-20251001",

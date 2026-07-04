@@ -144,6 +144,30 @@ export interface ProtocolStages {
   stages: StageNode[]
 }
 
+export interface ModelInfo {
+  id: string
+  display_name: string
+  provider: string
+  route: 'anthropic' | 'gateway'
+  litellm_id: string
+  tier: string
+  input_price: number
+  output_price: number
+  supports_anthropic_tool_loop: boolean
+  context_window: number
+  notes: string
+}
+
+export interface ModelsResponse {
+  models: ModelInfo[]
+  defaults: {
+    thinking: string
+    orchestration: string
+    balanced: string
+  }
+  tiers: string[]
+}
+
 export interface Run {
   id: number
   type: 'protocol' | 'pipeline'

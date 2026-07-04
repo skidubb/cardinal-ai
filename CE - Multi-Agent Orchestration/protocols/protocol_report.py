@@ -29,7 +29,7 @@ DISAGREEMENT_SIGNALS = (
     "on the other hand",
 )
 
-_INTERNAL_AGENT_KEYS = frozenset(("_synthesis", "_result", "_stage"))
+_INTERNAL_AGENT_KEYS = frozenset(("_synthesis", "_result", "_stage", "_article"))
 
 
 # ── Helper functions ──────────────────────────────────────────────────────────
@@ -164,6 +164,9 @@ class ProtocolReport:
     # Supplemental: observed-vs-intended stage audit. Empty dict when no
     # audit data is available (e.g. legacy runs before the adapter shipped).
     audit: dict[str, Any] = field(default_factory=dict)
+    # Narrative article readout (see protocols/article.py); None for runs
+    # generated before the article stage shipped or when ARTICLE_ENABLED=0.
+    article: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Return a fully serializable dict representation."""
@@ -179,6 +182,7 @@ class ProtocolReport:
             "cost_summary": self.cost_summary,
             "metadata": self.metadata,
             "audit": self.audit,
+            "article": self.article,
         }
 
 
@@ -266,4 +270,7 @@ def from_envelope(
         cost_summary=dict(envelope.cost),
         metadata=metadata,
         audit=audit if isinstance(audit, dict) else {},
+        article=envelope.metadata.get("article")
+        if isinstance(envelope.metadata, dict)
+        else None,
     )

@@ -22,7 +22,26 @@ from fastapi.staticfiles import StaticFiles
 
 from api.database import create_db_and_tables
 from api.middleware.clerk_auth import get_auth
-from api.routers import agents, auth as auth_router, connectors as connectors_router, context_preview, corrections as corrections_router, discover as discover_router, graph as graph_router, integrations, knowledge, pipelines, protocols, reports, router as adaptive_router, runs, teams, usage as usage_router, webhooks_clerk
+from api.routers import (
+    agents,
+    auth as auth_router,
+    connectors as connectors_router,
+    context_preview,
+    corrections as corrections_router,
+    discover as discover_router,
+    graph as graph_router,
+    integrations,
+    knowledge,
+    models as models_router,
+    pipelines,
+    protocols,
+    reports,
+    router as adaptive_router,
+    runs,
+    teams,
+    usage as usage_router,
+    webhooks_clerk,
+)
 from api.routers.agents import tools_router
 
 logger = logging.getLogger(__name__)
@@ -35,7 +54,10 @@ async def lifespan(app: FastAPI):
     # Verify production agents are importable
     try:
         from protocols.server_agent import ServerAgent  # noqa: F401
-        logger.info("Production agent provider verified: ServerAgent (direct API + tools)")
+
+        logger.info(
+            "Production agent provider verified: ServerAgent (direct API + tools)"
+        )
     except ImportError as exc:
         raise RuntimeError(
             f"FATAL: ServerAgent import failed: {exc}\n"
@@ -47,9 +69,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="CE Orchestrator API", version="0.1.0", lifespan=lifespan)
 
-_default_origins = ["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"]
+_default_origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+]
 _cors_env = os.getenv("CORS_ORIGINS", "")
-_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else _default_origins
+_origins = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else _default_origins
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,12 +110,19 @@ async def auth_middleware(request: Request, call_next):
         try:
             await get_auth(request)
         except HTTPException as exc:
-            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+            return JSONResponse(
+                status_code=exc.status_code, content={"detail": exc.detail}
+            )
         return await call_next(request)
 
     key = request.headers.get("X-API-Key", "")
     if not API_KEY:
-        return JSONResponse(status_code=500, content={"detail": "API_KEY not configured but auth is enabled. Set API_KEY or SKIP_AUTH=true."})
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "API_KEY not configured but auth is enabled. Set API_KEY or SKIP_AUTH=true."
+            },
+        )
     if not secrets.compare_digest(key, API_KEY):
         return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
     return await call_next(request)
@@ -103,6 +141,7 @@ app.include_router(tools_router)
 app.include_router(agents.router)
 app.include_router(integrations.router)
 app.include_router(knowledge.router)
+app.include_router(models_router.router)
 app.include_router(protocols.router)
 app.include_router(teams.router)
 app.include_router(pipelines.router)

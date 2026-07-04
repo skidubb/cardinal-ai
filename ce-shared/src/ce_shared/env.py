@@ -71,6 +71,12 @@ KEY_REGISTRY: dict[str, KeyMeta] = {
         category="llm",
         description="xAI (Grok) API key via LiteLLM",
     ),
+    "VERCEL_AI_GATEWAY_API_KEY": KeyMeta(
+        name="VERCEL_AI_GATEWAY_API_KEY",
+        required_by=["agent-builder", "orchestration", "evals"],
+        category="llm",
+        description="Vercel AI Gateway key -- routes all non-Anthropic model inference (open-weight models) through the Vercel account. Optional; gateway models fail cleanly without it.",
+    ),
     # ---- Observability ----
     "LANGFUSE_SECRET_KEY": KeyMeta(
         name="LANGFUSE_SECRET_KEY",
@@ -284,6 +290,7 @@ KEY_REGISTRY: dict[str, KeyMeta] = {
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _find_dotenv() -> Path | None:
     """Walk up from CWD looking for ``.env`` with a ``ce-shared/`` sentinel sibling."""
     current = Path.cwd().resolve()
@@ -298,6 +305,7 @@ def _find_dotenv() -> Path | None:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def validate_env(project: str | None = None) -> list[str]:
     """Check all registry keys against ``os.environ``.
@@ -328,9 +336,7 @@ def validate_env(project: str | None = None) -> list[str]:
 
         if key not in os.environ:
             if meta.required:
-                errors.append(
-                    f"  - {key}: {meta.description}"
-                )
+                errors.append(f"  - {key}: {meta.description}")
             else:
                 msg = f"Optional env var {key} is not set ({meta.description})"
                 logger.warning(msg)

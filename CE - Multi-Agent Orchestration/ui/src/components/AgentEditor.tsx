@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 import { useToolStore } from '../stores/toolStore'
 
 import { api } from '../api'
-import type { Agent, Framework, Delegation } from '../types'
+import type { Agent, Framework, Delegation, ModelInfo } from '../types'
 
 const CATEGORIES = [
   'executive', 'ceo-team', 'cfo-team', 'cmo-team', 'coo-team', 'cpo-team', 'cto-team',
   'gtm-leadership', 'gtm-sales', 'gtm-marketing', 'gtm-partners', 'gtm-success', 'gtm-ops', 'external',
 ]
 
-const MODELS = ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']
+// Fallback used only if GET /api/models fails.
+const FALLBACK_MODELS = ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']
 
 const TOOL_DOMAINS: Record<string, string> = {
   sec_edgar: 'SEC EDGAR',
@@ -43,10 +44,17 @@ export default function AgentEditor({ agent, mode = 'edit', onClose, onSaved }: 
   const [form, setForm] = useState<Agent>({ ...agent })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [models, setModels] = useState<ModelInfo[] | null>(null)
 
   useEffect(() => {
     if (!registry) fetchTools()
   }, [registry, fetchTools])
+
+  useEffect(() => {
+    api.models.list()
+      .then((res) => setModels(res.models))
+      .catch(() => setModels(null))
+  }, [])
 
   useEffect(() => {
     setForm({ ...agent })
@@ -179,19 +187,38 @@ export default function AgentEditor({ agent, mode = 'edit', onClose, onSaved }: 
               </div>
               <div>
                 <Label>Model</Label>
-                <div className="flex gap-1">
-                  {MODELS.map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => updateField('model', m)}
-                      className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition ${
-                        form.model === m ? 'bg-primary text-white' : 'bg-elevated border border-border text-text-muted hover:text-text'
-                      }`}
-                    >
-                      {m.includes('opus') ? 'Opus' : m.includes('sonnet') ? 'Sonnet' : 'Haiku'}
-                    </button>
-                  ))}
-                </div>
+                {models && models.length > 0 ? (
+                  <select
+                    value={form.model}
+                    onChange={(e) => updateField('model', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-white border border-border text-sm text-text"
+                  >
+                    <optgroup label="Claude (tools enabled)">
+                      {models.filter((m) => m.route === 'anthropic').map((m) => (
+                        <option key={m.id} value={m.id}>{m.display_name} · {m.tier}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Open models via gateway">
+                      {models.filter((m) => m.route === 'gateway').map((m) => (
+                        <option key={m.id} value={m.id}>🌐 {m.display_name} · {m.tier} — no tools</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                ) : (
+                  <div className="flex gap-1">
+                    {FALLBACK_MODELS.map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => updateField('model', m)}
+                        className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition ${
+                          form.model === m ? 'bg-primary text-white' : 'bg-elevated border border-border text-text-muted hover:text-text'
+                        }`}
+                      >
+                        {m.includes('opus') ? 'Opus' : m.includes('sonnet') ? 'Sonnet' : 'Haiku'}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Temperature ({form.temperature})</Label>

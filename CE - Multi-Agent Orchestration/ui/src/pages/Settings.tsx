@@ -10,13 +10,20 @@ interface HealthData {
   [key: string]: unknown
 }
 
+// Fallback used only if GET /api/models fails.
+const FALLBACK_DEFAULTS = { thinking: 'claude-opus-4-7', orchestration: 'claude-haiku-4-5-20251001' }
+
 export default function Settings() {
   const [health, setHealth] = useState<HealthData | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [modelDefaults, setModelDefaults] = useState(FALLBACK_DEFAULTS)
 
   useEffect(() => {
     loadHealth()
+    api.models.list()
+      .then((res) => setModelDefaults({ thinking: res.defaults.thinking, orchestration: res.defaults.orchestration }))
+      .catch(() => setModelDefaults(FALLBACK_DEFAULTS))
   }, [])
 
   const loadHealth = async () => {
@@ -95,12 +102,12 @@ export default function Settings() {
         <div className="grid grid-cols-1 gap-3">
           <div className="bg-white border border-border rounded-lg p-3">
             <p className="text-xs font-bold tracking-wider uppercase text-text-muted mb-1">Thinking Model</p>
-            <p className="text-sm font-mono text-text">claude-opus-4-7</p>
+            <p className="text-sm font-mono text-text">{modelDefaults.thinking}</p>
             <p className="text-xs text-text-muted mt-1">Used for agent reasoning, synthesis, and creative stages</p>
           </div>
           <div className="bg-white border border-border rounded-lg p-3">
             <p className="text-xs font-bold tracking-wider uppercase text-text-muted mb-1">Orchestration Model</p>
-            <p className="text-sm font-mono text-text">claude-haiku-4-5-20251001</p>
+            <p className="text-sm font-mono text-text">{modelDefaults.orchestration}</p>
             <p className="text-xs text-text-muted mt-1">Used for mechanical stages (dedup, ranking, extraction, classification)</p>
           </div>
         </div>

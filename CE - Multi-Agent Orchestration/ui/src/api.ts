@@ -1,4 +1,4 @@
-import type { Agent, Integration, KBNamespace, KBSearchResult, Protocol, ProtocolStages, Team, Pipeline, Run, ToolRegistry } from './types'
+import type { Agent, Integration, KBNamespace, KBSearchResult, ModelsResponse, Protocol, ProtocolStages, Team, Pipeline, Run, ToolRegistry } from './types'
 
 const BASE = '/api'
 
@@ -49,6 +49,9 @@ export const api = {
   },
   tools: {
     list: () => fetchJSON<ToolRegistry>('/tools'),
+  },
+  models: {
+    list: () => fetchJSON<ModelsResponse>('/models'),
   },
   protocols: {
     list: () => fetchJSON<Protocol[]>('/protocols'),

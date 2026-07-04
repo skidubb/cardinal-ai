@@ -47,6 +47,7 @@ class ProtocolRunRequest(BaseModel):
     orchestration_model: str = ORCHESTRATION_MODEL
     rounds: int | None = None
     no_tools: bool = False
+    team_id: int | None = None
 
 
 class PipelineStepRequest(BaseModel):

@@ -359,6 +359,20 @@ META_AGENTS = {
             "this?). Be critical but fair. Output structured JSON."
         ),
     },
+    "article_writer": {
+        "name": "Features Writer",
+        "system_prompt": (
+            "You are a features writer for a serious business magazine, "
+            "reporting on multi-agent analyses as if they were events you "
+            "witnessed. You turn structured analytical material into "
+            "narrative journalism: a sharp headline, a scene-setting lede, "
+            "sections that carry an argument forward, verbatim attributed "
+            "quotes, and disagreements rendered as live tension between "
+            "named analysts. You never invent facts or quotes beyond the "
+            "material provided. Output structured JSON exactly as the "
+            "prompt specifies."
+        ),
+    },
 }
 
 # ── Master Registry ─────────────────────────────────────────────────────────
@@ -434,7 +448,9 @@ def build_agents(
             if category in AGENT_CATEGORIES:
                 expanded.extend(AGENT_CATEGORIES[category])
             else:
-                print(f"Unknown category: {category}. Available: {', '.join(AGENT_CATEGORIES)}")
+                print(
+                    f"Unknown category: {category}. Available: {', '.join(AGENT_CATEGORIES)}"
+                )
                 sys.exit(1)
         else:
             expanded.append(name)
@@ -448,13 +464,16 @@ def build_agents(
             continue
         seen.add(key)
         if key not in BUILTIN_AGENTS:
-            print(f"Unknown agent: {name}. Available: {', '.join(sorted(BUILTIN_AGENTS))}")
+            print(
+                f"Unknown agent: {name}. Available: {', '.join(sorted(BUILTIN_AGENTS))}"
+            )
             sys.exit(1)
         unique_keys.append(key)
 
     # Production mode: build real SDK agents with tools, memory, learning
     if mode == "production":
         from protocols.agent_provider import build_production_agents
+
         return build_production_agents(unique_keys)
 
     # Research mode: lightweight dicts (current behavior)

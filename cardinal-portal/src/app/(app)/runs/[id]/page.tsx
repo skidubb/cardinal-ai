@@ -6,6 +6,8 @@ import { fetchRun, type StageAudit, type StageAuditStatus, type ToolCall } from 
 import NewCorrectionForm from "../../corrections/NewCorrectionForm";
 import { DeleteRunButton } from "./DeleteRunButton";
 import { Markdown } from "@/components/ui/markdown";
+import { ArticleView } from "@/components/run/ArticleView";
+import { ArticleTabs } from "@/components/run/ArticleTabs";
 
 type RunDetail = Awaited<ReturnType<typeof fetchRun>>;
 
@@ -68,7 +70,23 @@ export default async function RunDetailPage({
         ) : null}
 
         {run ? (
-          <>
+          run.protocol_report?.article ? (
+            <ArticleTabs
+              defaultTab="story"
+              article={<ArticleView article={run.protocol_report.article} />}
+              analyst={<RunAnalystStack run={run} id={id} />}
+            />
+          ) : (
+            <RunAnalystStack run={run} id={id} />
+          )
+        ) : null}
+    </div>
+  );
+}
+
+function RunAnalystStack({ run, id }: { run: RunDetail; id: string }) {
+  return (
+    <>
             <section className="rounded-xl border border-border bg-card p-5 space-y-3">
               <div>
                 <div className="ce-label mb-1">Question</div>
@@ -186,9 +204,7 @@ export default async function RunDetailPage({
                   ))}
               </section>
             ) : null}
-          </>
-        ) : null}
-    </div>
+    </>
   );
 }
 

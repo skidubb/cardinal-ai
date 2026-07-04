@@ -11,6 +11,7 @@ import importlib
 import inspect
 import json
 import logging
+import os
 import re
 import time
 import traceback
@@ -445,6 +446,44 @@ async def run_protocol_stream(
                 }
                 run_warnings.append(TelemetryWarning(**_judge_warning))
 
+        # Article — narrative readout of the completed run. Best-effort: a
+        # failure here logs a warning and never fails the run.
+        article_dict: dict[str, Any] | None = None
+        if envelope.result_summary and os.getenv("ARTICLE_ENABLED", "true").lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
+            try:
+                from protocols.article import ArticleWriter
+                from protocols.tracing import make_client as _make_article_client
+
+                writer = ArticleWriter(
+                    _make_article_client(protocol_id="article_writer")
+                )
+                article = await writer.write(
+                    question=question,
+                    synthesis=envelope.result_summary,
+                    protocol_key=protocol_key,
+                    agent_outputs=[
+                        {"name": o.agent_key, "text": o.text}
+                        for o in envelope.agent_outputs
+                    ],
+                    judge_verdict=judge_verdict_dict,
+                )
+                if not article.is_empty:
+                    article_dict = article.as_dict()
+                    yield _sse_event("article", article_dict)
+            except Exception as article_err:
+                run_warnings.append(
+                    TelemetryWarning(
+                        code="article_failed",
+                        message=f"Article writer failed: {article_err}",
+                        component="article_writer",
+                        recoverable=True,
+                    )
+                )
+
         # Persist outputs
         with Session(engine) as session:
             run = session.get(Run, run_id)
@@ -487,6 +526,15 @@ async def run_protocol_stream(
                             agent_key="_synthesis",
                             model=thinking_model,
                             output_text=envelope.result_summary,
+                        )
+                    )
+                if article_dict:
+                    session.add(
+                        AgentOutput(
+                            run_id=run_id,
+                            agent_key="_article",
+                            model=thinking_model,
+                            output_text=json.dumps(article_dict),
                         )
                     )
                 session.commit()

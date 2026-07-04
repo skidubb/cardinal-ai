@@ -250,11 +250,17 @@ class ServerAgent:
         role: str,
         model: str = "claude-opus-4-7",
         temperature: float | None = None,
+        *,
+        system_prompt: str | None = None,
+        tool_names: list[str] | None = None,
+        kb_namespaces: list[str] | None = None,
+        max_tokens: int | None = None,
+        display_name: str | None = None,
     ):
         self.role = role
         self.model = model
         self.temperature = temperature
-        self.name = _get_agent_name(role)
+        self.name = display_name if display_name else _get_agent_name(role)
         self.cost = 0.0
         self.input_tokens = 0
         self.output_tokens = 0
@@ -262,6 +268,10 @@ class ServerAgent:
         self.tool_calls: list[dict] = []
         self._client: anthropic.AsyncAnthropic | None = None
         self.institutional_memory: str | None = None
+        self._system_prompt_override = system_prompt
+        self._tool_names_override = tool_names
+        self.kb_namespaces = kb_namespaces
+        self._max_tokens_override = max_tokens
 
     @property
     def client(self) -> anthropic.AsyncAnthropic:
@@ -269,20 +279,30 @@ class ServerAgent:
             self._client = anthropic.AsyncAnthropic()
         return self._client
 
+    @property
+    def tools_available(self) -> bool:
+        """Whether this agent's model supports the native Anthropic tool loop."""
+        from protocols.model_catalog import supports_tools
+
+        return supports_tools(self.model)
+
     def _build_system_prompt(self, query: str = "") -> str:
         """Assemble full system prompt: role prompt + business context + memory + lessons."""
-        role_prompts = _get_role_prompts()
-        base = role_prompts.get(self.role, "")
+        if self._system_prompt_override is not None:
+            base = self._system_prompt_override
+        else:
+            role_prompts = _get_role_prompts()
+            base = role_prompts.get(self.role, "")
 
-        # Fall back to BUILTIN_AGENTS system prompt if no rich prompt
-        if not base:
-            try:
-                from protocols.agents import BUILTIN_AGENTS
+            # Fall back to BUILTIN_AGENTS system prompt if no rich prompt
+            if not base:
+                try:
+                    from protocols.agents import BUILTIN_AGENTS
 
-                agent = BUILTIN_AGENTS.get(self.role, {})
-                base = agent.get("system_prompt", f"You are {self.role}.")
-            except ImportError:
-                base = f"You are {self.role}."
+                    agent = BUILTIN_AGENTS.get(self.role, {})
+                    base = agent.get("system_prompt", f"You are {self.role}.")
+                except ImportError:
+                    base = f"You are {self.role}."
 
         sections = [base]
 
@@ -320,18 +340,45 @@ class ServerAgent:
 
     def _resolve_tools(self) -> list[dict]:
         """Get Anthropic-format tool schemas for this agent's role."""
-        tool_map = _get_role_tool_map()
+        if not self.tools_available:
+            return []
+
         schemas = _get_all_tool_schemas()
+
+        if self._tool_names_override is not None:
+            resolved = [
+                schemas[name] for name in self._tool_names_override if name in schemas
+            ]
+            dropped = [
+                name for name in self._tool_names_override if name not in schemas
+            ]
+            if dropped:
+                logger.warning(
+                    "[%s] dropped unknown tool override(s): %s", self.role, dropped
+                )
+            return resolved
+
+        tool_map = _get_role_tool_map()
         tool_names = tool_map.get(self.role, [])
         return [schemas[name] for name in tool_names if name in schemas]
 
     async def chat(self, message: str) -> str:
-        """Send a message and get a response via direct Anthropic API.
+        """Send a message and get a response.
+
+        Anthropic-catalog models use the direct API with the native
+        agentic tool-use loop (below). Gateway models (routed through
+        LiteLLM/Vercel AI Gateway) don't support that tool loop, so they're
+        dispatched to ``_litellm_chat`` instead.
 
         Implements full agentic tool-use loop: if Claude returns tool_use
         blocks, execute them and feed results back until Claude produces
         a final text response or MAX_TOOL_ITERATIONS is reached.
         """
+        from protocols.model_catalog import ModelRoute, resolve_route
+
+        if resolve_route(self.model) == ModelRoute.GATEWAY:
+            return await self._litellm_chat(message)
+
         system_prompt = self._build_system_prompt(query=message)
         tools = self._resolve_tools()
         self.tool_calls = []
@@ -354,7 +401,7 @@ class ServerAgent:
 
         create_kwargs: dict[str, Any] = {
             "model": self.model,
-            "max_tokens": 16_384,
+            "max_tokens": self._max_tokens_override or 16_384,
             "system": system_blocks,
             "messages": messages,
         }
@@ -485,6 +532,57 @@ class ServerAgent:
                 break
 
         return self._extract_text(response)
+
+    async def _litellm_chat(self, message: str) -> str:
+        """Send a message via LiteLLM (Vercel AI Gateway) for non-Anthropic models.
+
+        No tool loop — gateway models in the catalog are marked
+        ``supports_anthropic_tool_loop=False``, so this is a plain single-turn
+        completion. System prompt is a plain string (no cache_control blocks;
+        prompt caching is an Anthropic-specific feature).
+        """
+        import litellm
+
+        from protocols.llm import _retry_api_call
+        from protocols.model_catalog import litellm_id_for
+
+        system_prompt = self._build_system_prompt(query=message)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message},
+        ]
+
+        create_kwargs: dict[str, Any] = {
+            "model": litellm_id_for(self.model),
+            "messages": messages,
+            "max_tokens": self._max_tokens_override or 16_384,
+        }
+        if self.temperature is not None and float(self.temperature) != 1.0:
+            create_kwargs["temperature"] = float(self.temperature)
+
+        self.cost = 0.0
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.cached_tokens = 0
+        self.tool_calls = []
+
+        response = await _retry_api_call(litellm.acompletion, **create_kwargs)
+        self._accumulate_litellm_usage(response)
+
+        return response.choices[0].message.content or ""
+
+    def _accumulate_litellm_usage(self, response: Any) -> None:
+        """Accumulate token usage and cost from a LiteLLM (OpenAI-shape) response."""
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return
+        inp = getattr(usage, "prompt_tokens", 0) or 0
+        out = getattr(usage, "completion_tokens", 0) or 0
+        self.input_tokens += inp
+        self.output_tokens += out
+        from ce_shared.pricing import cost_for_model
+
+        self.cost += cost_for_model(self.model, input_tokens=inp, output_tokens=out)
 
     def _accumulate_usage(self, response: Any) -> None:
         """Accumulate token usage and cost from an API response.

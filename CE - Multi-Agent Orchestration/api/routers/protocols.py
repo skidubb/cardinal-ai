@@ -69,6 +69,7 @@ async def start_protocol_run(
             question=payload.question,
             status="pending",
             tenant_slug=tenant_slug,
+            team_id=payload.team_id,
         )
         session.add(run)
         session.commit()

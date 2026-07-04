@@ -2,15 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Paperclip, X } from "lucide-react";
+import { ArrowRight, Paperclip, Sparkles, Users, X } from "lucide-react";
 import type {
   Agent,
+  AgentSuggestion,
   ModelsResponse,
   Pipeline,
   Protocol,
   RouterDecision,
   Team,
 } from "@/lib/api";
+import { SuggestedAgentCard } from "@/components/agents/SuggestedAgentCard";
 import MemoryBrief from "./MemoryBrief";
 import { ModeSelector, type RunMode } from "@/components/run/ModeSelector";
 import { ProtocolDiagram } from "@/components/run/ProtocolDiagram";
@@ -203,8 +205,11 @@ export default function RunForm({
     };
   }, [mode, question]);
 
+  const [runTeamId, setRunTeamId] = useState<number | null>(null);
+
   function toggleAgent(key: string) {
     setUserEditedAgents(true);
+    setRunTeamId(null);
     setAgentKeys((curr) => (curr.includes(key) ? curr.filter((k) => k !== key) : [...curr, key]));
   }
 
@@ -214,6 +219,7 @@ export default function RunForm({
     if (t) {
       setAgentKeys(t.agent_keys);
       setUserEditedAgents(true);
+      setRunTeamId(t.id);
     }
   }
 
@@ -230,6 +236,87 @@ export default function RunForm({
       alert(`Saved team "${name}". Reload to see it in the dropdown.`);
     } catch (e: unknown) {
       alert(`Save failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  const [suggestion, setSuggestion] = useState<AgentSuggestion | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [creatingSuggestedTeam, setCreatingSuggestedTeam] = useState(false);
+
+  async function fetchAgentSuggestions() {
+    if (!question.trim() || suggesting) return;
+    setSuggesting(true);
+    setSuggestError(null);
+    try {
+      const resp = await fetch("/api/proxy/agents/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          ...(mode === "protocol" && protocolKey ? { protocol_key: protocolKey } : {}),
+        }),
+      });
+      if (!resp.ok) {
+        throw new Error(`${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+      }
+      setSuggestion((await resp.json()) as AgentSuggestion);
+      setSuggestOpen(true);
+    } catch (e) {
+      setSuggestError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  function onSuggestedAgentCreated(key: string) {
+    setUserEditedAgents(true);
+    setRunTeamId(null);
+    setAgentKeys((curr) => (curr.includes(key) ? curr : [...curr, key]));
+  }
+
+  async function createSuggestedTeamAndUse() {
+    const team = suggestion?.team;
+    if (!team) return;
+    setSuggestError(null);
+    setCreatingSuggestedTeam(true);
+    try {
+      const newAgentsByKey = new Map((suggestion?.new_agents ?? []).map((a) => [a.key, a]));
+      for (const key of team.agent_keys) {
+        const spec = newAgentsByKey.get(key);
+        if (!spec) continue;
+        const resp = await fetch("/api/proxy/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(spec),
+        });
+        if (!resp.ok && resp.status !== 409) {
+          const text = await resp.text().catch(() => "");
+          throw new Error(`Creating ${key} failed: ${resp.status} ${text.slice(0, 200)}`);
+        }
+      }
+      const teamResp = await fetch("/api/proxy/teams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: team.name,
+          description: team.description,
+          agent_keys: team.agent_keys,
+        }),
+      });
+      if (!teamResp.ok) {
+        const text = await teamResp.text().catch(() => "");
+        throw new Error(`Creating team failed: ${teamResp.status} ${text.slice(0, 200)}`);
+      }
+      const createdTeam = (await teamResp.json()) as { id?: number };
+      setAgentKeys(team.agent_keys);
+      setUserEditedAgents(true);
+      setRunTeamId(typeof createdTeam.id === "number" ? createdTeam.id : null);
+    } catch (e) {
+      setSuggestError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCreatingSuggestedTeam(false);
     }
   }
 
@@ -326,6 +413,7 @@ export default function RunForm({
         if (thinkingModel && thinkingModel !== defaultThinkingModel) {
           fd.append("thinking_model", thinkingModel);
         }
+        if (runTeamId != null) fd.append("team_id", String(runTeamId));
         for (const f of attachedFiles) fd.append("files", f);
         body = fd;
       } else {
@@ -339,6 +427,7 @@ export default function RunForm({
           ...(thinkingModel && thinkingModel !== defaultThinkingModel
             ? { thinking_model: thinkingModel }
             : {}),
+          ...(runTeamId != null ? { team_id: runTeamId } : {}),
         };
       }
     }
@@ -834,6 +923,80 @@ export default function RunForm({
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-3 border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={fetchAgentSuggestions}
+                disabled={running || suggesting || !question.trim()}
+                className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-primary disabled:opacity-40"
+              >
+                <Sparkles size={11} />
+                {suggesting ? "Suggesting…" : "Bench doesn't fit? Suggest agents"}
+              </button>
+              {suggestError ? (
+                <div className="mt-1.5 text-[11px] text-destructive">{suggestError}</div>
+              ) : null}
+              {suggestOpen && suggestion ? (
+                <div className="mt-3 space-y-3">
+                  {suggestion.existing_agents.length > 0 ? (
+                    <div className="space-y-1">
+                      <div className="ce-label text-[10px]">From the existing bench</div>
+                      <div className="flex flex-wrap gap-1">
+                        {suggestion.existing_agents.map((a) => (
+                          <button
+                            key={a.key}
+                            type="button"
+                            onClick={() => onSuggestedAgentCreated(a.key)}
+                            disabled={running}
+                            title={a.rationale}
+                            className={`rounded border px-2 py-1 text-xs transition-colors ${
+                              agentKeys.includes(a.key)
+                                ? "border-primary/40 bg-primary/15 text-primary"
+                                : "border-border bg-background text-foreground hover:border-primary/50"
+                            } disabled:opacity-50`}
+                          >
+                            {a.key}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {suggestion.new_agents.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="ce-label text-[10px]">Suggested new specialists</div>
+                      {suggestion.new_agents.map((spec) => (
+                        <SuggestedAgentCard
+                          key={spec.key}
+                          spec={spec}
+                          onCreated={onSuggestedAgentCreated}
+                          disabled={running}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {suggestion.team ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5">
+                      <Users size={13} className="shrink-0 text-primary" />
+                      <span className="text-xs font-medium text-foreground">
+                        {suggestion.team.name}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {suggestion.team.agent_keys.join(", ")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={createSuggestedTeamAndUse}
+                        disabled={running || creatingSuggestedTeam}
+                        className="ml-auto rounded-md border border-primary/40 bg-background px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                      >
+                        {creatingSuggestedTeam ? "Creating…" : "Create team & use"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </section>
         </div>

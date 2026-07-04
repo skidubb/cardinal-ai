@@ -141,6 +141,41 @@ def test_gemini_flash_lookup():
     assert output_rate == 0.40
 
 
+def test_opus_4_8_lookup():
+    """Claude Opus 4.8 has explicit pricing entry."""
+    input_rate, output_rate = get_pricing("claude-opus-4-8")
+    assert input_rate == 5.00
+    assert output_rate == 25.00
+
+
+def test_fable_5_lookup():
+    """Claude Fable 5 has explicit pricing entry."""
+    input_rate, output_rate = get_pricing("claude-fable-5")
+    assert input_rate == 10.00
+    assert output_rate == 50.00
+
+
+def test_sonnet_5_lookup():
+    """Claude Sonnet 5 has explicit (intro) pricing entry."""
+    input_rate, output_rate = get_pricing("claude-sonnet-5")
+    assert input_rate == 2.00
+    assert output_rate == 10.00
+
+
+def test_deepseek_v4_flash_lookup():
+    """DeepSeek V4 Flash has explicit pricing entry."""
+    input_rate, output_rate = get_pricing("deepseek-v4-flash")
+    assert input_rate == 0.14
+    assert output_rate == 0.28
+
+
+def test_fable_dated_variant_falls_back():
+    """A dated Fable 5 variant not in MODEL_PRICING falls back via substring match."""
+    input_rate, output_rate = get_pricing("claude-fable-5-20260609")
+    assert input_rate == 10.00
+    assert output_rate == 50.00
+
+
 # ---------------------------------------------------------------------------
 # 11. ModelTier is a StrEnum with 3 members
 # ---------------------------------------------------------------------------

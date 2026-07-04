@@ -20,6 +20,8 @@ from typing import Any, Callable, Coroutine
 import anthropic
 import litellm
 
+from protocols import model_catalog
+
 _log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -31,15 +33,19 @@ _RETRY_DELAYS = (1.0, 2.0, 4.0)  # seconds before each retry attempt
 
 def _is_retryable(exc: BaseException) -> bool:
     """Return True for transient API errors that warrant a retry."""
-    if isinstance(exc, (
-        anthropic.RateLimitError,
-        anthropic.APIConnectionError,
-    )):
+    if isinstance(
+        exc,
+        (
+            anthropic.RateLimitError,
+            anthropic.APIConnectionError,
+        ),
+    ):
         return True
     if isinstance(exc, anthropic.APIStatusError) and exc.status_code >= 500:
         return True
     try:
         import litellm.exceptions as _lx
+
         if isinstance(exc, _lx.RateLimitError):
             return True
     except (ImportError, AttributeError):
@@ -82,7 +88,9 @@ async def _retry_api_call(
 
 
 # Context-propagated event queue for live tool visibility
-_event_queue: ContextVar[asyncio.Queue | None] = ContextVar("_event_queue", default=None)
+_event_queue: ContextVar[asyncio.Queue | None] = ContextVar(
+    "_event_queue", default=None
+)
 
 # Context-propagated no_tools flag — protocol-level tool disable
 _no_tools: ContextVar[bool] = ContextVar("_no_tools", default=False)
@@ -165,6 +173,7 @@ def _record_usage(
         # Lazy default tracker gives CLI parity without per-runner wiring.
         try:
             from protocols.cost_tracker import ProtocolCostTracker
+
             tracker = ProtocolCostTracker()
             _cost_tracker.set(tracker)
         except Exception:
@@ -177,7 +186,9 @@ def _record_usage(
                 output_tokens,
                 cached_tokens,
                 agent_name=agent_name,
-                cache_write_tokens=cache_write_tokens if token_source == "sdk_response" else 0,
+                cache_write_tokens=cache_write_tokens
+                if token_source == "sdk_response"
+                else 0,
             )
         except TypeError:
             # Backward compatibility for custom trackers.
@@ -195,12 +206,19 @@ def _record_usage(
     try:
         from protocols.langfuse_tracing import record_generation
         from protocols.cost_tracker import _compute_cost
+
         _cw = cache_write_tokens if token_source == "sdk_response" else 0
-        call_cost = cost_usd if cost_usd is not None else _compute_cost(
-            model, input_tokens, output_tokens, cached_tokens, _cw
+        call_cost = (
+            cost_usd
+            if cost_usd is not None
+            else _compute_cost(model, input_tokens, output_tokens, cached_tokens, _cw)
         )
         record_generation(
-            model, input_tokens, output_tokens, cached_tokens, agent_name,
+            model,
+            input_tokens,
+            output_tokens,
+            cached_tokens,
+            agent_name,
             cost_usd=call_cost,
             input_content=input_messages,
             output_content=response_text,
@@ -249,6 +267,52 @@ def _apply_cache_control(kwargs: dict) -> dict:
     }
 
 
+async def _litellm_complete(*, agent_name: str | None = None, **kwargs) -> str:
+    """Gateway-routed counterpart of llm_complete for non-Anthropic models.
+
+    Mirrors the LiteLLM path in ``_agent_complete_inner``: converts the
+    Anthropic-style ``system`` kwarg (string or cache_control block list) into
+    a leading ``{"role": "system"}`` message, maps ``model`` through
+    ``model_catalog.litellm_id_for``, and drops Anthropic-only params
+    (``thinking``, cache_control) that LiteLLM/OpenAI-style backends reject.
+
+    Returns plain text, matching llm_complete's return contract so callers
+    (parse_json_object, extract_text, etc.) work unchanged regardless of route.
+    """
+    original_model = kwargs.get("model", "unknown")
+    system = kwargs.pop("system", None)
+    messages = list(kwargs.pop("messages", []))
+
+    system_text: str | None = None
+    if isinstance(system, list):
+        parts = [b.get("text", "") for b in system if isinstance(b, dict)]
+        system_text = "\n".join(p for p in parts if p)
+    elif isinstance(system, str):
+        system_text = system
+
+    lite_messages = []
+    if system_text:
+        lite_messages.append({"role": "system", "content": system_text})
+    lite_messages.extend(messages)
+
+    lite_kwargs: dict = {
+        "model": model_catalog.litellm_id_for(original_model),
+        "messages": lite_messages,
+    }
+    if "max_tokens" in kwargs:
+        lite_kwargs["max_tokens"] = kwargs["max_tokens"]
+    if "temperature" in kwargs:
+        lite_kwargs["temperature"] = kwargs["temperature"]
+    # Anthropic-only params (thinking, cache_control) are intentionally not
+    # forwarded — gateway models don't support them.
+
+    response = await _retry_api_call(litellm.acompletion, **lite_kwargs)
+    _record_usage(
+        original_model, response, agent_name=agent_name, input_messages=lite_messages
+    )
+    return response.choices[0].message.content or ""
+
+
 async def llm_complete(
     client: anthropic.AsyncAnthropic,
     *,
@@ -272,15 +336,27 @@ async def llm_complete(
     to a list-of-blocks with cache_control on the last block. Reads are 0.1×
     the normal input cost; profitable after a single cache hit within 5 min.
 
+    Models routed to the gateway (``model_catalog.resolve_route``) bypass
+    Anthropic prompt caching entirely and dispatch through LiteLLM instead —
+    the Anthropic client path below stays byte-identical for Anthropic models.
+
     Args:
         client: Anthropic async client instance.
         agent_name: Label for cost/trace attribution (e.g. "dedup", "synthesis").
         **kwargs: Passed directly to client.messages.create().
     """
+    if (
+        model_catalog.resolve_route(kwargs.get("model", ""))
+        == model_catalog.ModelRoute.GATEWAY
+    ):
+        return await _litellm_complete(agent_name=agent_name, **kwargs)
+
     kwargs = _apply_cache_control(kwargs)
     response = await _retry_api_call(client.messages.create, **kwargs)
     model = kwargs.get("model", "unknown")
-    _record_usage(model, response, agent_name=agent_name, input_messages=kwargs.get("messages"))
+    _record_usage(
+        model, response, agent_name=agent_name, input_messages=kwargs.get("messages")
+    )
     return extract_text(response)
 
 
@@ -298,9 +374,7 @@ def _model_accepts_temperature(model: str) -> bool:
         return True
     low = model.lower()
     return not (
-        "claude-opus-4" in low
-        or "claude-sonnet-4" in low
-        or "claude-haiku-4" in low
+        "claude-opus-4" in low or "claude-sonnet-4" in low or "claude-haiku-4" in low
     )
 
 
@@ -332,7 +406,11 @@ async def agent_complete(
         Response text as a string.
     """
     # Resolve agent name for lifecycle events
-    agent_name = getattr(agent, "name", None) or (agent.get("name") if isinstance(agent, dict) else None) or "unknown"
+    agent_name = (
+        getattr(agent, "name", None)
+        or (agent.get("name") if isinstance(agent, dict) else None)
+        or "unknown"
+    )
     eq = get_event_queue()
 
     # Emit agent_start event
@@ -341,8 +419,15 @@ async def agent_complete(
 
     try:
         return await _agent_complete_inner(
-            agent, fallback_model, messages, thinking_budget,
-            max_tokens, anthropic_client, system, tools, no_tools,
+            agent,
+            fallback_model,
+            messages,
+            thinking_budget,
+            max_tokens,
+            anthropic_client,
+            system,
+            tools,
+            no_tools,
             agent_name,
         )
     finally:
@@ -393,6 +478,7 @@ async def _agent_complete_inner(
             # Legacy SDK agent — estimate tokens from cost
             try:
                 from ce_shared.pricing import estimate_tokens_from_cost
+
                 est = estimate_tokens_from_cost(fallback_model, cost_usd)
             except ImportError:
                 est = {"input_tokens": 0, "output_tokens": 0}
@@ -432,7 +518,9 @@ async def _agent_complete_inner(
     ):
         _log.warning(
             "agent %s: temperature=%s ignored — model %s does not accept temperature",
-            agent.get("name", "unknown"), agent_temperature, target_model,
+            agent.get("name", "unknown"),
+            agent_temperature,
+            target_model,
         )
 
     if agent_model:
@@ -448,7 +536,11 @@ async def _agent_complete_inner(
             "max_tokens": max_tokens,
         }
 
-        if _is_anthropic_model(agent_model) and thinking_budget > 0 and not custom_temperature:
+        if (
+            _is_anthropic_model(agent_model)
+            and thinking_budget > 0
+            and not custom_temperature
+        ):
             # Claude 4.x uses adaptive thinking. budget_tokens is rejected
             # by the API in adaptive mode — use output_config.effort to
             # control depth instead (model picks budget per-turn).
@@ -461,14 +553,17 @@ async def _agent_complete_inner(
             kwargs["tools"] = tools
 
         response = await _retry_api_call(litellm.acompletion, **kwargs)
-        _record_usage(agent_model, response, agent_name=agent.get("name"), input_messages=litellm_messages)
+        _record_usage(
+            agent_model,
+            response,
+            agent_name=agent.get("name"),
+            input_messages=litellm_messages,
+        )
         return response.choices[0].message.content
 
     # Anthropic SDK fallback — orchestrator's model, preserves tracing
     if anthropic_client is None:
-        raise ValueError(
-            "anthropic_client is required when agent has no 'model' field"
-        )
+        raise ValueError("anthropic_client is required when agent has no 'model' field")
 
     # Resolve tools: explicit param > agent-level schemas > agent tool key strings
     if not effective_no_tools:
@@ -478,6 +573,7 @@ async def _agent_complete_inner(
         if not effective_tools and agent.get("tools"):
             try:
                 from csuite.tools.schemas import ALL_TOOL_SCHEMAS
+
                 effective_tools = [
                     ALL_TOOL_SCHEMAS[t] for t in agent["tools"] if t in ALL_TOOL_SCHEMAS
                 ]
@@ -508,7 +604,9 @@ async def _agent_complete_inner(
     create_kwargs = _apply_cache_control(create_kwargs)
 
     response = await _retry_api_call(anthropic_client.messages.create, **create_kwargs)
-    _record_usage(fallback_model, response, agent_name=agent.get("name"), input_messages=messages)
+    _record_usage(
+        fallback_model, response, agent_name=agent.get("name"), input_messages=messages
+    )
 
     # If no tools or no tool_use in response, return text directly
     if not effective_tools or response.stop_reason != "tool_use":
@@ -529,25 +627,32 @@ async def _agent_complete_inner(
             if block.type == "tool_use":
                 # Push tool_call event
                 if eq is not None:
-                    input_summary = json.dumps(block.input)[:500] if block.input else "{}"
-                    await eq.put({
-                        "event": "tool_call",
-                        "agent_name": agent_name,
-                        "tool_name": block.name,
-                        "tool_input": input_summary,
-                        "iteration": iteration,
-                    })
+                    input_summary = (
+                        json.dumps(block.input)[:500] if block.input else "{}"
+                    )
+                    await eq.put(
+                        {
+                            "event": "tool_call",
+                            "agent_name": agent_name,
+                            "tool_name": block.name,
+                            "tool_input": input_summary,
+                            "iteration": iteration,
+                        }
+                    )
 
                 # Langfuse span for tool call
                 try:
                     from protocols.langfuse_tracing import create_span, end_span
+
                     tool_span = create_span(
                         f"tool:{block.name}",
                         metadata={
                             "agent_name": agent_name,
                             "tool_name": block.name,
                             "iteration": iteration,
-                            "input": json.dumps(block.input)[:1000] if block.input else "{}",
+                            "input": json.dumps(block.input)[:1000]
+                            if block.input
+                            else "{}",
                         },
                     )
                 except Exception:
@@ -558,26 +663,31 @@ async def _agent_complete_inner(
                 # End Langfuse tool span
                 try:
                     from protocols.langfuse_tracing import end_span
+
                     end_span(tool_span, output=result[:1000])
                 except Exception:
                     pass
 
                 # Push tool_result event
                 if eq is not None:
-                    await eq.put({
-                        "event": "tool_result",
-                        "agent_name": agent_name,
-                        "tool_name": block.name,
-                        "result_preview": result[:500],
-                        "elapsed_ms": round(elapsed_ms, 1),
-                        "iteration": iteration,
-                    })
+                    await eq.put(
+                        {
+                            "event": "tool_result",
+                            "agent_name": agent_name,
+                            "tool_name": block.name,
+                            "result_preview": result[:500],
+                            "elapsed_ms": round(elapsed_ms, 1),
+                            "iteration": iteration,
+                        }
+                    )
 
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": result,
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result,
+                    }
+                )
 
         if not tool_results:
             break
@@ -588,7 +698,12 @@ async def _agent_complete_inner(
             anthropic_client.messages.create,
             **{**create_kwargs, "messages": loop_messages},
         )
-        _record_usage(fallback_model, response, agent_name=agent.get("name"), input_messages=loop_messages)
+        _record_usage(
+            fallback_model,
+            response,
+            agent_name=agent.get("name"),
+            input_messages=loop_messages,
+        )
 
         if response.stop_reason != "tool_use":
             break
@@ -695,7 +810,11 @@ def parse_json_array(text: str) -> list:
     obj_start = text.find("{")
 
     extracted = text
-    if bare_start != -1 and bare_end != -1 and (obj_start == -1 or bare_start < obj_start):
+    if (
+        bare_start != -1
+        and bare_end != -1
+        and (obj_start == -1 or bare_start < obj_start)
+    ):
         extracted = text[bare_start : bare_end + 1]
     elif obj_start != -1:
         obj_end = text.rfind("}")
@@ -709,9 +828,17 @@ def parse_json_array(text: str) -> list:
         if isinstance(parsed, dict):
             # Common keys LLMs pick for the wrapping object
             for key in (
-                "items", "data", "results", "array", "list",
-                "conditions", "options", "initiatives", "values",
-                "entries", "elements",
+                "items",
+                "data",
+                "results",
+                "array",
+                "list",
+                "conditions",
+                "options",
+                "initiatives",
+                "values",
+                "entries",
+                "elements",
             ):
                 if key in parsed and isinstance(parsed[key], list):
                     return parsed[key]
@@ -741,7 +868,9 @@ def parse_json_array(text: str) -> list:
         try:
             return _unwrap_if_object(json.loads(repaired))
         except (json.JSONDecodeError, ValueError):
-            raise ValueError(f"Cannot parse JSON array (len={len(text)}): {text[:200]}...")
+            raise ValueError(
+                f"Cannot parse JSON array (len={len(text)}): {text[:200]}..."
+            )
 
 
 def parse_json_object(text: str) -> dict:

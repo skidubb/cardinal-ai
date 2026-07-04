@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, Link2, Sparkles } from "lucide-react";
+import { FileText, Link2, Sparkles, Users } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import type { Agent, Protocol } from "@/lib/api";
+import type {
+  Agent,
+  Protocol,
+  SuggestedAgentPick,
+  SuggestedNewAgent,
+  SuggestedTeam,
+} from "@/lib/api";
+import { SuggestedAgentCard } from "@/components/agents/SuggestedAgentCard";
 
 type Severity = "high" | "medium" | "low";
 
@@ -23,6 +30,9 @@ type DiscoveredQuestion = {
   suggested_protocol: string;
   suggested_protocol_name?: string | null;
   suggested_protocols?: ProtocolMatch[];
+  suggested_agents?: SuggestedAgentPick[];
+  suggested_new_agents?: SuggestedNewAgent[];
+  suggested_team?: SuggestedTeam | null;
 };
 
 type DiscoverResult = {
@@ -361,9 +371,13 @@ function QuestionCard({
   const matches = rankedMatches(q);
   const [selectedKey, setSelectedKey] = useState(matches[0]?.key ?? "");
   const selectedProtocol = protocolByKey.get(selectedKey);
-  const [agentKeys, setAgentKeys] = useState<string[]>(() => defaultAgentsFor(selectedProtocol));
+  const [agentKeys, setAgentKeys] = useState<string[]>(() => {
+    const suggested = (q.suggested_agents ?? []).map((a) => a.key);
+    return suggested.length > 0 ? suggested : defaultAgentsFor(selectedProtocol);
+  });
   const [userEdited, setUserEdited] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const [creatingTeam, setCreatingTeam] = useState(false);
   const router = useRouter();
 
   function pickProtocol(key: string) {
@@ -381,12 +395,17 @@ function QuestionCard({
     );
   }
 
-  function startRun() {
+  function onNewAgentCreated(key: string) {
+    setUserEdited(true);
+    setAgentKeys((curr) => (curr.includes(key) ? curr : [...curr, key]));
+  }
+
+  function startRun(withAgentKeys: string[] = agentKeys) {
     if (!selectedKey) {
       setRunError("Pick a protocol first.");
       return;
     }
-    if (agentKeys.length === 0) {
+    if (withAgentKeys.length === 0) {
       setRunError("Pick at least one agent.");
       return;
     }
@@ -394,9 +413,50 @@ function QuestionCard({
     const params = new URLSearchParams({
       question: q.text,
       protocol: selectedKey,
-      agents: agentKeys.join(","),
+      agents: withAgentKeys.join(","),
     });
     router.push(`/run?${params.toString()}`);
+  }
+
+  async function createTeamAndRun() {
+    const team = q.suggested_team;
+    if (!team) return;
+    setRunError(null);
+    setCreatingTeam(true);
+    try {
+      const newAgentsByKey = new Map((q.suggested_new_agents ?? []).map((a) => [a.key, a]));
+      for (const key of team.agent_keys) {
+        const spec = newAgentsByKey.get(key);
+        if (!spec) continue;
+        const resp = await fetch("/api/proxy/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(spec),
+        });
+        if (!resp.ok && resp.status !== 409) {
+          const text = await resp.text().catch(() => "");
+          throw new Error(`Creating ${key} failed: ${resp.status} ${text.slice(0, 200)}`);
+        }
+      }
+      const teamResp = await fetch("/api/proxy/teams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: team.name,
+          description: team.description,
+          agent_keys: team.agent_keys,
+        }),
+      });
+      if (!teamResp.ok) {
+        const text = await teamResp.text().catch(() => "");
+        throw new Error(`Creating team failed: ${teamResp.status} ${text.slice(0, 200)}`);
+      }
+      startRun(team.agent_keys);
+    } catch (e) {
+      setRunError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCreatingTeam(false);
+    }
   }
 
   // Group agents by category for the picker — same shape as RunForm.
@@ -525,6 +585,35 @@ function QuestionCard({
         </div>
       </div>
 
+      {q.suggested_new_agents && q.suggested_new_agents.length > 0 ? (
+        <div className="space-y-2">
+          <div className="ce-label text-[10px]">Suggested new specialists</div>
+          <div className="space-y-2">
+            {q.suggested_new_agents.map((spec) => (
+              <SuggestedAgentCard key={spec.key} spec={spec} onCreated={onNewAgentCreated} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {q.suggested_team ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5">
+          <Users size={13} className="shrink-0 text-primary" />
+          <span className="text-xs font-medium text-foreground">{q.suggested_team.name}</span>
+          <span className="text-[11px] text-muted-foreground">
+            {q.suggested_team.agent_keys.join(", ")}
+          </span>
+          <button
+            type="button"
+            onClick={createTeamAndRun}
+            disabled={creatingTeam}
+            className="ml-auto rounded-md border border-primary/40 bg-background px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+          >
+            {creatingTeam ? "Creating…" : "Create team & run"}
+          </button>
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] text-muted-foreground">
           <span className="ce-label mr-1.5">Will run:</span>
@@ -536,7 +625,7 @@ function QuestionCard({
         </span>
         <button
           type="button"
-          onClick={startRun}
+          onClick={() => startRun()}
           disabled={!selectedKey || agentKeys.length === 0}
           className="rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-[rgb(var(--ce-indigo-500))] disabled:opacity-50"
         >

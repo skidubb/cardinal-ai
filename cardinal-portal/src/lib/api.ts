@@ -87,6 +87,38 @@ export type ToolCall = {
   id?: string;
 };
 
+export type ArticleByline = {
+  protocol: string;
+  agents: string[];
+  generated_at: string;
+};
+
+export type ArticlePullQuote = {
+  text: string;
+  attribution: string;
+};
+
+export type ArticleSection = {
+  heading: string;
+  body_markdown: string;
+  pull_quote: ArticlePullQuote | null;
+};
+
+export type ArticleTension = {
+  framing: string;
+  sides: string[];
+};
+
+export type Article = {
+  headline: string;
+  deck: string;
+  byline: ArticleByline;
+  lede: string;
+  sections: ArticleSection[];
+  tensions: ArticleTension[];
+  what_next: string;
+};
+
 export type ProtocolReport = {
   participants: string[];
   executive_summary: string;
@@ -106,6 +138,7 @@ export type ProtocolReport = {
   cost_summary: Record<string, unknown>;
   metadata: Record<string, unknown>;
   audit: RunAudit | Record<string, never>;
+  article?: Article | null;
 };
 
 export async function fetchRun(id: string): Promise<Run & {
@@ -217,6 +250,40 @@ export type Agent = {
 export async function fetchAgents(): Promise<Agent[]> {
   return authedFetch<Agent[]>("/api/agents");
 }
+
+// ---- Agent suggestion (bench doesn't fit -> suggest existing/new agents + a team) ----
+
+export type SuggestedAgentPick = {
+  key: string;
+  name: string;
+  category: string;
+  score: number;
+  rationale: string;
+};
+
+export type SuggestedNewAgent = {
+  key: string;
+  name: string;
+  category: string;
+  model: string;
+  temperature: number;
+  system_prompt: string;
+  tools: string[];
+  kb_namespaces: string[];
+  rationale: string;
+};
+
+export type SuggestedTeam = {
+  name: string;
+  description: string;
+  agent_keys: string[];
+};
+
+export type AgentSuggestion = {
+  existing_agents: SuggestedAgentPick[];
+  new_agents: SuggestedNewAgent[];
+  team: SuggestedTeam | null;
+};
 
 // ---- Models (catalog of thinking/orchestration models) ----
 

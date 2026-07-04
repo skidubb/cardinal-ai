@@ -127,6 +127,8 @@
 
   --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif-display: var(--font-serif-display), Georgia, "Times New Roman", serif;
+  --font-serif-text: var(--font-serif-text), Georgia, "Times New Roman", serif;
 
   --radius-sm: 0.5rem;
   --radius-md: 0.625rem;
@@ -263,4 +265,65 @@ body {
   }
   .anim-shimmer { background-image: none; background-color: rgb(var(--ce-indigo-400) / 0.4); }
   .anim-draw-line { transform: scaleY(1); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Article view — editorial "Story" rendering of a protocol_report.article.
+ * Newsreader for display/headlines, Source Serif 4 for reading copy.
+ * ─────────────────────────────────────────────────────────────────── */
+
+.article-prose {
+  font-family: var(--font-serif-text);
+  font-size: 1.125rem;
+  line-height: 1.75;
+  max-width: 65ch;
+  margin-left: auto;
+  margin-right: auto;
+  color: rgb(var(--foreground));
+}
+
+.article-prose p {
+  margin-top: 0;
+  margin-bottom: 1.25em;
+}
+
+.article-lede > p:first-child::first-letter {
+  float: left;
+  font-family: var(--font-serif-display);
+  font-size: 3.2em;
+  line-height: 0.85;
+  font-weight: 600;
+  padding-right: 0.08em;
+  padding-top: 0.05em;
+  color: rgb(var(--primary));
+}
+
+.article-pull-quote {
+  font-family: var(--font-serif-display);
+  font-style: italic;
+  font-size: 1.5rem;
+  line-height: 1.4;
+  color: rgb(var(--foreground));
+  border-top: 1px solid rgb(var(--border));
+  border-bottom: 1px solid rgb(var(--border));
+  padding: 1.5rem 0;
+  margin: 2rem auto;
+  max-width: 42rem;
+  text-align: center;
+}
+
+.article-pull-quote-attribution {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  color: rgb(var(--muted-foreground));
+  margin-top: 0.75rem;
+}
+
+.article-end-mark {
+  display: inline-block;
+  margin-left: 0.4em;
+  color: rgb(var(--primary));
 }

@@ -20,6 +20,7 @@ from ce_shared.env import (
 
 # ---- 1. Parent traversal ----
 
+
 def test_find_dotenv_traverses_parents(tmp_path: Path) -> None:
     """_find_dotenv should walk up from CWD to find .env with sentinel."""
     # Set up: root has .env + ce-shared/ sentinel
@@ -41,7 +42,10 @@ def test_find_dotenv_traverses_parents(tmp_path: Path) -> None:
 
 # ---- 2. Loading vars ----
 
-def test_find_and_load_dotenv_loads_vars(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+
+def test_find_and_load_dotenv_loads_vars(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """find_and_load_dotenv should load vars from .env into os.environ."""
     root = tmp_path / "root"
     root.mkdir()
@@ -62,6 +66,7 @@ def test_find_and_load_dotenv_loads_vars(tmp_path: Path, monkeypatch: pytest.Mon
 
 # ---- 3. override=False ----
 
+
 def test_override_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Shell-exported vars should take precedence over .env file values."""
     root = tmp_path / "root"
@@ -80,6 +85,7 @@ def test_override_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
 
 # ---- 4. Missing required raises ----
 
+
 def test_validate_missing_required_raises(
     clean_env: None,  # noqa: ARG001
 ) -> None:
@@ -89,6 +95,7 @@ def test_validate_missing_required_raises(
 
 
 # ---- 5. Missing optional warns ----
+
 
 def test_validate_missing_optional_warns(
     populated_env: None,  # noqa: ARG001
@@ -104,6 +111,7 @@ def test_validate_missing_optional_warns(
 
 
 # ---- 6. Project filter ----
+
 
 def test_validate_project_filter(monkeypatch: pytest.MonkeyPatch) -> None:
     """With project='agent-builder', only agent-builder keys are checked."""
@@ -128,6 +136,7 @@ def test_validate_project_filter(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ---- 7. Registry completeness ----
 
+
 def test_key_registry_completeness() -> None:
     """ANTHROPIC_API_KEY must be in the registry and marked required."""
     assert "ANTHROPIC_API_KEY" in KEY_REGISTRY
@@ -137,3 +146,14 @@ def test_key_registry_completeness() -> None:
     assert "agent-builder" in meta.required_by
     assert "orchestration" in meta.required_by
     assert "evals" in meta.required_by
+
+
+# ---- 8. Vercel AI Gateway key registered and optional ----
+
+
+def test_vercel_ai_gateway_key_registered() -> None:
+    """VERCEL_AI_GATEWAY_API_KEY must be in the registry and marked optional."""
+    assert "VERCEL_AI_GATEWAY_API_KEY" in KEY_REGISTRY
+    meta = KEY_REGISTRY["VERCEL_AI_GATEWAY_API_KEY"]
+    assert isinstance(meta, KeyMeta)
+    assert meta.required is False
