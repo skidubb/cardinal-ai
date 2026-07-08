@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { parseUpgradeDetail } from "@/lib/upgrade";
 
 const SCOPES = ["global", "client", "engagement", "protocol", "agent", "decision"] as const;
 
@@ -46,7 +47,9 @@ export default function NewCorrectionForm({
         }),
       });
       if (!resp.ok) {
-        throw new Error(`${resp.status}: ${(await resp.text()).slice(0, 200)}`);
+        const body = await resp.text();
+        const upgrade = parseUpgradeDetail(body);
+        throw new Error(upgrade ? upgrade.message : `${resp.status}: ${body.slice(0, 200)}`);
       }
       setText("");
       setReason("");

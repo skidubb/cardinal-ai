@@ -23,29 +23,10 @@ import { RunHeartbeat } from "@/components/run/RunHeartbeat";
 import { RunActivityLog } from "@/components/run/RunActivityLog";
 import { buildRunTimeline } from "@/components/run/runTimeline";
 import { Markdown } from "@/components/ui/markdown";
-import { UpgradeCard, type UpgradeDetail } from "@/components/billing/UpgradeCard";
+import { UpgradeCard } from "@/components/billing/UpgradeCard";
+import { parseUpgradeDetail, type UpgradeDetail } from "@/lib/upgrade";
 
 type SseEvent = { event: string; data: Record<string, unknown>; receivedAt: number };
-
-function parseUpgradeDetail(bodyText: string): UpgradeDetail | null {
-  try {
-    const parsed = JSON.parse(bodyText) as { detail?: Record<string, unknown> };
-    const detail = parsed.detail;
-    if (!detail || (detail.code !== "quota_exceeded" && detail.code !== "feature_required")) {
-      return null;
-    }
-    return {
-      code: String(detail.code),
-      message: String(detail.message ?? "Upgrade required."),
-      plan: typeof detail.plan === "string" ? detail.plan : undefined,
-      used: typeof detail.used === "number" ? detail.used : undefined,
-      limit: typeof detail.limit === "number" ? detail.limit : undefined,
-      feature: typeof detail.feature === "string" ? detail.feature : undefined,
-    };
-  } catch {
-    return null;
-  }
-}
 
 type AgentTrace = {
   agent_key: string;

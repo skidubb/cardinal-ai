@@ -2,16 +2,20 @@ import Link from "next/link";
 import { ArrowRight, Plug } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { fetchGraphStats } from "@/lib/api";
+import { parseUpgradeDetail, type UpgradeDetail } from "@/lib/upgrade";
+import { UpgradeCard } from "@/components/billing/UpgradeCard";
 
 export default async function KnowledgePage() {
   const { orgSlug } = await auth();
 
   let graph: Awaited<ReturnType<typeof fetchGraphStats>> | null = null;
   let graphError: string | null = null;
+  let upgrade: UpgradeDetail | null = null;
   try {
     graph = await fetchGraphStats();
   } catch (e: unknown) {
     graphError = e instanceof Error ? e.message : String(e);
+    upgrade = parseUpgradeDetail(graphError);
   }
 
   return (
@@ -33,7 +37,9 @@ export default async function KnowledgePage() {
             <span className="font-mono text-xs text-muted-foreground">{graph.graph_name}</span>
           ) : null}
         </div>
-        {graphError ? (
+        {upgrade ? (
+          <UpgradeCard {...upgrade} />
+        ) : graphError ? (
           <div className="text-sm text-muted-foreground">
             Graph not yet provisioned for this tenant.
             <div className="mt-1">

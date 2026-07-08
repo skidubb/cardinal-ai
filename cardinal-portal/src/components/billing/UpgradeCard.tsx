@@ -1,15 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import type { UpgradeDetail } from "@/lib/upgrade";
 
-export type UpgradeDetail = {
-  code: string;
-  message: string;
-  plan?: string;
-  used?: number;
-  limit?: number;
-  feature?: string;
-};
+export type { UpgradeDetail };
 
 export function UpgradeCard({ code, message, plan, used, limit, feature }: UpgradeDetail) {
   const title = code === "feature_required" ? "Feature not available on your plan" : "Plan limit reached";

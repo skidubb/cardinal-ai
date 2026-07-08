@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { fetchGraphSubgraph } from "@/lib/api";
+import { parseUpgradeDetail, type UpgradeDetail } from "@/lib/upgrade";
+import { UpgradeCard } from "@/components/billing/UpgradeCard";
 import { GraphMap } from "./GraphMap";
 
 export default async function GraphMapPage() {
@@ -8,10 +10,12 @@ export default async function GraphMapPage() {
 
   let data: Awaited<ReturnType<typeof fetchGraphSubgraph>> | null = null;
   let apiError: string | null = null;
+  let upgrade: UpgradeDetail | null = null;
   try {
     data = await fetchGraphSubgraph(500);
   } catch (e: unknown) {
     apiError = e instanceof Error ? e.message : String(e);
+    upgrade = parseUpgradeDetail(apiError);
   }
 
   return (
@@ -38,7 +42,9 @@ export default async function GraphMapPage() {
         ) : null}
       </header>
 
-      {apiError ? (
+      {upgrade ? (
+        <UpgradeCard {...upgrade} />
+      ) : apiError ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
           <strong>Cannot load graph.</strong>
           <div className="mt-1 font-mono text-xs text-destructive/80">{apiError}</div>

@@ -1,9 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { getRailwayToken, RAILWAY_API_BASE } from "@/lib/railway";
+import { parseUpgradeDetail, type UpgradeDetail } from "@/lib/upgrade";
+import { UpgradeCard } from "@/components/billing/UpgradeCard";
 import NewCorrectionForm from "./NewCorrectionForm";
 import CorrectionsList, { type Correction } from "./CorrectionsList";
 
-async function loadCorrections(): Promise<{ corrections: Correction[]; error: string | null }> {
+async function loadCorrections(): Promise<{
+  corrections: Correction[];
+  error: string | null;
+  upgrade: UpgradeDetail | null;
+}> {
   try {
     const token = await getRailwayToken();
     const resp = await fetch(`${RAILWAY_API_BASE}/api/corrections?active_only=true`, {
@@ -11,18 +17,24 @@ async function loadCorrections(): Promise<{ corrections: Correction[]; error: st
       cache: "no-store",
     });
     if (!resp.ok) {
-      return { corrections: [], error: `${resp.status} ${resp.statusText}` };
+      const body = await resp.text().catch(() => "");
+      const upgrade = parseUpgradeDetail(body);
+      return { corrections: [], error: `${resp.status} ${resp.statusText}`, upgrade };
     }
     const data = await resp.json();
-    return { corrections: data.corrections ?? [], error: null };
+    return { corrections: data.corrections ?? [], error: null, upgrade: null };
   } catch (e: unknown) {
-    return { corrections: [], error: e instanceof Error ? e.message : String(e) };
+    return {
+      corrections: [],
+      error: e instanceof Error ? e.message : String(e),
+      upgrade: null,
+    };
   }
 }
 
 export default async function CorrectionsPage() {
   const { orgSlug } = await auth();
-  const { corrections, error } = await loadCorrections();
+  const { corrections, error, upgrade } = await loadCorrections();
 
   const byScope: Record<string, Correction[]> = {};
   for (const c of corrections) {
@@ -49,9 +61,9 @@ export default async function CorrectionsPage() {
         </p>
       </header>
 
-      <NewCorrectionForm />
+      {upgrade ? <UpgradeCard {...upgrade} /> : <NewCorrectionForm />}
 
-      {error ? (
+      {upgrade ? null : error ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
           <strong>Railway API unreachable.</strong>
           <div className="text-destructive/70 text-xs mt-1 font-mono">{error}</div>
