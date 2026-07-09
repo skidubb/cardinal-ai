@@ -87,6 +87,7 @@ async def list_corrections(
 async def create_correction(
     payload: CorrectionIn,
     auth=Depends(get_auth_with_org),
+    tenant_slug: str = Depends(resolve_tenant),
     _feature: TenantEntitlements = Depends(_require_graph),
 ) -> CorrectionOut:
     if payload.scope != "global" and not payload.target_id:
@@ -95,7 +96,9 @@ async def create_correction(
             detail=f"Correction scope '{payload.scope}' requires a target_id "
             "(e.g. client name, protocol code, agent key, decision id).",
         )
-    q = _get_queries(auth.org_slug or "cardinal-element")
+    # resolve_tenant canonicalizes the Clerk slug (strips the numeric suffix);
+    # auth.org_slug is the raw value and may not match a provisioned tenant.
+    q = _get_queries(tenant_slug)
     correction_id = f"cor_{uuid.uuid4().hex[:16]}"
     q.write_correction(
         correction_id=correction_id,
