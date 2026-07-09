@@ -1,0 +1,14 @@
+slug: scott-s-organization
+display_name: Scott's Organization
+vertical: AI-Native Growth Architecture Consulting
+description: Scott's personal Clerk org -- internal dogfooding tenant for the portal.
+primary_contact: scott.e.ewalt@gmail.com
+seeded_protocols: true
+connectors:
+  notion: {enabled: false, auth: mcp}
+  granola: {enabled: false, auth: mcp}
+  hubspot: {enabled: false}
+notes: |
+  Provisioned 2026-07-08 for portal dogfooding (Clerk org
+  scott-s-organization-1783196445312354103; the API canonicalizes the slug
+  by stripping the numeric suffix). Backfill from /knowledge when needed.
