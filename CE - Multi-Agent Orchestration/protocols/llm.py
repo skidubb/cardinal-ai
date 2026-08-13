@@ -354,6 +354,14 @@ async def llm_complete(
     kwargs = _apply_cache_control(kwargs)
     response = await _retry_api_call(client.messages.create, **kwargs)
     model = kwargs.get("model", "unknown")
+    if getattr(response, "stop_reason", None) == "max_tokens":
+        _log.warning(
+            "llm_complete: output TRUNCATED at max_tokens=%s (model=%s, agent=%s) — "
+            "downstream parsing of this response is unreliable",
+            kwargs.get("max_tokens"),
+            model,
+            agent_name,
+        )
     _record_usage(
         model, response, agent_name=agent_name, input_messages=kwargs.get("messages")
     )
@@ -873,8 +881,15 @@ def parse_json_array(text: str) -> list:
             )
 
 
-def parse_json_object(text: str) -> dict:
-    """Extract the first JSON object from text."""
+def parse_json_object(text: str, *, strict: bool = False) -> dict:
+    """Extract the first JSON object from text.
+
+    By default returns {} when nothing parses (legacy contract — dozens of
+    protocol orchestrators rely on it with .get() defaults). With strict=True,
+    raises ValueError instead so callers can distinguish truncated/malformed
+    LLM output from a genuinely empty result. Either way the failure is
+    logged — a truncated response must never silently become "no results".
+    """
     import re
 
     try:
@@ -893,4 +908,15 @@ def parse_json_object(text: str) -> dict:
             return json.loads(match.group(0))
         except json.JSONDecodeError:
             pass
+    _log.warning(
+        "parse_json_object: no parseable JSON object in LLM output "
+        "(len=%d, tail=%r) — likely truncated at max_tokens",
+        len(text),
+        text[-200:],
+    )
+    if strict:
+        raise ValueError(
+            f"No parseable JSON object in LLM output ({len(text)} chars — "
+            "likely truncated at max_tokens)"
+        )
     return {}

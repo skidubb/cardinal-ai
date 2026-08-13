@@ -35,7 +35,10 @@ router = APIRouter(prefix="/api", tags=["discover"])
 
 # Token thresholds: if the doc is huge, pre-summarize with Haiku before Opus.
 MAX_INLINE_TOKENS = 50_000
-POST_SUMMARY_TARGET_TOKENS = 40_000
+# Must stay comfortably under the summarize call's max_tokens (16000) or the
+# summary gets truncated mid-sentence — the target is what we ASK the model
+# for, max_tokens is the hard cap that enforces it.
+POST_SUMMARY_TARGET_TOKENS = 12_000
 ESTIMATED_CHARS_PER_TOKEN = 4
 
 AcceptedFileType = Literal["text", "pdf", "docx"]
@@ -371,7 +374,7 @@ async def _maybe_summarize(
     resp = await llm_complete(
         client,
         model=ORCHESTRATION_MODEL,
-        max_tokens=8192,
+        max_tokens=16000,
         messages=[{"role": "user", "content": prompt}],
         agent_name="discover_summarize",
     )
@@ -385,24 +388,33 @@ async def _discover_questions(
         catalog=_catalog_to_prompt_block(catalog),
         document=document,
     )
+    # 5-12 questions x 5 ranked protocols with rationales routinely exceeds
+    # 4096 output tokens on content-rich documents; 16000 is the non-streaming
+    # safe ceiling and leaves ample headroom (Opus supports up to 128K).
     resp = await llm_complete(
         client,
         model=THINKING_MODEL,
-        max_tokens=4096,
+        max_tokens=16000,
         system=DISCOVER_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
         agent_name="discover_questions",
     )
     raw = extract_text(resp)
     try:
-        return parse_json_object(raw)
+        # strict=True: a truncated/malformed response raises instead of
+        # silently becoming {} and masquerading as "no valid questions".
+        return parse_json_object(raw, strict=True)
     except Exception as exc:
         _log.warning(
             "discover_questions JSON parse failed: %s\nRAW=%s", exc, raw[:1000]
         )
         raise HTTPException(
             status_code=502,
-            detail="LLM returned unparseable JSON. Try a different document or retry.",
+            detail=(
+                "Question discovery hit a model output error (truncated or "
+                "malformed response). This is on us, not your document — "
+                "please retry."
+            ),
         ) from exc
 
 
